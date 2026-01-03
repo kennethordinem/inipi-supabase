@@ -750,39 +750,400 @@ async function getShopProducts() {
   throw new Error('Not implemented');
 }
 
+/**
+ * Get available gusmester spots (sessions with released guest spots)
+ */
 async function getAvailableGusmesterSpots(): Promise<{ spots: any[] }> {
-  // TODO: Implement gusmester spots
-  return { spots: [] };
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get guest spots that are released to public
+  const { data, error } = await supabase
+    .from('guest_spots')
+    .select(`
+      *,
+      sessions!inner(
+        id,
+        name,
+        date,
+        time,
+        duration,
+        location,
+        status
+      ),
+      host_employee:employees!host_employee_id(
+        name
+      )
+    `)
+    .eq('status', 'released_to_public')
+    .gte('sessions.date', new Date().toISOString().split('T')[0])
+    .eq('sessions.status', 'active');
+
+  if (error) throw new Error(error.message);
+
+  const spots = (data || []).map(spot => ({
+    id: spot.session_id,
+    name: spot.sessions.name,
+    date: spot.sessions.date,
+    time: spot.sessions.time,
+    duration: spot.sessions.duration,
+    location: spot.sessions.location,
+    hostName: spot.host_employee?.name || 'Unknown',
+    pointCost: 150, // Standard cost
+  }));
+
+  return { spots };
 }
 
+/**
+ * Get my gusmester bookings
+ */
 async function getMyGusmesterBookings(): Promise<{ bookings: any[] }> {
-  // TODO: Implement gusmester bookings
-  return { bookings: [] };
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get employee record
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!employee) return { bookings: [] };
+
+  // Get gusmester bookings
+  const { data, error } = await supabase
+    .from('gusmester_bookings')
+    .select(`
+      *,
+      sessions!inner(
+        id,
+        name,
+        date,
+        time,
+        duration,
+        location
+      ),
+      guest_spots!inner(
+        host_employee_id,
+        employees!host_employee_id(
+          name
+        )
+      )
+    `)
+    .eq('employee_id', employee.id)
+    .eq('status', 'active')
+    .gte('sessions.date', new Date().toISOString().split('T')[0]);
+
+  if (error) throw new Error(error.message);
+
+  const bookings = (data || []).map(booking => {
+    const sessionDate = new Date(`${booking.sessions.date}T${booking.sessions.time}`);
+    const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
+    
+    return {
+      id: booking.id,
+      name: booking.sessions.name,
+      date: booking.sessions.date,
+      time: booking.sessions.time,
+      duration: booking.sessions.duration,
+      location: booking.sessions.location,
+      hostName: booking.guest_spots?.employees?.name || 'Unknown',
+      canCancel: hoursUntil > 24, // Can cancel if more than 24 hours
+    };
+  });
+
+  return { bookings };
 }
 
+/**
+ * Book a gusmester spot (costs 150 points)
+ */
 async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean; newPoints: number }> {
-  // TODO: Implement book gusmester spot
-  throw new Error('Gusmester features not yet implemented');
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get employee record
+  const { data: employee, error: empError } = await supabase
+    .from('employees')
+    .select('id, points')
+    .eq('user_id', user.id)
+    .single();
+
+  if (empError || !employee) throw new Error('Not an employee');
+  if (employee.points < 150) throw new Error('Insufficient points');
+
+  // Create gusmester booking
+  const { error: bookingError } = await supabase
+    .from('gusmester_bookings')
+    .insert({
+      employee_id: employee.id,
+      session_id: sessionId,
+      point_cost: 150,
+      status: 'active',
+    });
+
+  if (bookingError) throw new Error(bookingError.message);
+
+  // Deduct points
+  const newPoints = employee.points - 150;
+  const { error: updateError } = await supabase
+    .from('employees')
+    .update({ points: newPoints })
+    .eq('id', employee.id);
+
+  if (updateError) throw new Error(updateError.message);
+
+  // Record points history
+  await supabase.from('employee_points_history').insert({
+    employee_id: employee.id,
+    amount: -150,
+    reason: 'Booked gusmester spot',
+    related_session_id: sessionId,
+  });
+
+  // Update guest spot status
+  await supabase
+    .from('guest_spots')
+    .update({ status: 'booked_by_gusmester' })
+    .eq('session_id', sessionId)
+    .eq('status', 'released_to_public');
+
+  return { success: true, newPoints };
 }
 
+/**
+ * Cancel a gusmester booking (refund 150 points if >24h before)
+ */
 async function cancelGusmesterBooking(bookingId: string): Promise<{ success: boolean; newPoints: number }> {
-  // TODO: Implement cancel gusmester booking
-  throw new Error('Gusmester features not yet implemented');
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get booking details
+  const { data: booking, error: bookingError } = await supabase
+    .from('gusmester_bookings')
+    .select(`
+      *,
+      sessions(date, time),
+      employees(id, points, user_id)
+    `)
+    .eq('id', bookingId)
+    .single();
+
+  if (bookingError || !booking) throw new Error('Booking not found');
+  if (booking.employees.user_id !== user.id) throw new Error('Not your booking');
+
+  // Check if can cancel (>24h before)
+  const sessionDate = new Date(`${booking.sessions.date}T${booking.sessions.time}`);
+  const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
+  
+  if (hoursUntil <= 24) {
+    throw new Error('Cannot cancel less than 24 hours before session');
+  }
+
+  // Cancel booking
+  const { error: cancelError } = await supabase
+    .from('gusmester_bookings')
+    .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+    .eq('id', bookingId);
+
+  if (cancelError) throw new Error(cancelError.message);
+
+  // Refund points
+  const newPoints = booking.employees.points + 150;
+  await supabase
+    .from('employees')
+    .update({ points: newPoints })
+    .eq('id', booking.employee_id);
+
+  // Record points history
+  await supabase.from('employee_points_history').insert({
+    employee_id: booking.employee_id,
+    amount: 150,
+    reason: 'Gusmester booking cancelled',
+    related_booking_id: bookingId,
+  });
+
+  // Release guest spot back to public
+  await supabase
+    .from('guest_spots')
+    .update({ status: 'released_to_public' })
+    .eq('session_id', booking.session_id);
+
+  return { success: true, newPoints };
 }
 
+/**
+ * Get sessions where I'm hosting (have a guest spot)
+ */
 async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
-  // TODO: Implement hosting sessions
-  return { sessions: [] };
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get employee record
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!employee) return { sessions: [] };
+
+  // Get sessions where I'm assigned as employee
+  const { data, error } = await supabase
+    .from('session_employees')
+    .select(`
+      session_id,
+      sessions!inner(
+        id,
+        name,
+        date,
+        time,
+        duration,
+        location
+      ),
+      guest_spots!session_id(
+        id,
+        status,
+        guest_name,
+        guest_email,
+        host_employee_id
+      )
+    `)
+    .eq('employee_id', employee.id)
+    .gte('sessions.date', new Date().toISOString().split('T')[0]);
+
+  if (error) throw new Error(error.message);
+
+  const sessions = (data || [])
+    .filter(item => {
+      // Only show sessions where I'm the host of the guest spot
+      const guestSpot = Array.isArray(item.guest_spots) ? item.guest_spots[0] : item.guest_spots;
+      return guestSpot && guestSpot.host_employee_id === employee.id;
+    })
+    .map(item => {
+      const session = Array.isArray(item.sessions) ? item.sessions[0] : item.sessions;
+      const guestSpot = Array.isArray(item.guest_spots) ? item.guest_spots[0] : item.guest_spots;
+      
+      const sessionDate = new Date(`${session.date}T${session.time}`);
+      const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
+
+      return {
+        id: session.id,
+        name: session.name,
+        date: session.date,
+        time: session.time,
+        duration: session.duration,
+        location: session.location,
+        guestSpotStatus: guestSpot.status,
+        guestName: guestSpot.guest_name,
+        guestEmail: guestSpot.guest_email,
+        canRelease: guestSpot.status === 'reserved_for_host',
+        willEarnPoints: hoursUntil > 3,
+        hoursUntilEvent: hoursUntil,
+      };
+    });
+
+  return { sessions };
 }
 
+/**
+ * Release guest spot to public (earn 150 points if >3h before)
+ */
 async function releaseGuestSpot(sessionId: string): Promise<{ success: boolean; earnedPoints: boolean; newPoints: number }> {
-  // TODO: Implement release guest spot
-  throw new Error('Gusmester features not yet implemented');
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get employee record
+  const { data: employee, error: empError } = await supabase
+    .from('employees')
+    .select('id, points')
+    .eq('user_id', user.id)
+    .single();
+
+  if (empError || !employee) throw new Error('Not an employee');
+
+  // Get session details
+  const { data: session, error: sessionError } = await supabase
+    .from('sessions')
+    .select('date, time')
+    .eq('id', sessionId)
+    .single();
+
+  if (sessionError) throw new Error(sessionError.message);
+
+  // Check hours until event
+  const sessionDate = new Date(`${session.date}T${session.time}`);
+  const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
+  const earnPoints = hoursUntil > 3;
+
+  // Update guest spot status
+  const { error: updateError } = await supabase
+    .from('guest_spots')
+    .update({
+      status: 'released_to_public',
+      released_at: new Date().toISOString(),
+      points_earned: earnPoints,
+    })
+    .eq('session_id', sessionId)
+    .eq('host_employee_id', employee.id);
+
+  if (updateError) throw new Error(updateError.message);
+
+  let newPoints = employee.points;
+
+  // Award points if released >3h before
+  if (earnPoints) {
+    newPoints = employee.points + 150;
+    await supabase
+      .from('employees')
+      .update({ points: newPoints })
+      .eq('id', employee.id);
+
+    // Record points history
+    await supabase.from('employee_points_history').insert({
+      employee_id: employee.id,
+      amount: 150,
+      reason: 'Released guest spot to public',
+      related_session_id: sessionId,
+    });
+  }
+
+  return { success: true, earnedPoints: earnPoints, newPoints };
 }
 
+/**
+ * Book a guest for my hosting session
+ */
 async function bookGuestForSession(sessionId: string, guestName: string, guestEmail: string, guestPhone?: string): Promise<{ success: boolean; guestName: string }> {
-  // TODO: Implement book guest
-  throw new Error('Gusmester features not yet implemented');
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get employee record
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!employee) throw new Error('Not an employee');
+
+  // Update guest spot with guest details
+  const { error } = await supabase
+    .from('guest_spots')
+    .update({
+      status: 'booked_by_host',
+      guest_name: guestName,
+      guest_email: guestEmail,
+      guest_phone: guestPhone || null,
+    })
+    .eq('session_id', sessionId)
+    .eq('host_employee_id', employee.id)
+    .eq('status', 'reserved_for_host');
+
+  if (error) throw new Error(error.message);
+
+  return { success: true, guestName };
 }
 
 async function getStaffSessions(filters?: any): Promise<{ sessions: any[]; count: number }> {
