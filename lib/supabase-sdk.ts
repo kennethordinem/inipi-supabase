@@ -353,6 +353,16 @@ async function bookSession(params: {
 
   if (bookingError) throw new Error(bookingError.message);
 
+  // Get session details for invoice
+  const { data: sessionData } = await supabase
+    .from('sessions')
+    .select('name, price')
+    .eq('id', params.sessionId)
+    .single();
+
+  const sessionPrice = sessionData?.price || 0;
+  const totalAmount = sessionPrice * params.spots;
+
   // Update session participants
   const { error: updateError } = await supabase.rpc('increment_session_participants', {
     session_id: params.sessionId,
@@ -374,6 +384,28 @@ async function bookSession(params: {
     if (punchError) {
       console.error('Error using punch card:', punchError);
     }
+  }
+
+  // Create invoice for this booking
+  const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+  const { error: invoiceError } = await supabase
+    .from('invoices')
+    .insert({
+      user_id: user.id,
+      invoice_number: invoiceNumber,
+      amount: totalAmount,
+      vat_amount: 0, // No VAT for now
+      total_amount: totalAmount,
+      description: `${sessionData?.name || 'Saunagus'} - ${params.spots} plads${params.spots > 1 ? 'er' : ''}`,
+      payment_method: params.paymentMethod,
+      payment_status: params.paymentMethod === 'stripe' ? 'paid' : params.paymentMethod === 'punch_card' ? 'paid' : 'pending',
+      stripe_payment_intent_id: params.paymentIntentId,
+      booking_id: booking.id,
+      paid_at: params.paymentMethod === 'stripe' || params.paymentMethod === 'punch_card' ? new Date().toISOString() : null,
+    });
+
+  if (invoiceError) {
+    console.error('Error creating invoice:', invoiceError);
   }
 
   return {
@@ -421,20 +453,52 @@ async function cancelBooking(bookingId: string): Promise<{
     decrement_by: booking.spots,
   });
 
-  // Restore punch card if used
+  // Restore punch card if used, or create compensation punch card if paid
   let punchCardRestored = false;
+  let compensationMessage = '';
+  
   if (booking.punch_card_id) {
+    // Restore punches to existing punch card
     await supabase.rpc('restore_punch_card', {
       card_id: booking.punch_card_id,
       spots_to_restore: booking.spots,
     });
     punchCardRestored = true;
+    compensationMessage = `Dine ${booking.spots} klip er blevet returneret til dit klippekort`;
+  } else if (booking.payment_method === 'stripe' || booking.payment_method === 'card' || booking.payment_method === 'manual') {
+    // Create compensation punch card for paid bookings
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('group_type_id, price')
+      .eq('id', booking.session_id)
+      .single();
+
+    const { error: punchCardError } = await supabase
+      .from('punch_cards')
+      .insert({
+        user_id: user.id,
+        name: `Kompensation - Aflyst booking`,
+        total_punches: booking.spots,
+        remaining_punches: booking.spots,
+        price: 0,
+        valid_for_group_types: session?.group_type_id ? [session.group_type_id] : [],
+        status: 'active',
+      });
+
+    if (punchCardError) {
+      console.error('Error creating compensation punch card:', punchCardError);
+      compensationMessage = 'Booking aflyst';
+    } else {
+      compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip som kompensation`;
+    }
+  } else {
+    compensationMessage = 'Booking aflyst';
   }
 
   return {
     success: true,
     punchCardRestored,
-    message: 'Booking cancelled successfully',
+    message: compensationMessage,
   };
 }
 
@@ -723,7 +787,17 @@ async function getPaymentHistory(limit?: number): Promise<{ payments: any[] }> {
 
   if (error) throw new Error(error.message);
 
-  return { payments: data || [] };
+  // Format invoices to match expected payment format
+  const payments = (data || []).map(invoice => ({
+    id: invoice.id,
+    amount: parseFloat(invoice.total_amount || invoice.amount || 0),
+    description: invoice.description,
+    date: invoice.paid_at || invoice.created_at,
+    status: invoice.payment_status,
+    method: invoice.payment_method,
+  }));
+
+  return { payments };
 }
 
 // ============================================

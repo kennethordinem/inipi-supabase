@@ -6,8 +6,7 @@ import type { AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { User, Mail, Phone, MapPin, Calendar, Lock, Save, Eye, EyeOff } from 'lucide-react';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential, getAuth } from 'firebase/auth';
-import { getFirebaseApp } from '@/lib/firebase';
+import { supabase } from '@/lib/supabase';
 
 interface ProfileData {
   id: string;
@@ -126,14 +125,6 @@ export default function ProfilePage() {
   };
 
   const handleChangePassword = async () => {
-    const auth = getAuth(getFirebaseApp());
-    const currentUser = auth.currentUser;
-    
-    if (!currentUser) {
-      setPasswordError('Ikke logget ind');
-      return;
-    }
-
     // Validation
     if (!currentPassword || !newPassword || !confirmPassword) {
       setPasswordError('Udfyld alle felter');
@@ -154,12 +145,33 @@ export default function ProfilePage() {
       setIsChangingPassword(true);
       setPasswordError('');
 
-      // Re-authenticate user
-      const credential = EmailAuthProvider.credential(currentUser.email!, currentPassword);
-      await reauthenticateWithCredential(currentUser, credential);
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        setPasswordError('Ikke logget ind');
+        return;
+      }
+
+      // Supabase requires re-authentication by signing in with current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        setPasswordError('Forkert nuværende adgangskode');
+        return;
+      }
 
       // Update password
-      await updatePassword(currentUser, newPassword);
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
 
       // Clear form
       setCurrentPassword('');
@@ -172,13 +184,7 @@ export default function ProfilePage() {
 
     } catch (err: any) {
       console.error('[Profile] Error changing password:', err);
-      if (err.code === 'auth/wrong-password') {
-        setPasswordError('Forkert nuværende adgangskode');
-      } else if (err.code === 'auth/too-many-requests') {
-        setPasswordError('For mange forsøg. Prøv igen senere.');
-      } else {
-        setPasswordError('Kunne ikke ændre adgangskode');
-      }
+      setPasswordError(err.message || 'Kunne ikke ændre adgangskode');
     } finally {
       setIsChangingPassword(false);
     }
