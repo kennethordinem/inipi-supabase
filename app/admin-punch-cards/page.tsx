@@ -156,7 +156,7 @@ export default function AdminPunchCardsPage() {
         .from('punch_cards')
         .select(`
           *,
-          profiles:user_id (
+          profiles!user_id (
             first_name,
             last_name,
             email
