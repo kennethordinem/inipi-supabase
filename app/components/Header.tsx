@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { Calendar, User, ChevronDown, LogOut, Menu, X, Home, Mail, Info, ShoppingBag, Receipt, Star, Ticket, Users } from 'lucide-react';
+import { Calendar, User, ChevronDown, LogOut, Menu, X, Home, Mail, Info, ShoppingBag, Receipt, Star, Ticket, Users, Settings } from 'lucide-react';
 import { members } from '@/lib/supabase-sdk';
 import { cachedMembers } from '@/lib/cachedMembers';
 import type { AuthState } from '@/lib/supabase-sdk';
@@ -125,10 +125,7 @@ export function Header() {
       profileDropdownEmployee.push({ name: 'Medarbejder', href: '/personale', icon: Users, isSeparated: true });
     }
     if (frontendPermissions.administration) {
-      profileDropdownEmployee.push({ name: 'Medlemmer', href: '/administration', icon: Users, isSeparated: true });
-      profileDropdownEmployee.push({ name: 'Sessioner', href: '/admin-sessions', icon: Calendar });
-      profileDropdownEmployee.push({ name: 'Klippekort', href: '/admin-punch-cards', icon: Ticket });
-      profileDropdownEmployee.push({ name: 'Opret Bruger', href: '/admin-users', icon: User });
+      profileDropdownEmployee.push({ name: 'Administration', href: '/admin', icon: Settings, isSeparated: true });
     }
   }
 
