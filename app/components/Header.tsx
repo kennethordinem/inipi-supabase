@@ -125,7 +125,9 @@ export function Header() {
       profileDropdownEmployee.push({ name: 'Medarbejder', href: '/personale', icon: Users, isSeparated: true });
     }
     if (frontendPermissions.administration) {
-      profileDropdownEmployee.push({ name: 'Administration', href: '/administration', icon: Users, isSeparated: true });
+      profileDropdownEmployee.push({ name: 'Medlemmer', href: '/administration', icon: Users, isSeparated: true });
+      profileDropdownEmployee.push({ name: 'Sessioner', href: '/admin-sessions', icon: Calendar });
+      profileDropdownEmployee.push({ name: 'Opret Bruger', href: '/admin-users', icon: User });
     }
   }
 

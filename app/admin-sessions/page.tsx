@@ -1,0 +1,734 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { members } from '@/lib/supabase-sdk';
+import { supabase } from '@/lib/supabase';
+import type { AuthState } from '@/lib/supabase-sdk';
+import { Header } from '../components/Header';
+import { Footer } from '../components/Footer';
+import { 
+  Calendar, Clock, Users, MapPin, Plus, Edit, Trash2, X, 
+  Save, Loader2, AlertCircle, CheckCircle 
+} from 'lucide-react';
+import { format, addDays } from 'date-fns';
+import { da } from 'date-fns/locale';
+
+interface Session {
+  id: string;
+  name: string;
+  description: string;
+  date: string;
+  time: string;
+  duration: number;
+  max_participants: number;
+  current_participants: number;
+  price: number;
+  location: string;
+  group_type_id: string;
+  status: string;
+  group_types?: {
+    name: string;
+    color: string;
+  };
+}
+
+interface GroupType {
+  id: string;
+  name: string;
+  color: string;
+  description: string;
+}
+
+interface Employee {
+  id: string;
+  name: string;
+}
+
+interface Theme {
+  id: string;
+  name: string;
+}
+
+export default function AdminSessionsPage() {
+  const [hasAccess, setHasAccess] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [groupTypes, setGroupTypes] = useState<GroupType[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+    time: '17:00',
+    duration: 90,
+    max_participants: 12,
+    price: 150,
+    location: 'Havkajakvej, Amagerstrand',
+    group_type_id: '',
+    employee_ids: [] as string[],
+    theme_ids: [] as string[],
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = members.onAuthStateChanged(async (authState: AuthState) => {
+      if (!authState.isLoading) {
+        if (!authState.isAuthenticated) {
+          window.location.href = '/login';
+        } else {
+          try {
+            const employeeCheck = await members.checkIfEmployee();
+            if (employeeCheck.isEmployee && employeeCheck.frontendPermissions?.administration) {
+              setHasAccess(true);
+              setIsCheckingAuth(false);
+              loadData();
+            } else {
+              setHasAccess(false);
+              setIsCheckingAuth(false);
+              setError('Du har ikke adgang til session administration.');
+            }
+          } catch (err: any) {
+            console.error('Error checking access:', err);
+            setHasAccess(false);
+            setIsCheckingAuth(false);
+            setError('Kunne ikke verificere adgang.');
+          }
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Load sessions
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('sessions')
+        .select(`
+          *,
+          group_types (name, color)
+        `)
+        .gte('date', format(new Date(), 'yyyy-MM-dd'))
+        .order('date', { ascending: true })
+        .order('time', { ascending: true });
+
+      if (sessionsError) throw sessionsError;
+      setSessions(sessionsData || []);
+
+      // Load group types
+      const { data: groupTypesData, error: groupTypesError } = await supabase
+        .from('group_types')
+        .select('*')
+        .eq('status', 'active')
+        .order('name');
+
+      if (groupTypesError) throw groupTypesError;
+      setGroupTypes(groupTypesData || []);
+
+      // Load employees
+      const { data: employeesData, error: employeesError } = await supabase
+        .from('employees')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name');
+
+      if (employeesError) throw employeesError;
+      setEmployees(employeesData || []);
+
+      // Load themes
+      const { data: themesData, error: themesError } = await supabase
+        .from('themes')
+        .select('id, name')
+        .eq('status', 'active')
+        .order('name');
+
+      if (themesError) throw themesError;
+      setThemes(themesData || []);
+
+    } catch (err: any) {
+      console.error('Error loading data:', err);
+      setError(err.message || 'Kunne ikke indlæse data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = () => {
+    setEditingSession(null);
+    setFormData({
+      name: '',
+      description: '',
+      date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      time: '17:00',
+      duration: 90,
+      max_participants: 12,
+      price: 150,
+      location: 'Havkajakvej, Amagerstrand',
+      group_type_id: groupTypes[0]?.id || '',
+      employee_ids: [],
+      theme_ids: [],
+    });
+    setShowModal(true);
+  };
+
+  const handleEdit = async (session: Session) => {
+    setEditingSession(session);
+
+    // Load session employees and themes
+    const { data: sessionEmployees } = await supabase
+      .from('session_employees')
+      .select('employee_id')
+      .eq('session_id', session.id);
+
+    const { data: sessionThemes } = await supabase
+      .from('session_themes')
+      .select('theme_id')
+      .eq('session_id', session.id);
+
+    setFormData({
+      name: session.name,
+      description: session.description || '',
+      date: session.date,
+      time: session.time,
+      duration: session.duration,
+      max_participants: session.max_participants,
+      price: session.price,
+      location: session.location || 'Havkajakvej, Amagerstrand',
+      group_type_id: session.group_type_id,
+      employee_ids: sessionEmployees?.map(se => se.employee_id) || [],
+      theme_ids: sessionThemes?.map(st => st.theme_id) || [],
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (sessionId: string) => {
+    if (!confirm('Er du sikker på at du vil slette denne session? Dette kan ikke fortrydes.')) {
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      const { error: deleteError } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', sessionId);
+
+      if (deleteError) throw deleteError;
+
+      setSuccess('Session slettet');
+      loadData();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      console.error('Error deleting session:', err);
+      setError(err.message || 'Kunne ikke slette session');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      if (editingSession) {
+        // Update existing session
+        const { error: updateError } = await supabase
+          .from('sessions')
+          .update({
+            name: formData.name,
+            description: formData.description,
+            date: formData.date,
+            time: formData.time,
+            duration: formData.duration,
+            max_participants: formData.max_participants,
+            price: formData.price,
+            location: formData.location,
+            group_type_id: formData.group_type_id,
+          })
+          .eq('id', editingSession.id);
+
+        if (updateError) throw updateError;
+
+        // Update session employees
+        await supabase.from('session_employees').delete().eq('session_id', editingSession.id);
+        if (formData.employee_ids.length > 0) {
+          const { error: employeesError } = await supabase
+            .from('session_employees')
+            .insert(formData.employee_ids.map(emp_id => ({
+              session_id: editingSession.id,
+              employee_id: emp_id
+            })));
+          if (employeesError) throw employeesError;
+        }
+
+        // Update session themes
+        await supabase.from('session_themes').delete().eq('session_id', editingSession.id);
+        if (formData.theme_ids.length > 0) {
+          const { error: themesError } = await supabase
+            .from('session_themes')
+            .insert(formData.theme_ids.map(theme_id => ({
+              session_id: editingSession.id,
+              theme_id: theme_id
+            })));
+          if (themesError) throw themesError;
+        }
+
+        setSuccess('Session opdateret');
+      } else {
+        // Create new session
+        const { data: newSession, error: insertError } = await supabase
+          .from('sessions')
+          .insert({
+            name: formData.name,
+            description: formData.description,
+            date: formData.date,
+            time: formData.time,
+            duration: formData.duration,
+            max_participants: formData.max_participants,
+            current_participants: 0,
+            price: formData.price,
+            location: formData.location,
+            group_type_id: formData.group_type_id,
+            status: 'active',
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        // Add session employees
+        if (formData.employee_ids.length > 0) {
+          const { error: employeesError } = await supabase
+            .from('session_employees')
+            .insert(formData.employee_ids.map(emp_id => ({
+              session_id: newSession.id,
+              employee_id: emp_id
+            })));
+          if (employeesError) throw employeesError;
+        }
+
+        // Add session themes
+        if (formData.theme_ids.length > 0) {
+          const { error: themesError } = await supabase
+            .from('session_themes')
+            .insert(formData.theme_ids.map(theme_id => ({
+              session_id: newSession.id,
+              theme_id: theme_id
+            })));
+          if (themesError) throw themesError;
+        }
+
+        setSuccess('Session oprettet');
+      }
+
+      setShowModal(false);
+      loadData();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      console.error('Error saving session:', err);
+      setError(err.message || 'Kunne ikke gemme session');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-[#faf8f5] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#502B30]" />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-[#faf8f5]">
+        <Header />
+        <main className="container mx-auto px-4 py-12">
+          <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Ingen Adgang</h1>
+            <p className="text-gray-600">{error}</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#faf8f5]">
+      <Header />
+      
+      <main className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Session Administration</h1>
+            <p className="text-gray-600 mt-1">Opret og administrer sauna sessioner</p>
+          </div>
+          <button
+            onClick={handleCreate}
+            className="flex items-center space-x-2 px-4 py-2 bg-[#502B30] text-amber-50 rounded-lg hover:bg-[#5e3023] transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Ny Session</span>
+          </button>
+        </div>
+
+        {/* Success/Error Messages */}
+        {success && (
+          <div className="mb-6 flex items-center space-x-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <CheckCircle className="w-5 h-5 text-green-500" />
+            <span className="text-green-700">{success}</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 flex items-center space-x-2 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <span className="text-red-700">{error}</span>
+          </div>
+        )}
+
+        {/* Sessions List */}
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-[#502B30]" />
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow">
+            <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">Ingen sessioner endnu. Opret den første!</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {sessions.map(session => (
+              <div
+                key={session.id}
+                className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="text-xl font-semibold text-gray-900">{session.name}</h3>
+                      <span
+                        className="px-3 py-1 rounded-full text-sm font-medium"
+                        style={{
+                          backgroundColor: `${session.group_types?.color}20`,
+                          color: session.group_types?.color
+                        }}
+                      >
+                        {session.group_types?.name}
+                      </span>
+                    </div>
+                    
+                    {session.description && (
+                      <p className="text-gray-600 mb-3">{session.description}</p>
+                    )}
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="flex items-center space-x-2 text-gray-600">
+                        <Calendar className="w-4 h-4" />
+                        <span>{format(new Date(session.date), 'dd. MMM yyyy', { locale: da })}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-gray-600">
+                        <Clock className="w-4 h-4" />
+                        <span>{session.time} ({session.duration} min)</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-gray-600">
+                        <Users className="w-4 h-4" />
+                        <span>{session.current_participants}/{session.max_participants}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-gray-600">
+                        <MapPin className="w-4 h-4" />
+                        <span>{session.location}</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 text-lg font-semibold text-[#502B30]">
+                      {session.price} DKK
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 ml-4">
+                    <button
+                      onClick={() => handleEdit(session)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Rediger"
+                    >
+                      <Edit className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(session.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Slet"
+                      disabled={session.current_participants > 0}
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {editingSession ? 'Rediger Session' : 'Ny Session'}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Navn *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  placeholder="F.eks. Fyraftensgus"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Beskrivelse
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  placeholder="Beskrivelse af sessionen..."
+                />
+              </div>
+
+              {/* Date and Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Dato *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tidspunkt *
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={formData.time}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Duration, Max Participants, Price */}
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Varighed (min) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="30"
+                    step="15"
+                    value={formData.duration}
+                    onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max deltagere *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={formData.max_participants}
+                    onChange={(e) => setFormData({ ...formData, max_participants: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Pris (DKK) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="50"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Location */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lokation *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                />
+              </div>
+
+              {/* Group Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type *
+                </label>
+                <select
+                  required
+                  value={formData.group_type_id}
+                  onChange={(e) => setFormData({ ...formData, group_type_id: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                >
+                  <option value="">Vælg type...</option>
+                  {groupTypes.map(gt => (
+                    <option key={gt.id} value={gt.id}>{gt.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Employees */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Gusmestre
+                </label>
+                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                  {employees.map(emp => (
+                    <label key={emp.id} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.employee_ids.includes(emp.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({ ...formData, employee_ids: [...formData.employee_ids, emp.id] });
+                          } else {
+                            setFormData({ ...formData, employee_ids: formData.employee_ids.filter(id => id !== emp.id) });
+                          }
+                        }}
+                        className="rounded text-[#502B30] focus:ring-[#502B30]"
+                      />
+                      <span className="text-sm text-gray-700">{emp.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Themes */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Temaer
+                </label>
+                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                  {themes.map(theme => (
+                    <label key={theme.id} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.theme_ids.includes(theme.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({ ...formData, theme_ids: [...formData.theme_ids, theme.id] });
+                          } else {
+                            setFormData({ ...formData, theme_ids: formData.theme_ids.filter(id => id !== theme.id) });
+                          }
+                        }}
+                        className="rounded text-[#502B30] focus:ring-[#502B30]"
+                      />
+                      <span className="text-sm text-gray-700">{theme.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Annuller
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex items-center space-x-2 px-6 py-2 bg-[#502B30] text-amber-50 rounded-lg hover:bg-[#5e3023] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Gemmer...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      <span>{editingSession ? 'Gem Ændringer' : 'Opret Session'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <Footer />
+    </div>
+  );
+}
+
