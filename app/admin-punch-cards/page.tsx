@@ -152,20 +152,46 @@ export default function AdminPunchCardsPage() {
 
   const loadPunchCards = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch punch cards
+      const { data: cardsData, error: cardsError } = await supabase
         .from('punch_cards')
-        .select(`
-          *,
-          profiles!user_id (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setPunchCards(data || []);
+      if (cardsError) throw cardsError;
+
+      if (!cardsData || cardsData.length === 0) {
+        setPunchCards([]);
+        return;
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(cardsData.map(card => card.user_id))];
+
+      // Fetch user profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email')
+        .in('id', userIds);
+
+      if (profilesError) throw profilesError;
+
+      // Create a map of user profiles
+      const profilesMap = new Map(
+        (profilesData || []).map(profile => [profile.id, profile])
+      );
+
+      // Combine the data
+      const combinedData = cardsData.map(card => ({
+        ...card,
+        profiles: profilesMap.get(card.user_id) || {
+          first_name: 'Unknown',
+          last_name: 'User',
+          email: 'N/A'
+        }
+      }));
+
+      setPunchCards(combinedData);
     } catch (err: any) {
       console.error('Error loading punch cards:', err);
       setError(err.message || 'Kunne ikke indlæse klippekort');
