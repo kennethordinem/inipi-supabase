@@ -812,46 +812,70 @@ async function getMyGusmesterBookings(): Promise<{ bookings: any[] }> {
   if (!employee) return { bookings: [] };
 
   // Get gusmester bookings
-  const { data, error } = await supabase
+  const { data: bookingsData, error: bookingsError } = await supabase
     .from('gusmester_bookings')
-    .select(`
-      *,
-      sessions!inner(
-        id,
-        name,
-        date,
-        time,
-        duration,
-        location
-      ),
-      guest_spots!inner(
-        host_employee_id,
-        employees!host_employee_id(
-          name
-        )
-      )
-    `)
+    .select('*')
     .eq('employee_id', employee.id)
-    .eq('status', 'active')
-    .gte('sessions.date', new Date().toISOString().split('T')[0]);
+    .eq('status', 'active');
 
-  if (error) throw new Error(error.message);
+  if (bookingsError) throw new Error(bookingsError.message);
+  if (!bookingsData || bookingsData.length === 0) return { bookings: [] };
 
-  const bookings = (data || []).map(booking => {
-    const sessionDate = new Date(`${booking.sessions.date}T${booking.sessions.time}`);
-    const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
-    
-    return {
-      id: booking.id,
-      name: booking.sessions.name,
-      date: booking.sessions.date,
-      time: booking.sessions.time,
-      duration: booking.sessions.duration,
-      location: booking.sessions.location,
-      hostName: booking.guest_spots?.employees?.name || 'Unknown',
-      canCancel: hoursUntil > 24, // Can cancel if more than 24 hours
-    };
-  });
+  // Get session IDs
+  const sessionIds = bookingsData.map(b => b.session_id);
+
+  // Fetch sessions
+  const { data: sessionsData, error: sessionsError } = await supabase
+    .from('sessions')
+    .select('*')
+    .in('id', sessionIds)
+    .gte('date', new Date().toISOString().split('T')[0]);
+
+  if (sessionsError) throw new Error(sessionsError.message);
+
+  // Fetch guest spots for these sessions
+  const { data: guestSpotsData, error: guestSpotsError } = await supabase
+    .from('guest_spots')
+    .select('session_id, host_employee_id')
+    .in('session_id', sessionIds);
+
+  if (guestSpotsError) throw new Error(guestSpotsError.message);
+
+  // Fetch host employees
+  const hostEmployeeIds = [...new Set((guestSpotsData || []).map(gs => gs.host_employee_id))];
+  const { data: employeesData } = await supabase
+    .from('employees')
+    .select('id, name')
+    .in('id', hostEmployeeIds);
+
+  // Create maps for easy lookup
+  const sessionsMap = new Map((sessionsData || []).map(s => [s.id, s]));
+  const guestSpotsMap = new Map((guestSpotsData || []).map(gs => [gs.session_id, gs]));
+  const employeesMap = new Map((employeesData || []).map(e => [e.id, e]));
+
+  const bookings = bookingsData
+    .map(booking => {
+      const session = sessionsMap.get(booking.session_id);
+      if (!session) return null;
+
+      const guestSpot = guestSpotsMap.get(booking.session_id);
+      const hostEmployee = guestSpot ? employeesMap.get(guestSpot.host_employee_id) : null;
+
+      const sessionDate = new Date(`${session.date}T${session.time}`);
+      const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
+      
+      return {
+        id: booking.id,
+        name: session.name,
+        date: session.date,
+        time: session.time,
+        duration: session.duration,
+        location: session.location,
+        hostName: hostEmployee?.name || 'Unknown',
+        canCancel: hoursUntil > 24,
+      };
+    })
+    .filter(b => b !== null);
 
   return { bookings };
 }
@@ -989,60 +1013,52 @@ async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
 
   if (!employee) return { sessions: [] };
 
-  // Get sessions where I'm assigned as employee
-  const { data, error } = await supabase
-    .from('session_employees')
-    .select(`
-      session_id,
-      sessions!inner(
-        id,
-        name,
-        date,
-        time,
-        duration,
-        location
-      ),
-      guest_spots!session_id(
-        id,
-        status,
-        guest_name,
-        guest_email,
-        host_employee_id
-      )
-    `)
-    .eq('employee_id', employee.id)
-    .gte('sessions.date', new Date().toISOString().split('T')[0]);
+  // Get guest spots where I'm the host
+  const { data: guestSpotsData, error: guestSpotsError } = await supabase
+    .from('guest_spots')
+    .select('*')
+    .eq('host_employee_id', employee.id);
 
-  if (error) throw new Error(error.message);
+  if (guestSpotsError) throw new Error(guestSpotsError.message);
+  if (!guestSpotsData || guestSpotsData.length === 0) return { sessions: [] };
 
-  const sessions = (data || [])
-    .filter(item => {
-      // Only show sessions where I'm the host of the guest spot
-      const guestSpot = Array.isArray(item.guest_spots) ? item.guest_spots[0] : item.guest_spots;
-      return guestSpot && guestSpot.host_employee_id === employee.id;
-    })
-    .map(item => {
-      const session = Array.isArray(item.sessions) ? item.sessions[0] : item.sessions;
-      const guestSpot = Array.isArray(item.guest_spots) ? item.guest_spots[0] : item.guest_spots;
-      
-      const sessionDate = new Date(`${session.date}T${session.time}`);
-      const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
+  // Get session IDs
+  const sessionIds = guestSpotsData.map(gs => gs.session_id);
 
-      return {
-        id: session.id,
-        name: session.name,
-        date: session.date,
-        time: session.time,
-        duration: session.duration,
-        location: session.location,
-        guestSpotStatus: guestSpot.status,
-        guestName: guestSpot.guest_name,
-        guestEmail: guestSpot.guest_email,
-        canRelease: guestSpot.status === 'reserved_for_host',
-        willEarnPoints: hoursUntil > 3,
-        hoursUntilEvent: hoursUntil,
-      };
-    });
+  // Fetch sessions
+  const { data: sessionsData, error: sessionsError } = await supabase
+    .from('sessions')
+    .select('*')
+    .in('id', sessionIds)
+    .gte('date', new Date().toISOString().split('T')[0]);
+
+  if (sessionsError) throw new Error(sessionsError.message);
+
+  // Create map for easy lookup
+  const guestSpotsMap = new Map(guestSpotsData.map(gs => [gs.session_id, gs]));
+
+  const sessions = (sessionsData || []).map(session => {
+    const guestSpot = guestSpotsMap.get(session.id);
+    if (!guestSpot) return null;
+
+    const sessionDate = new Date(`${session.date}T${session.time}`);
+    const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
+
+    return {
+      id: session.id,
+      name: session.name,
+      date: session.date,
+      time: session.time,
+      duration: session.duration,
+      location: session.location,
+      guestSpotStatus: guestSpot.status,
+      guestName: guestSpot.guest_name,
+      guestEmail: guestSpot.guest_email,
+      canRelease: guestSpot.status === 'reserved_for_host',
+      willEarnPoints: hoursUntil > 3,
+      hoursUntilEvent: hoursUntil,
+    };
+  }).filter(s => s !== null);
 
   return { sessions };
 }
