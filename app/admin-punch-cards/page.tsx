@@ -7,7 +7,7 @@ import type { AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { 
-  Ticket, Plus, Loader2, AlertCircle, CheckCircle, User, Search
+  Ticket, Plus, Loader2, AlertCircle, CheckCircle, User, Search, List, Calendar
 } from 'lucide-react';
 
 interface User {
@@ -23,15 +23,36 @@ interface GroupType {
   color: string;
 }
 
+interface PunchCard {
+  id: string;
+  user_id: string;
+  name: string;
+  total_punches: number;
+  remaining_punches: number;
+  price: number;
+  expiry_date: string;
+  status: string;
+  created_at: string;
+  profiles: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+}
+
 export default function AdminPunchCardsPage() {
   const [hasAccess, setHasAccess] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [groupTypes, setGroupTypes] = useState<GroupType[]>([]);
+  const [punchCards, setPunchCards] = useState<PunchCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // View toggle
+  const [view, setView] = useState<'create' | 'list'>('list');
 
   // Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,11 +139,36 @@ export default function AdminPunchCardsPage() {
       if (groupTypesError) throw groupTypesError;
       setGroupTypes(groupTypesData || []);
 
+      // Load punch cards
+      await loadPunchCards();
+
     } catch (err: any) {
       console.error('Error loading data:', err);
       setError(err.message || 'Kunne ikke indlæse data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPunchCards = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('punch_cards')
+        .select(`
+          *,
+          profiles:user_id (
+            first_name,
+            last_name,
+            email
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPunchCards(data || []);
+    } catch (err: any) {
+      console.error('Error loading punch cards:', err);
+      setError(err.message || 'Kunne ikke indlæse klippekort');
     }
   };
 
@@ -163,6 +209,9 @@ export default function AdminPunchCardsPage() {
       const selectedUser = users.find(u => u.id === formData.user_id);
       setSuccess(`Klippekort oprettet for ${selectedUser?.first_name} ${selectedUser?.last_name}`);
 
+      // Reload punch cards
+      await loadPunchCards();
+
       // Reset form
       setFormData({
         user_id: '',
@@ -172,6 +221,9 @@ export default function AdminPunchCardsPage() {
         valid_for_group_types: [],
         expiry_months: 12,
       });
+
+      // Switch to list view
+      setView('list');
 
       setTimeout(() => setSuccess(null), 5000);
     } catch (err: any) {
@@ -211,11 +263,39 @@ export default function AdminPunchCardsPage() {
       <Header />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Opret Klippekort</h1>
-            <p className="text-gray-600 mt-1">Tildel klippekort til brugere manuelt (til test)</p>
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Klippekort Administration</h1>
+              <p className="text-gray-600 mt-1">
+                {view === 'create' ? 'Opret nyt klippekort' : 'Oversigt over alle klippekort'}
+              </p>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setView('list')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  view === 'list'
+                    ? 'bg-[#502B30] text-amber-50'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                <List className="w-5 h-5" />
+                <span>Oversigt</span>
+              </button>
+              <button
+                onClick={() => setView('create')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  view === 'create'
+                    ? 'bg-[#502B30] text-amber-50'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                <Plus className="w-5 h-5" />
+                <span>Opret Nyt</span>
+              </button>
+            </div>
           </div>
 
           {/* Success/Error Messages */}
@@ -233,8 +313,137 @@ export default function AdminPunchCardsPage() {
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 space-y-6">
+          {/* List View */}
+          {view === 'list' && (
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-[#502B30]" />
+                </div>
+              ) : punchCards.length === 0 ? (
+                <div className="text-center py-12">
+                  <Ticket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 text-lg">Ingen klippekort oprettet endnu</p>
+                  <button
+                    onClick={() => setView('create')}
+                    className="mt-4 inline-flex items-center space-x-2 px-6 py-3 bg-[#502B30] text-amber-50 rounded-lg hover:bg-[#5e3023] transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                    <span>Opret Første Klippekort</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Bruger
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Navn
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Klip
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Pris
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Udløber
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {punchCards.map((card) => {
+                        const isExpired = card.expiry_date && new Date(card.expiry_date) < new Date();
+                        const isUsedUp = card.remaining_punches === 0;
+                        
+                        return (
+                          <tr key={card.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <User className="w-5 h-5 text-gray-400 mr-2" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {card.profiles.first_name} {card.profiles.last_name}
+                                  </div>
+                                  <div className="text-sm text-gray-500">{card.profiles.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{card.name}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {card.remaining_punches} / {card.total_punches}
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                                <div
+                                  className={`h-2 rounded-full ${
+                                    card.remaining_punches === 0
+                                      ? 'bg-red-500'
+                                      : card.remaining_punches < card.total_punches * 0.3
+                                      ? 'bg-yellow-500'
+                                      : 'bg-green-500'
+                                  }`}
+                                  style={{
+                                    width: `${(card.remaining_punches / card.total_punches) * 100}%`,
+                                  }}
+                                />
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {card.price.toLocaleString('da-DK')} DKK
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center space-x-1 text-sm text-gray-900">
+                                <Calendar className="w-4 h-4" />
+                                <span>
+                                  {card.expiry_date
+                                    ? new Date(card.expiry_date).toLocaleDateString('da-DK')
+                                    : 'Ingen'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  isExpired
+                                    ? 'bg-red-100 text-red-800'
+                                    : isUsedUp
+                                    ? 'bg-gray-100 text-gray-800'
+                                    : card.status === 'active'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}
+                              >
+                                {isExpired
+                                  ? 'Udløbet'
+                                  : isUsedUp
+                                  ? 'Opbrugt'
+                                  : card.status === 'active'
+                                  ? 'Aktiv'
+                                  : 'Inaktiv'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Create Form */}
+          {view === 'create' && (
+            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6 space-y-6">
             {/* User Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -407,13 +616,16 @@ export default function AdminPunchCardsPage() {
               </button>
             </div>
           </form>
+          )}
 
           {/* Info Box */}
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
-              <strong>Note:</strong> Dette er til test/udvikling. I produktion vil brugere købe klippekort via shop'en med Stripe.
-            </p>
-          </div>
+          {view === 'create' && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Dette er til test/udvikling. I produktion vil brugere købe klippekort via shop'en med Stripe.
+              </p>
+            </div>
+          )}
         </div>
       </main>
 
