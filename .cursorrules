@@ -1,0 +1,226 @@
+# INIPI Sauna Website - Cursor AI Rules
+
+## Project Overview
+This is a **standalone client website** for a sauna business (INIPI) that integrates with Clinio's Members API for booking management. This is NOT part of the Clinio codebase - it's a separate Next.js project.
+
+## Tech Stack
+- **Framework:** Next.js 16 (App Router, TypeScript)
+- **Styling:** Tailwind CSS
+- **Backend Integration:** Clinio Members SDK (in `lib/members-sdk/`)
+- **Authentication:** Firebase Auth (via Clinio)
+- **Language:** Danish (da-DK)
+- **Deployment:** Coolify (self-hosted)
+
+## Project Structure
+```
+inipi/
+├── app/                    # Next.js pages (App Router)
+│   ├── page.tsx           # Homepage
+│   ├── sessions/          # Browse sauna sessions
+│   ├── login/             # Login & Registration
+│   ├── dashboard/         # Member dashboard
+│   └── book/[sessionId]/  # Booking flow
+├── lib/
+│   ├── firebase.ts        # Firebase config (DO NOT MODIFY)
+│   ├── clinio.ts          # Clinio SDK initialization
+│   └── members-sdk/       # Clinio SDK (copied, don't edit)
+└── README.md              # Setup instructions
+```
+
+## Important Rules
+
+### 1. Clinio Integration
+- **SDK Location:** The Clinio Members SDK is copied into `lib/members-sdk/` - DO NOT EDIT these files
+- **Configuration:** Only edit `lib/clinio.ts` to change the `uniqueId`
+- **Firebase Config:** The `lib/firebase.ts` is set for Clinio's Firebase project - DO NOT CHANGE
+- **API Calls:** All backend calls go through the `members` SDK instance
+
+### 2. Language & Content
+- **Primary Language:** Danish (da-DK)
+- **Business Type:** Sauna/wellness (saunagus)
+- Keep all UI text in Danish
+- Use formal "du" form (not "De")
+- Date format: `da-DK` locale
+
+### 3. Design System
+- **Brand Name:** INIPI
+- **Primary Colors:** Amber/Orange palette (`amber-*`, `orange-*` in Tailwind)
+- **Design Style:** Nordic minimalism, warm, welcoming
+- **Responsive:** Mobile-first design
+- Use Tailwind utility classes (no custom CSS)
+
+### 4. Pages & Features
+
+#### Homepage (`app/page.tsx`)
+- Hero section with CTA
+- About section explaining saunagus
+- Features showcase
+- Navigation to sessions and login
+
+#### Sessions Page (`app/sessions/page.tsx`)
+- List all available sauna sessions from Clinio API
+- Show availability, price, date/time
+- Book button (requires login)
+
+#### Login Page (`app/login/page.tsx`)
+- Toggle between login and register
+- Firebase Authentication via Clinio SDK
+- Auto-redirect after successful login
+
+#### Dashboard (`app/dashboard/page.tsx`)
+- Show member's active bookings
+- Display punch cards with remaining clips
+- Cancel booking functionality
+
+#### Booking Page (`app/book/[sessionId]/page.tsx`)
+- Session details
+- Select spots
+- Payment method selection (card, MobilePay, punch card)
+- Complete booking via Clinio API
+
+### 5. SDK Usage Patterns
+
+```typescript
+// ALWAYS use in client components ('use client')
+import { members } from '@/lib/clinio';
+
+// Check authentication
+if (!members.isAuthenticated()) {
+  window.location.href = '/login';
+}
+
+// Login
+await members.login(email, password);
+
+// Register
+await members.register({ email, password, name, phone });
+
+// Get sessions
+const { sessions } = await members.getClasses();
+
+// Book session
+await members.bookSession({
+  sessionId: 'xxx',
+  spots: 1,
+  paymentMethod: 'card'
+});
+
+// Get bookings
+const { upcoming } = await members.getMyBookings();
+
+// Cancel booking
+await members.cancelBooking(bookingId);
+```
+
+### 6. TypeScript Types
+Import types from SDK:
+```typescript
+import type { Session, Booking, PunchCard } from '@/lib/members-sdk/types';
+```
+
+Available types:
+- `Session` - Sauna session/class
+- `Booking` - User's booking
+- `PunchCard` - Punch card (klippekort)
+- `BookingResult` - Result of booking
+- `ClinicConfig` - Clinic branding/settings
+
+### 7. Common Tasks
+
+**Add a new page:**
+1. Create `app/newpage/page.tsx`
+2. Mark as `'use client'` if using SDK
+3. Add navigation link in header
+4. Use Danish text
+
+**Customize branding:**
+1. Search/replace "INIPI" with new name
+2. Update colors in Tailwind classes
+3. Update `README.md` title
+4. Update favicon/logo
+
+**Change API endpoint:**
+- Only needed if Clinio changes - update `lib/firebase.ts`
+
+**Deploy:**
+1. Update `uniqueId` in `lib/clinio.ts`
+2. Build: `npm run build`
+3. Push to GitHub
+4. Deploy on Coolify (npm start)
+
+### 8. Testing Locally
+
+```bash
+# Install dependencies
+npm install
+
+# Run dev server
+npm run dev  # Opens on http://localhost:3000
+
+# Build for production
+npm run build
+
+# Test production build
+npm start
+```
+
+### 9. Common Errors & Solutions
+
+**Error: "Module '@clinio/members-sdk' not found"**
+- The SDK is in `lib/members-sdk/`, not node_modules
+- Imports should use: `import ... from '@/lib/members-sdk/...'`
+
+**Error: "Component auth has not been registered"**
+- SDK is being used in server component
+- Add `'use client'` at top of file
+
+**Error: "members is null"**
+- Using SDK during SSR
+- Wrap SDK calls in `useEffect` or check `typeof window !== 'undefined'`
+
+### 10. What NOT to do
+- ❌ Don't edit files in `lib/members-sdk/` (SDK copy)
+- ❌ Don't change Firebase config without coordinating with Clinio
+- ❌ Don't add English text (keep Danish)
+- ❌ Don't create custom CSS files (use Tailwind)
+- ❌ Don't commit `node_modules` or `.next` folders
+- ❌ Don't hardcode API keys or secrets
+
+### 11. When Making Changes
+- Always test locally with `npm run dev`
+- Check for TypeScript errors with `npm run build`
+- Use Danish for all new text
+- Keep the Nordic design aesthetic
+- Mobile-first responsive design
+- Handle loading and error states
+
+## Need Help?
+- Check `README.md` for setup instructions
+- Review existing pages for code patterns
+- Clinio SDK types are in `lib/members-sdk/types.d.ts`
+- For Clinio API issues, check the main Clinio project docs
+
+## Future Improvements
+- Add image optimization (Next.js Image component)
+- Add SEO meta tags
+- Add analytics tracking
+- Add cookie consent banner (if needed for GDPR)
+- Add error boundary components
+- Add loading skeletons
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
