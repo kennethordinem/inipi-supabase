@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Loader2, CreditCard, AlertCircle } from 'lucide-react';
-import type { PunchCard } from '@/lib/members-sdk/dist/types';
+import type { PunchCard } from '@/lib/supabase-sdk';
 
 interface ShopPaymentFormProps {
   amount: number;

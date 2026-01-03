@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { members } from '@/lib/clinio';
-import type { Session, PunchCard } from '@/lib/members-sdk/dist/types';
+import { members } from '@/lib/supabase-sdk';
+import type { Session, PunchCard } from '@/lib/supabase-sdk';
 
 export default function BookingPage({ params }: { params: { sessionId: string } }) {
   const [session, setSession] = useState<Session | null>(null);

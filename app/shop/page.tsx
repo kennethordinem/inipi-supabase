@@ -7,8 +7,8 @@ import { ShoppingBag, CreditCard, Ticket, Package, Loader2, CheckCircle, AlertCi
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { ShopPaymentForm } from '../components/ShopPaymentForm';
-import { members } from '@/lib/clinio';
-import type { PunchCard } from '@/lib/members-sdk/dist/types';
+import { members } from '@/lib/supabase-sdk';
+import type { PunchCard } from '@/lib/supabase-sdk';
 
 // INIPI uniqueId (from Clinio config)
 const INIPI_UNIQUE_ID = 'inipi';

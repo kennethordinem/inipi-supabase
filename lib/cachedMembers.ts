@@ -3,9 +3,9 @@
  * Automatically caches API responses to improve performance
  */
 
-import { members } from './clinio';
+import { members } from './supabase-sdk';
 import { cache, CACHE_DURATION } from './cache';
-import type { Session, PunchCard, AuthState } from './members-sdk/dist/types';
+import type { Session, PunchCard, AuthState } from './supabase-sdk';
 
 export const cachedMembers = {
   /**
@@ -49,9 +49,29 @@ export const cachedMembers = {
   /**
    * Check if user is employee with caching
    */
-  async checkIfEmployee() {
+  async checkIfEmployee(): Promise<{
+    isEmployee: boolean;
+    employeeId?: string;
+    employeeName?: string;
+    points?: number;
+    frontendPermissions?: {
+      gusmester: boolean;
+      staff: boolean;
+      administration: boolean;
+    };
+  }> {
     const cacheKey = 'employee_check';
-    const cached = cache.get(cacheKey);
+    const cached = cache.get<{
+      isEmployee: boolean;
+      employeeId?: string;
+      employeeName?: string;
+      points?: number;
+      frontendPermissions?: {
+        gusmester: boolean;
+        staff: boolean;
+        administration: boolean;
+      };
+    }>(cacheKey);
     
     if (cached) {
       console.log('[Cache] Using cached employee check');
@@ -103,9 +123,9 @@ export const cachedMembers = {
   /**
    * Get punch card history with caching (all punch cards with usage logs)
    */
-  async getPunchCardHistory() {
+  async getPunchCardHistory(): Promise<{ punchCards: any[] }> {
     const cacheKey = 'punch_card_history';
-    const cached = cache.get(cacheKey);
+    const cached = cache.get<{ punchCards: any[] }>(cacheKey);
     
     if (cached) {
       console.log('[Cache] Using cached punch card history');
@@ -121,9 +141,12 @@ export const cachedMembers = {
   /**
    * Get bookings with caching
    */
-  async getMyBookings(includeHistory: boolean = false) {
+  async getMyBookings(includeHistory: boolean = false): Promise<{
+    upcoming: any[];
+    past: any[];
+  }> {
     const cacheKey = `bookings_${includeHistory ? 'with_history' : 'upcoming'}`;
-    const cached = cache.get(cacheKey);
+    const cached = cache.get<{ upcoming: any[]; past: any[] }>(cacheKey);
     
     if (cached) {
       console.log('[Cache] Using cached bookings');
@@ -139,9 +162,9 @@ export const cachedMembers = {
   /**
    * Get payment history with caching
    */
-  async getPaymentHistory(limit?: number) {
+  async getPaymentHistory(limit?: number): Promise<{ payments: any[] }> {
     const cacheKey = `payments_${limit || 'all'}`;
-    const cached = cache.get(cacheKey);
+    const cached = cache.get<{ payments: any[] }>(cacheKey);
     
     if (cached) {
       console.log('[Cache] Using cached payments');
@@ -187,56 +210,57 @@ export const cachedMembers = {
   },
 
   // Pass-through methods that don't need caching (write operations)
-  login: (...args: any[]) => members.login(...args),
-  logout: async (...args: any[]) => {
-    const result = await members.logout(...args);
+  login: (email: string, password: string) => members.login(email, password),
+  logout: async () => {
+    const result = await members.logout();
     cachedMembers.clearAllCaches();
     return result;
   },
-  register: (...args: any[]) => members.register(...args),
-  isAuthenticated: (...args: any[]) => members.isAuthenticated(...args),
-  getCurrentUser: (...args: any[]) => members.getCurrentUser(...args),
-  onAuthStateChanged: (...args: any[]) => members.onAuthStateChanged(...args),
+  register: (data: any) => members.register(data),
+  isAuthenticated: () => members.isAuthenticated(),
+  getCurrentUser: () => members.getCurrentUser(),
+  onAuthStateChanged: (callback: any) => members.onAuthStateChanged(callback),
   
-  getGroupTypes: (...args: any[]) => members.getGroupTypes(...args),
-  getSessionDetails: (...args: any[]) => members.getSessionDetails(...args),
-  getShopProducts: (...args: any[]) => members.getShopProducts(...args),
-  getShopPunchCards: (...args: any[]) => members.getShopPunchCards(...args),
+  getGroupTypes: () => members.getGroupTypes(),
+  getSessionDetails: (sessionId: string) => members.getSessionDetails(sessionId),
+  getShopProducts: () => members.getShopProducts(),
+  getShopPunchCards: () => members.getShopPunchCards(),
   
-  updateProfile: async (...args: any[]) => {
-    const result = await members.updateProfile(...args);
+  updateProfile: async (updates: any) => {
+    const result = await members.updateProfile(updates);
     cache.clear('user_profile');
     return result;
   },
-  createPaymentIntent: (...args: any[]) => members.createPaymentIntent(...args),
+  createPaymentIntent: (params: any) => members.createPaymentIntent(params),
   
-  bookSession: async (...args: any[]) => {
-    const result = await members.bookSession(...args);
+  bookSession: async (params: any) => {
+    const result = await members.bookSession(params);
     cachedMembers.invalidateAfterBooking();
     return result;
   },
-  cancelBooking: async (...args: any[]) => {
-    const result = await members.cancelBooking(...args);
+  cancelBooking: async (bookingId: string) => {
+    const result = await members.cancelBooking(bookingId);
     cachedMembers.invalidateAfterBooking();
     return result;
   },
   
-  // Employee/Gusmester methods
-  getEmployeeStats: (...args: any[]) => members.getEmployeeStats(...args),
-  getAvailableGusmesterSpots: (...args: any[]) => members.getAvailableGusmesterSpots(...args),
-  getMyGusmesterBookings: (...args: any[]) => members.getMyGusmesterBookings(...args),
-  bookGusmesterSpot: async (...args: any[]) => {
-    const result = await members.bookGusmesterSpot(...args);
+  // Employee/Gusmester methods - use the cached version defined above
+  // checkIfEmployee is already defined above with caching
+  getEmployeeStats: () => members.getEmployeeStats(),
+  getAvailableGusmesterSpots: () => members.getAvailableGusmesterSpots(),
+  getMyGusmesterBookings: () => members.getMyGusmesterBookings(),
+  bookGusmesterSpot: async (sessionId: string) => {
+    const result = await members.bookGusmesterSpot(sessionId);
     cachedMembers.invalidateAfterBooking();
     return result;
   },
-  cancelGusmesterBooking: async (...args: any[]) => {
-    const result = await members.cancelGusmesterBooking(...args);
+  cancelGusmesterBooking: async (bookingId: string) => {
+    const result = await members.cancelGusmesterBooking(bookingId);
     cachedMembers.invalidateAfterBooking();
     return result;
   },
-  getMyHostingSessions: (...args: any[]) => members.getMyHostingSessions(...args),
-  releaseGuestSpot: (...args: any[]) => members.releaseGuestSpot(...args),
-  bookGuestForSession: (...args: any[]) => members.bookGuestForSession(...args),
+  getMyHostingSessions: () => members.getMyHostingSessions(),
+  releaseGuestSpot: (sessionId: string) => members.releaseGuestSpot(sessionId),
+  bookGuestForSession: (sessionId: string, guestName: string, guestEmail: string, guestPhone?: string) => members.bookGuestForSession(sessionId, guestName, guestEmail, guestPhone),
 };
 

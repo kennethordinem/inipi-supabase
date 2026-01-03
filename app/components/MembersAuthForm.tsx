@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { members } from '@/lib/clinio';
+import { members } from '@/lib/supabase-sdk';
 import { AlertCircle, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 interface MembersAuthFormProps {
@@ -34,7 +34,7 @@ export function MembersAuthForm({ onSuccess, primaryColor = '#6366f1' }: Members
       const fullName = `${profile.firstName} ${profile.lastName}`.trim();
       
       // Store in localStorage
-      localStorage.setItem('firebaseUid', user.uid);
+      localStorage.setItem('firebaseUid', user.id);
       localStorage.setItem('patientEmail', email.toLowerCase());
       localStorage.setItem('patientId', profile.id);
       if (fullName) {

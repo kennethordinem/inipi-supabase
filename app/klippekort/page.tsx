@@ -3,9 +3,23 @@
 import { useEffect, useState } from 'react';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
-import { members } from '@/lib/clinio';
+import { members } from '@/lib/supabase-sdk';
 import { cachedMembers } from '@/lib/cachedMembers';
-import type { PunchCardWithHistory, AuthState } from '@/lib/members-sdk/dist/types';
+import type { AuthState } from '@/lib/supabase-sdk';
+
+// Define PunchCardWithHistory type locally since it's not exported yet
+interface PunchCardWithHistory {
+  id: string;
+  name: string;
+  totalPunches: number;
+  remainingPunches: number;
+  validForGroupTypes: string[];
+  expiryDate?: string;
+  status: string;
+  purchaseDate: string;
+  price: number;
+  usageHistory: any[];
+}
 import { Ticket, Calendar, Clock, MapPin, Loader2, Filter, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { da } from 'date-fns/locale';

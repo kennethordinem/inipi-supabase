@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Calendar, User, ChevronDown, LogOut, Menu, X, Home, Mail, Info, ShoppingBag, Receipt, Star, Ticket, Users } from 'lucide-react';
-import { members } from '@/lib/clinio';
+import { members } from '@/lib/supabase-sdk';
 import { cachedMembers } from '@/lib/cachedMembers';
-import type { AuthState } from '@/lib/members-sdk/dist/types';
+import type { AuthState } from '@/lib/supabase-sdk';
 
 export function Header() {
   const pathname = usePathname();
@@ -41,7 +41,7 @@ export function Header() {
     const unsubscribe = members.onAuthStateChanged(async (authState: AuthState) => {
       setIsAuthenticated(authState.isAuthenticated);
       if (authState.isAuthenticated && authState.user) {
-        const name = localStorage.getItem('userName') || authState.user.displayName || authState.user.email?.split('@')[0] || 'Bruger';
+        const name = localStorage.getItem('userName') || authState.user.email?.split('@')[0] || 'Bruger';
         setUserName(name);
 
         // Only check employee status when SDK confirms authentication (CACHED)

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Calendar, Clock, User, Star, AlertCircle, CheckCircle, TrendingUp, MapPin } from 'lucide-react';
-import { members } from '@/lib/clinio';
+import { members } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { format } from 'date-fns';

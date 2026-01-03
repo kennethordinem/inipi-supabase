@@ -2,7 +2,7 @@
 
 import { Header } from '../components/Header';
 import { useState } from 'react';
-import { members } from '@/lib/clinio';
+import { members } from '@/lib/supabase-sdk';
 import { Footer } from '../components/Footer';
 
 export default function LoginPage() {
@@ -24,9 +24,9 @@ export default function LoginPage() {
       
       // Store user info in localStorage for the Header component
       if (user) {
-        localStorage.setItem('userId', user.uid);
+        localStorage.setItem('userId', user.id);
         localStorage.setItem('userEmail', user.email || '');
-        localStorage.setItem('userName', user.displayName || user.email?.split('@')[0] || 'User');
+        localStorage.setItem('userName', user.email?.split('@')[0] || 'User');
       }
       
       // Redirect to dashboard
@@ -55,7 +55,7 @@ export default function LoginPage() {
       
       // Store user info in localStorage
       if (user) {
-        localStorage.setItem('userId', user.uid);
+        localStorage.setItem('userId', user.id);
         localStorage.setItem('userEmail', user.email || '');
         localStorage.setItem('userName', name || user.email?.split('@')[0] || 'User');
       }

@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
-import { members } from '@/lib/clinio';
+import { members } from '@/lib/supabase-sdk';
 import { cachedMembers } from '@/lib/cachedMembers';
-import type { AuthState } from '@/lib/members-sdk/dist/types';
+import type { AuthState } from '@/lib/supabase-sdk';
 import { Calendar, Clock, MapPin, User, Loader2, AlertCircle, CheckCircle, XCircle, Ticket } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { da } from 'date-fns/locale';

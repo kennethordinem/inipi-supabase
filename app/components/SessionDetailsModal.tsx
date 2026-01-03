@@ -6,8 +6,8 @@ import { ModernModal } from './ModernModal';
 import { EmployeeProfileModal } from './EmployeeProfileModal';
 import { ThemeDetailsModal } from './ThemeDetailsModal';
 import { MembersBookingFlow } from './MembersBookingFlow';
-import { members } from '@/lib/clinio';
-import type { Session } from '@/lib/members-sdk/dist/types';
+import { members } from '@/lib/supabase-sdk';
+import type { Session } from '@/lib/supabase-sdk';
 
 interface SessionDetailsModalProps {
   session: Session;

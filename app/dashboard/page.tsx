@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { members } from '@/lib/clinio';
+import { members } from '@/lib/supabase-sdk';
 import { cachedMembers } from '@/lib/cachedMembers';
-import type { PunchCard, Booking, AuthState } from '@/lib/members-sdk/dist/types';
+import type { PunchCard, Booking, AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { Calendar, Ticket, CreditCard, Users, Clock, MapPin, User } from 'lucide-react';

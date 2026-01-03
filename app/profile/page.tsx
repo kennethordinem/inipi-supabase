@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { members } from '@/lib/clinio';
-import type { AuthState } from '@/lib/members-sdk/dist/types';
+import { members } from '@/lib/supabase-sdk';
+import type { AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { User, Mail, Phone, MapPin, Calendar, Lock, Save, Eye, EyeOff } from 'lucide-react';

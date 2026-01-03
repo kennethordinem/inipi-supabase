@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { members } from '@/lib/clinio';
-import type { Session } from '@/lib/members-sdk/dist/types';
+import { members } from '@/lib/supabase-sdk';
+import type { Session } from '@/lib/supabase-sdk';
 import { Check, Loader2, User, Ticket, CreditCard, AlertCircle } from 'lucide-react';
 import { MembersAuthForm } from './MembersAuthForm';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
