@@ -9,7 +9,7 @@ import { Footer } from '../components/Footer';
 import { 
   UserPlus, Mail, User as UserIcon, Phone, AlertCircle, 
   CheckCircle, Loader2, Save, Shield, Edit, Trash2, Search,
-  Users, X
+  Users, X, RefreshCw
 } from 'lucide-react';
 
 interface UserProfile {
@@ -177,12 +177,13 @@ export default function AdminUsersPage() {
         throw new Error(errorData.error || 'Kunne ikke oprette bruger');
       }
 
-      setSuccess(`Bruger oprettet! Email: ${formData.email}`);
-      
-      // Reset form and reload
+      // Reset form and reload immediately
       resetForm();
       await loadUsers();
-      setTimeout(() => setViewMode('list'), 2000);
+      setSuccess(`Bruger oprettet! Email: ${formData.email}`);
+      
+      // Switch back to list view immediately
+      setViewMode('list');
 
     } catch (err: any) {
       console.error('Error creating user:', err);
@@ -229,9 +230,11 @@ export default function AdminUsersPage() {
         if (employeeError) throw employeeError;
       }
 
-      setSuccess('Bruger opdateret!');
       await loadUsers();
-      setTimeout(() => setViewMode('list'), 2000);
+      setSuccess('Bruger opdateret!');
+      
+      // Switch back to list view immediately
+      setViewMode('list');
 
     } catch (err: any) {
       console.error('Error updating user:', err);
@@ -410,17 +413,27 @@ export default function AdminUsersPage() {
           {/* List View */}
           {viewMode === 'list' && (
             <div className="bg-white rounded-lg shadow-md">
-              {/* Search */}
+              {/* Search and Refresh */}
               <div className="p-6 border-b border-gray-200">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                  <input
-                    type="text"
-                    placeholder="Søg efter email eller navn..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
-                  />
+                <div className="flex gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Søg efter email eller navn..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                    />
+                  </div>
+                  <button
+                    onClick={loadUsers}
+                    disabled={loading}
+                    className="px-4 py-2 bg-[#502B30] text-white rounded-lg hover:bg-[#3d2024] transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    Opdater
+                  </button>
                 </div>
               </div>
 
