@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendEmployeeWelcome } from '@/lib/email';
 
 // Helper to get admin client (created on demand)
 function getSupabaseAdmin() {
@@ -104,6 +105,26 @@ export async function POST(request: NextRequest) {
           { error: `User created but employee record failed: ${employeeError.message}` },
           { status: 500 }
         );
+      }
+
+      // Send welcome email to new employee
+      try {
+        await sendEmployeeWelcome({
+          to: email,
+          employeeName: employeeName || `${firstName} ${lastName}`,
+          email: email,
+          password: password,
+          title: employeeTitle || undefined,
+          permissions: {
+            staff: permissions?.staff || false,
+            gusmester: permissions?.gusmester || false,
+            administration: permissions?.administration || false
+          }
+        });
+        console.log('Welcome email sent to:', email);
+      } catch (emailError: any) {
+        console.error('Error sending welcome email:', emailError);
+        // Don't fail the request if email fails
       }
     }
 

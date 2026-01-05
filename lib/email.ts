@@ -65,6 +65,19 @@ export interface PunchCardAddedEmail {
   reason: string;
 }
 
+export interface EmployeeWelcomeEmail {
+  to: string;
+  employeeName: string;
+  email: string;
+  password: string;
+  title?: string;
+  permissions: {
+    staff: boolean;
+    gusmester: boolean;
+    administration: boolean;
+  };
+}
+
 // Send booking confirmation
 export async function sendBookingConfirmation(data: BookingConfirmationEmail) {
   const client = getPostmarkClient();
@@ -357,6 +370,121 @@ export async function sendPunchCardAdded(data: PunchCardAddedEmail) {
     Subject: `Nyt klippekort tilføjet - ${data.punchCardName}`,
     HtmlBody: htmlBody,
     TextBody: `Hej ${data.userName},\n\nEt nyt klippekort er blevet tilføjet til din konto.\n\nKlippekort: ${data.punchCardName}\nAntal klip: ${data.clips}\nÅrsag: ${data.reason}`,
+    MessageStream: 'outbound'
+  });
+}
+
+// Send employee welcome email
+export async function sendEmployeeWelcome(data: EmployeeWelcomeEmail) {
+  const client = getPostmarkClient();
+  
+  const permissionsList = [];
+  if (data.permissions.administration) permissionsList.push('Administrator');
+  if (data.permissions.staff) permissionsList.push('Ledelse');
+  if (data.permissions.gusmester) permissionsList.push('Gusmester');
+  
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #faf8f5; }
+        .header { background: linear-gradient(135deg, #502B30 0%, #5e3023 100%); color: #FFF5E1; padding: 40px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+        .header h1 { margin: 0; font-size: 32px; font-weight: bold; }
+        .header p { margin: 10px 0 0 0; color: #f59e0b; font-style: italic; }
+        .content { background: #fff; padding: 40px 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .welcome-box { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
+        .credentials { background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #502B30; }
+        .credentials h3 { color: #502B30; margin-top: 0; }
+        .credential-item { background: white; padding: 12px; margin: 10px 0; border-radius: 5px; border: 1px solid #e5e7eb; }
+        .credential-item strong { color: #502B30; display: block; margin-bottom: 5px; }
+        .credential-item code { background: #f3f4f6; padding: 8px 12px; display: block; border-radius: 4px; font-family: monospace; color: #1f2937; font-size: 14px; }
+        .permissions { background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .permissions h3 { color: #502B30; margin-top: 0; }
+        .permission-badge { display: inline-block; background: #502B30; color: #FFF5E1; padding: 6px 12px; border-radius: 20px; margin: 5px; font-size: 14px; }
+        .button { display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #502B30 0%, #5e3023 100%); color: white; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; box-shadow: 0 4px 6px rgba(80, 43, 48, 0.3); }
+        .button:hover { background: linear-gradient(135deg, #5e3023 0%, #502B30 100%); }
+        .info-box { background: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6; }
+        .footer { text-align: center; padding: 30px 20px; color: #6b7280; font-size: 14px; }
+        .footer strong { color: #502B30; }
+        .divider { height: 2px; background: linear-gradient(90deg, transparent 0%, #f59e0b 50%, transparent 100%); margin: 30px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔥 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
+        </div>
+        <div class="content">
+          <div class="welcome-box">
+            <h2 style="margin-top: 0; color: #502B30;">Velkommen til INIPI Teamet! 🎉</h2>
+            <p style="margin-bottom: 0; color: #78350f;">Hej ${data.employeeName}, vi er glade for at have dig med!</p>
+          </div>
+          
+          <p>Du er nu oprettet som medarbejder hos INIPI Saunagus. Din konto er klar, og du kan logge ind med nedenstående oplysninger.</p>
+          
+          <div class="credentials">
+            <h3>🔐 Dine Login Oplysninger</h3>
+            <div class="credential-item">
+              <strong>Email:</strong>
+              <code>${data.email}</code>
+            </div>
+            <div class="credential-item">
+              <strong>Midlertidig Adgangskode:</strong>
+              <code>${data.password}</code>
+            </div>
+          </div>
+          
+          <div class="info-box">
+            <strong>⚠️ Vigtigt:</strong> Af sikkerhedsmæssige årsager anbefaler vi, at du ændrer din adgangskode efter første login. Gå til "Min Profil" for at opdatere den.
+          </div>
+          
+          ${data.title ? `<p><strong>Din titel:</strong> ${data.title}</p>` : ''}
+          
+          <div class="permissions">
+            <h3>✨ Dine Rettigheder</h3>
+            <div>
+              ${permissionsList.map(p => `<span class="permission-badge">${p}</span>`).join('')}
+            </div>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <h3 style="color: #502B30;">Hvad kan du gøre?</h3>
+          <ul style="color: #4b5563;">
+            ${data.permissions.administration ? '<li><strong>Administration:</strong> Opret og administrer sessioner, brugere, klippekort og indstillinger</li>' : ''}
+            ${data.permissions.staff ? '<li><strong>Ledelse:</strong> Se alle bookinger og administrer deltagere på alle sessioner</li>' : ''}
+            ${data.permissions.gusmester ? '<li><strong>Gusmester:</strong> Administrer dine egne sessioner og inviter gæster</li>' : ''}
+            <li><strong>Min Profil:</strong> Opdater dine personlige oplysninger</li>
+            <li><strong>Mine Hold:</strong> Se dine kommende sessioner</li>
+          </ul>
+          
+          <div style="text-align: center;">
+            <a href="https://inipi.dk/login" class="button">Log Ind Nu →</a>
+          </div>
+          
+          <div class="info-box">
+            <strong>💡 Tip:</strong> Gem denne email et sikkert sted. Hvis du har spørgsmål eller brug for hjælp, er du altid velkommen til at kontakte administrationen.
+          </div>
+        </div>
+        <div class="footer">
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await client.sendEmail({
+    From: 'noreply@inipi.dk',
+    To: data.to,
+    Subject: `Velkommen til INIPI Teamet, ${data.employeeName}! 🔥`,
+    HtmlBody: htmlBody,
+    TextBody: `Velkommen til INIPI Teamet!\n\nHej ${data.employeeName},\n\nDu er nu oprettet som medarbejder hos INIPI Saunagus.\n\nDine login oplysninger:\nEmail: ${data.email}\nAdgangskode: ${data.password}\n\nLog ind på: https://inipi.dk/login\n\nHusk at ændre din adgangskode efter første login.\n\nVi glæder os til at arbejde sammen med dig!\n\nVenlig hilsen,\nINIPI Teamet`,
     MessageStream: 'outbound'
   });
 }
