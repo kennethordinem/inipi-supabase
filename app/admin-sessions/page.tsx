@@ -8,7 +8,7 @@ import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { 
   Calendar, Clock, Users, MapPin, Plus, Edit, Trash2, X, 
-  Save, Loader2, AlertCircle, CheckCircle 
+  Save, Loader2, AlertCircle, CheckCircle, Copy 
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { da } from 'date-fns/locale';
@@ -62,7 +62,9 @@ export default function AdminSessionsPage() {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
+  const [showRepeatModal, setShowRepeatModal] = useState(false);
   const [editingSession, setEditingSession] = useState<Session | null>(null);
+  const [repeatSession, setRepeatSession] = useState<Session | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -75,6 +77,11 @@ export default function AdminSessionsPage() {
     group_type_id: '',
     employee_ids: [] as string[],
     theme_ids: [] as string[],
+  });
+  const [repeatFormData, setRepeatFormData] = useState({
+    dates: [''] as string[],
+    keepEmployees: true,
+    keepThemes: true,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -238,6 +245,145 @@ export default function AdminSessionsPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleRepeat = async (session: Session) => {
+    setRepeatSession(session);
+    
+    // Load session employees and themes
+    const { data: sessionEmployees } = await supabase
+      .from('session_employees')
+      .select('employee_id')
+      .eq('session_id', session.id);
+
+    const { data: sessionThemes } = await supabase
+      .from('session_themes')
+      .select('theme_id')
+      .eq('session_id', session.id);
+
+    // Initialize with one date field (tomorrow)
+    setRepeatFormData({
+      dates: [format(addDays(new Date(session.date), 1), 'yyyy-MM-dd')],
+      keepEmployees: (sessionEmployees?.length || 0) > 0,
+      keepThemes: (sessionThemes?.length || 0) > 0,
+    });
+    
+    setShowRepeatModal(true);
+  };
+
+  const handleRepeatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!repeatSession) return;
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      // Load original session's employees and themes if needed
+      let employeeIds: string[] = [];
+      let themeIds: string[] = [];
+
+      if (repeatFormData.keepEmployees) {
+        const { data: sessionEmployees } = await supabase
+          .from('session_employees')
+          .select('employee_id')
+          .eq('session_id', repeatSession.id);
+        employeeIds = sessionEmployees?.map(se => se.employee_id) || [];
+      }
+
+      if (repeatFormData.keepThemes) {
+        const { data: sessionThemes } = await supabase
+          .from('session_themes')
+          .select('theme_id')
+          .eq('session_id', repeatSession.id);
+        themeIds = sessionThemes?.map(st => st.theme_id) || [];
+      }
+
+      // Create a session for each date
+      let createdCount = 0;
+      for (const date of repeatFormData.dates) {
+        if (!date) continue; // Skip empty dates
+
+        // Create session
+        const { data: newSession, error: insertError } = await supabase
+          .from('sessions')
+          .insert({
+            name: repeatSession.name,
+            description: repeatSession.description,
+            date: date,
+            time: repeatSession.time,
+            duration: repeatSession.duration,
+            max_participants: repeatSession.max_participants,
+            current_participants: 0,
+            price: repeatSession.price,
+            location: repeatSession.location,
+            group_type_id: repeatSession.group_type_id,
+            status: 'active',
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        // Add employees
+        if (employeeIds.length > 0) {
+          const { error: employeesError } = await supabase
+            .from('session_employees')
+            .insert(employeeIds.map(emp_id => ({
+              session_id: newSession.id,
+              employee_id: emp_id
+            })));
+          if (employeesError) throw employeesError;
+        }
+
+        // Add themes
+        if (themeIds.length > 0) {
+          const { error: themesError } = await supabase
+            .from('session_themes')
+            .insert(themeIds.map(theme_id => ({
+              session_id: newSession.id,
+              theme_id: theme_id
+            })));
+          if (themesError) throw themesError;
+        }
+
+        createdCount++;
+      }
+
+      setSuccess(`${createdCount} session(er) oprettet`);
+      setShowRepeatModal(false);
+      loadData();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err: any) {
+      console.error('Error repeating session:', err);
+      setError(err.message || 'Kunne ikke gentage session');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const addDateField = () => {
+    setRepeatFormData({
+      ...repeatFormData,
+      dates: [...repeatFormData.dates, '']
+    });
+  };
+
+  const removeDateField = (index: number) => {
+    setRepeatFormData({
+      ...repeatFormData,
+      dates: repeatFormData.dates.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateDate = (index: number, value: string) => {
+    const newDates = [...repeatFormData.dates];
+    newDates[index] = value;
+    setRepeatFormData({
+      ...repeatFormData,
+      dates: newDates
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -470,6 +616,13 @@ export default function AdminSessionsPage() {
 
                   <div className="flex items-center space-x-2 ml-4">
                     <button
+                      onClick={() => handleRepeat(session)}
+                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                      title="Gentag session"
+                    >
+                      <Copy className="w-5 h-5" />
+                    </button>
+                    <button
                       onClick={() => handleEdit(session)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                       title="Rediger"
@@ -491,6 +644,135 @@ export default function AdminSessionsPage() {
           </div>
         )}
       </main>
+
+      {/* Repeat Session Modal */}
+      {showRepeatModal && repeatSession && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Gentag Session: {repeatSession.name}
+              </h2>
+              <button
+                onClick={() => setShowRepeatModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRepeatSubmit} className="p-6 space-y-6">
+              {/* Original Session Info */}
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <h3 className="font-semibold text-gray-900">Original Session</h3>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p><strong>Dato:</strong> {format(new Date(repeatSession.date), 'dd. MMM yyyy', { locale: da })}</p>
+                  <p><strong>Tid:</strong> {repeatSession.time} ({repeatSession.duration} min)</p>
+                  <p><strong>Deltagere:</strong> {repeatSession.max_participants}</p>
+                  <p><strong>Pris:</strong> {repeatSession.price} DKK</p>
+                  <p><strong>Lokation:</strong> {repeatSession.location}</p>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Datoer for nye sessioner *
+                </label>
+                <div className="space-y-2">
+                  {repeatFormData.dates.map((date, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <input
+                        type="date"
+                        required
+                        value={date}
+                        onChange={(e) => updateDate(index, e.target.value)}
+                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                      />
+                      {repeatFormData.dates.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeDateField(index)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Fjern dato"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={addDateField}
+                  className="mt-2 flex items-center space-x-2 px-4 py-2 text-sm text-[#502B30] border border-[#502B30] rounded-lg hover:bg-[#502B30] hover:text-white transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Tilføj dato</span>
+                </button>
+              </div>
+
+              {/* Options */}
+              <div className="space-y-3">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={repeatFormData.keepEmployees}
+                    onChange={(e) => setRepeatFormData({ ...repeatFormData, keepEmployees: e.target.checked })}
+                    className="rounded text-[#502B30] focus:ring-[#502B30]"
+                  />
+                  <span className="text-sm text-gray-700">Kopier gusmestre til nye sessioner</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={repeatFormData.keepThemes}
+                    onChange={(e) => setRepeatFormData({ ...repeatFormData, keepThemes: e.target.checked })}
+                    className="rounded text-[#502B30] focus:ring-[#502B30]"
+                  />
+                  <span className="text-sm text-gray-700">Kopier temaer til nye sessioner</span>
+                </label>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> Alle andre detaljer (navn, tid, varighed, max deltagere, pris, lokation, type) 
+                  vil blive kopieret fra den originale session.
+                </p>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setShowRepeatModal(false)}
+                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Annuller
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex items-center space-x-2 px-6 py-2 bg-[#502B30] text-amber-50 rounded-lg hover:bg-[#5e3023] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Opretter...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-5 h-5" />
+                      <span>Opret {repeatFormData.dates.filter(d => d).length} Session(er)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       {showModal && (
