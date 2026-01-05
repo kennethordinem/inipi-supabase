@@ -91,9 +91,9 @@ export default function AdminPage() {
       color: 'bg-amber-500',
     },
     {
-      title: 'Opret Bruger',
-      description: 'Opret nye brugere og medarbejdere',
-      icon: UserPlus,
+      title: 'Brugere & Medarbejdere',
+      description: 'Administrer brugere og medarbejdere',
+      icon: Users,
       href: '/admin-users',
       color: 'bg-purple-500',
     },
