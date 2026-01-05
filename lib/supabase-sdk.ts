@@ -1236,14 +1236,140 @@ async function bookGuestForSession(sessionId: string, guestName: string, guestEm
   return { success: true, guestName };
 }
 
-async function getStaffSessions(filters?: any): Promise<{ sessions: any[]; count: number }> {
-  // TODO: Implement staff sessions
-  return { sessions: [], count: 0 };
+/**
+ * Get sessions for staff members (where they are assigned as employees)
+ */
+async function getStaffSessions(filters?: {
+  startDate?: string;
+  endDate?: string;
+}): Promise<{ sessions: any[]; count: number }> {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get employee record for current user
+  const { data: employee, error: employeeError } = await supabase
+    .from('employees')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (employeeError || !employee) {
+    return { sessions: [], count: 0 };
+  }
+
+  // Build query
+  let query = supabase
+    .from('sessions')
+    .select(`
+      *,
+      group_types!inner(id, name, color),
+      session_employees!inner(
+        employee_id,
+        employees!inner(id, name)
+      )
+    `)
+    .eq('session_employees.employee_id', employee.id)
+    .eq('status', 'active')
+    .order('date', { ascending: true })
+    .order('time', { ascending: true });
+
+  // Apply date filters
+  if (filters?.startDate) {
+    query = query.gte('date', filters.startDate);
+  }
+  if (filters?.endDate) {
+    query = query.lte('date', filters.endDate);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw new Error(error.message);
+
+  // Format sessions and load participants
+  const sessionsWithParticipants = await Promise.all(
+    (data || []).map(async (dbSession: any) => {
+      const employees = dbSession.session_employees?.map((se: any) => se.employees) || [];
+      const session = formatSession(dbSession, employees, dbSession.group_types);
+      
+      // Load participants for this session
+      const participants = await getStaffSessionParticipants(dbSession.id);
+      
+      return {
+        ...session,
+        participants: participants || [],
+      };
+    })
+  );
+
+  return {
+    sessions: sessionsWithParticipants,
+    count: sessionsWithParticipants.length,
+  };
 }
 
-async function getStaffSessionParticipants(sessionId: string): Promise<any> {
-  // TODO: Implement staff session participants
-  throw new Error('Staff features not yet implemented');
+/**
+ * Get participants for a specific session (for staff view)
+ */
+async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
+  try {
+    // Get regular bookings
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        profiles!inner(id, email, first_name, last_name, phone)
+      `)
+      .eq('session_id', sessionId)
+      .eq('status', 'confirmed');
+
+    if (bookingsError) throw bookingsError;
+
+    // Get gusmester bookings
+    const { data: gusmesterBookings, error: gusmesterError } = await supabase
+      .from('gusmester_bookings')
+      .select(`
+        *,
+        guest_spots!inner(session_id)
+      `)
+      .eq('guest_spots.session_id', sessionId)
+      .eq('status', 'confirmed');
+
+    if (gusmesterError) throw gusmesterError;
+
+    // Format regular bookings
+    const regularParticipants = (bookings || []).map((booking: any) => ({
+      patientId: booking.user_id,
+      patientName: `${booking.profiles.first_name} ${booking.profiles.last_name}`,
+      patientEmail: booking.profiles.email,
+      patientPhone: booking.profiles.phone,
+      spots: booking.spots,
+      bookedAt: booking.created_at,
+      paymentStatus: booking.payment_status,
+      paymentMethod: booking.payment_method,
+      paymentAmount: booking.amount,
+      selectedThemeId: booking.theme_id,
+      punchCardId: booking.punch_card_id,
+      isGuest: false,
+    }));
+
+    // Format gusmester bookings
+    const guestParticipants = (gusmesterBookings || []).map((booking: any) => ({
+      patientId: booking.id,
+      patientName: booking.guest_name,
+      patientEmail: '',
+      patientPhone: '',
+      spots: booking.spots_used,
+      bookedAt: booking.created_at,
+      paymentStatus: 'paid',
+      paymentMethod: 'gusmester',
+      isGuest: true,
+    }));
+
+    return [...regularParticipants, ...guestParticipants];
+  } catch (error) {
+    console.error('Error loading session participants:', error);
+    return [];
+  }
 }
 
 async function getAdminMembers(page?: number, limit?: number, search?: string): Promise<{
