@@ -62,17 +62,18 @@ export default function ShopPage() {
 
   const initializeStripe = async () => {
     try {
-      console.log('[Shop] Getting Stripe Connect public key');
-      // Use getStripePublicKey function directly (like Clinio Members Portal does)
-      const { getFunctions, httpsCallable } = await import('firebase/functions');
-      const { getFirebaseApp } = await import('@/lib/firebase');
+      console.log('[Shop] Getting Stripe configuration from Supabase');
       
-      const functions = getFunctions(getFirebaseApp(), 'europe-west1');
-      const getStripePublicKey = httpsCallable(functions, 'getStripePublicKey');
-      const result = await getStripePublicKey();
-      const data = result.data as { publicKey: string; isLiveMode: boolean };
+      // Get Stripe config from our database
+      const config = await members.getStripeConfig();
       
-      const publicKey = data.publicKey;
+      if (!config || !config.enabled) {
+        console.log('[Shop] Stripe not configured or not enabled');
+        setError('Betalingssystem er ikke aktiveret endnu');
+        return;
+      }
+      
+      const publicKey = config.publishable_key;
       
       if (!publicKey || publicKey.trim() === '' || !publicKey.startsWith('pk_')) {
         console.error('[Shop] Invalid Stripe public key received:', publicKey);
@@ -80,7 +81,7 @@ export default function ShopPage() {
         return;
       }
 
-      console.log('[Shop] Initializing Stripe with Connect public key');
+      console.log('[Shop] Initializing Stripe with key:', publicKey.substring(0, 15) + '...');
       setStripePromise(loadStripe(publicKey));
       
     } catch (err: any) {
@@ -176,12 +177,26 @@ export default function ShopPage() {
       localStorage.setItem('pendingShopPayment', JSON.stringify(shopMetadata));
       console.log('[Shop] Metadata saved to localStorage');
 
-      // Create payment intent via SDK
+      // Create payment intent via our API
       console.log('[Shop] Creating payment intent for amount:', itemPrice);
-      const paymentResult = await members.createPaymentIntent({
-        amount: itemPrice,
-        metadata: shopMetadata
+      const response = await fetch('/api/stripe/create-shop-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          punchCardId: type === 'punchCard' ? item.id : null,
+          amount: itemPrice,
+          metadata: shopMetadata,
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Kunne ikke oprette betalingsintent');
+      }
+
+      const paymentResult = await response.json();
 
       if (!paymentResult || !paymentResult.clientSecret) {
         throw new Error('Kunne ikke oprette betalingsintent');
