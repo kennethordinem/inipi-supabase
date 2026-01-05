@@ -87,7 +87,7 @@ export default function AdminSessionsPage() {
     price: 150,
     location: 'Havkajakvej, Amagerstrand',
     group_type_id: '',
-    employee_ids: [] as string[],
+    employee_id: '', // Changed from array to single string
     theme_ids: [] as string[],
   });
   const [repeatFormData, setRepeatFormData] = useState({
@@ -246,7 +246,7 @@ export default function AdminSessionsPage() {
       price: 150,
       location: 'Havkajakvej, Amagerstrand',
       group_type_id: groupTypes[0]?.id || '',
-      employee_ids: [],
+      employee_id: '',
       theme_ids: [],
     });
     setShowModal(true);
@@ -276,7 +276,7 @@ export default function AdminSessionsPage() {
       price: session.price,
       location: session.location || 'Havkajakvej, Amagerstrand',
       group_type_id: session.group_type_id,
-      employee_ids: sessionEmployees?.map(se => se.employee_id) || [],
+      employee_id: sessionEmployees?.[0]?.employee_id || '', // Get first employee only
       theme_ids: sessionThemes?.map(st => st.theme_id) || [],
     });
     setShowModal(true);
@@ -474,15 +474,15 @@ export default function AdminSessionsPage() {
 
         if (updateError) throw updateError;
 
-        // Update session employees
+        // Update session employee (single gusmester)
         await supabase.from('session_employees').delete().eq('session_id', editingSession.id);
-        if (formData.employee_ids.length > 0) {
+        if (formData.employee_id) {
           const { error: employeesError } = await supabase
             .from('session_employees')
-            .insert(formData.employee_ids.map(emp_id => ({
+            .insert({
               session_id: editingSession.id,
-              employee_id: emp_id
-            })));
+              employee_id: formData.employee_id
+            });
           if (employeesError) throw employeesError;
         }
 
@@ -521,14 +521,14 @@ export default function AdminSessionsPage() {
 
         if (insertError) throw insertError;
 
-        // Add session employees
-        if (formData.employee_ids.length > 0) {
+        // Add session employee (single gusmester)
+        if (formData.employee_id) {
           const { error: employeesError } = await supabase
             .from('session_employees')
-            .insert(formData.employee_ids.map(emp_id => ({
+            .insert({
               session_id: newSession.id,
-              employee_id: emp_id
-            })));
+              employee_id: formData.employee_id
+            });
           if (employeesError) throw employeesError;
         }
 
@@ -1139,30 +1139,23 @@ export default function AdminSessionsPage() {
                 </select>
               </div>
 
-              {/* Employees */}
+              {/* Employee (Single Gusmester) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Gusmestre
+                  Gusmester
                 </label>
-                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                <select
+                  value={formData.employee_id}
+                  onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                >
+                  <option value="">Ingen gusmester</option>
                   {employees.map(emp => (
-                    <label key={emp.id} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.employee_ids.includes(emp.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({ ...formData, employee_ids: [...formData.employee_ids, emp.id] });
-                          } else {
-                            setFormData({ ...formData, employee_ids: formData.employee_ids.filter(id => id !== emp.id) });
-                          }
-                        }}
-                        className="rounded text-[#502B30] focus:ring-[#502B30]"
-                      />
-                      <span className="text-sm text-gray-700">{emp.name}</span>
-                    </label>
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
 
               {/* Themes */}
