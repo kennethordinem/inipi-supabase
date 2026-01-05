@@ -1246,6 +1246,8 @@ async function getStaffSessions(filters?: {
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
 
+  console.log('[getStaffSessions] Current user:', user.id);
+
   // Get employee record for current user
   const { data: employee, error: employeeError } = await supabase
     .from('employees')
@@ -1253,22 +1255,39 @@ async function getStaffSessions(filters?: {
     .eq('user_id', user.id)
     .single();
 
+  console.log('[getStaffSessions] Employee:', employee, 'Error:', employeeError);
+
   if (employeeError || !employee) {
+    console.log('[getStaffSessions] No employee record found');
     return { sessions: [], count: 0 };
   }
 
-  // Build query
+  // First, let's check which sessions this employee is assigned to
+  const { data: assignments, error: assignError } = await supabase
+    .from('session_employees')
+    .select('session_id')
+    .eq('employee_id', employee.id);
+
+  console.log('[getStaffSessions] Session assignments:', assignments, 'Error:', assignError);
+
+  if (!assignments || assignments.length === 0) {
+    console.log('[getStaffSessions] No session assignments found');
+    return { sessions: [], count: 0 };
+  }
+
+  const sessionIds = assignments.map(a => a.session_id);
+
+  // Build query - get sessions where employee is assigned
   let query = supabase
     .from('sessions')
     .select(`
       *,
-      group_types!inner(id, name, color),
-      session_employees!inner(
-        employee_id,
-        employees!inner(id, name)
+      group_types(id, name, color),
+      session_employees(
+        employees(id, name)
       )
     `)
-    .eq('session_employees.employee_id', employee.id)
+    .in('id', sessionIds)
     .eq('status', 'active')
     .order('date', { ascending: true })
     .order('time', { ascending: true });
@@ -1282,6 +1301,8 @@ async function getStaffSessions(filters?: {
   }
 
   const { data, error } = await query;
+
+  console.log('[getStaffSessions] Query result:', data?.length || 0, 'sessions', 'Error:', error);
 
   if (error) throw new Error(error.message);
 
