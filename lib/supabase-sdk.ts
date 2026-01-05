@@ -1246,8 +1246,6 @@ async function getStaffSessions(filters?: {
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
 
-  console.log('[getStaffSessions] Current user:', user.id);
-
   // Get employee record for current user
   const { data: employee, error: employeeError } = await supabase
     .from('employees')
@@ -1255,23 +1253,17 @@ async function getStaffSessions(filters?: {
     .eq('user_id', user.id)
     .single();
 
-  console.log('[getStaffSessions] Employee:', employee, 'Error:', employeeError);
-
   if (employeeError || !employee) {
-    console.log('[getStaffSessions] No employee record found');
     return { sessions: [], count: 0 };
   }
 
-  // First, let's check which sessions this employee is assigned to
+  // Get all sessions where this employee is assigned
   const { data: assignments, error: assignError } = await supabase
     .from('session_employees')
     .select('session_id')
     .eq('employee_id', employee.id);
 
-  console.log('[getStaffSessions] Session assignments:', assignments, 'Error:', assignError);
-
   if (!assignments || assignments.length === 0) {
-    console.log('[getStaffSessions] No session assignments found');
     return { sessions: [], count: 0 };
   }
 
@@ -1288,11 +1280,9 @@ async function getStaffSessions(filters?: {
       )
     `)
     .in('id', sessionIds)
-    .eq('status', 'active')
-    .order('date', { ascending: true })
-    .order('time', { ascending: true });
+    .eq('status', 'active');
 
-  // Apply date filters
+  // Apply date filters - make sure to use >= for start and <= for end
   if (filters?.startDate) {
     query = query.gte('date', filters.startDate);
   }
@@ -1300,11 +1290,29 @@ async function getStaffSessions(filters?: {
     query = query.lte('date', filters.endDate);
   }
 
+  // Order by date and time
+  query = query.order('date', { ascending: true }).order('time', { ascending: true });
+
   const { data, error } = await query;
 
-  console.log('[getStaffSessions] Query result:', data?.length || 0, 'sessions', 'Error:', error);
+  if (error) {
+    console.error('[getStaffSessions] Query error:', error);
+    throw new Error(error.message);
+  }
 
-  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    // If no sessions found with filters, let's check without filters for debugging
+    const { data: allSessions } = await supabase
+      .from('sessions')
+      .select('id, date, name')
+      .in('id', sessionIds)
+      .eq('status', 'active');
+    
+    console.log('[getStaffSessions] No sessions in date range. All assigned sessions:', allSessions);
+    console.log('[getStaffSessions] Date filters:', filters);
+    
+    return { sessions: [], count: 0 };
+  }
 
   // Format sessions and load participants
   const sessionsWithParticipants = await Promise.all(
