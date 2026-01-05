@@ -15,12 +15,23 @@ export default function ResetPasswordPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if we have a valid session from the reset link
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        setError('Ugyldigt eller udløbet link. Anmod om et nyt link.');
-      }
-    });
+    // Supabase automatically handles the token from the URL
+    // We just need to check if there's a hash in the URL
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    const type = hashParams.get('type');
+    
+    if (type !== 'recovery' || !accessToken) {
+      // Only show error if there's no token at all
+      // Give Supabase a moment to process the token
+      setTimeout(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session) {
+            setError('Ugyldigt eller udløbet link. Anmod om et nyt link.');
+          }
+        });
+      }, 1000);
+    }
   }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
