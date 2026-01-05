@@ -1027,6 +1027,56 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
   if (empError || !employee) throw new Error('Not an employee');
   if (employee.points < 150) throw new Error('Insufficient points');
 
+  // Check if guest spot exists and is available
+  const { data: guestSpot, error: spotError } = await supabase
+    .from('guest_spots')
+    .select('id, status, session_id')
+    .eq('session_id', sessionId)
+    .single();
+
+  if (spotError || !guestSpot) {
+    throw new Error('No guest spot exists for this session');
+  }
+
+  if (guestSpot.status !== 'released_to_public') {
+    throw new Error('This spot is not available (already booked or reserved)');
+  }
+
+  // Check if employee already has an active booking for this session
+  const { data: existingBooking } = await supabase
+    .from('gusmester_bookings')
+    .select('id')
+    .eq('employee_id', employee.id)
+    .eq('session_id', sessionId)
+    .eq('status', 'active')
+    .maybeSingle();
+
+  if (existingBooking) {
+    throw new Error('You have already booked this spot');
+  }
+
+  // Update guest spot status FIRST (this will fail if someone else just booked it)
+  const { error: spotUpdateError } = await supabase
+    .from('guest_spots')
+    .update({ status: 'booked_by_gusmester' })
+    .eq('session_id', sessionId)
+    .eq('status', 'released_to_public'); // Only update if still released_to_public
+
+  if (spotUpdateError) {
+    throw new Error('Failed to claim spot: ' + spotUpdateError.message);
+  }
+
+  // Verify the update actually happened (spot was available)
+  const { data: updatedSpot } = await supabase
+    .from('guest_spots')
+    .select('status')
+    .eq('session_id', sessionId)
+    .single();
+
+  if (!updatedSpot || updatedSpot.status !== 'booked_by_gusmester') {
+    throw new Error('Spot was claimed by another gusmester');
+  }
+
   // Create gusmester booking
   const { error: bookingError } = await supabase
     .from('gusmester_bookings')
@@ -1037,7 +1087,14 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
       status: 'active',
     });
 
-  if (bookingError) throw new Error(bookingError.message);
+  if (bookingError) {
+    // Rollback: Release the spot back
+    await supabase
+      .from('guest_spots')
+      .update({ status: 'released_to_public' })
+      .eq('session_id', sessionId);
+    throw new Error(bookingError.message);
+  }
 
   // Deduct points
   const newPoints = employee.points - 150;
@@ -1046,7 +1103,19 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
     .update({ points: newPoints })
     .eq('id', employee.id);
 
-  if (updateError) throw new Error(updateError.message);
+  if (updateError) {
+    // Rollback: Cancel booking and release spot
+    await supabase
+      .from('gusmester_bookings')
+      .update({ status: 'cancelled' })
+      .eq('employee_id', employee.id)
+      .eq('session_id', sessionId);
+    await supabase
+      .from('guest_spots')
+      .update({ status: 'released_to_public' })
+      .eq('session_id', sessionId);
+    throw new Error(updateError.message);
+  }
 
   // Record points history
   await supabase.from('employee_points_history').insert({
@@ -1055,13 +1124,6 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
     reason: 'Booked gusmester spot',
     related_session_id: sessionId,
   });
-
-  // Update guest spot status
-  await supabase
-    .from('guest_spots')
-    .update({ status: 'booked_by_gusmester' })
-    .eq('session_id', sessionId)
-    .eq('status', 'released_to_public');
 
   return { success: true, newPoints };
 }
