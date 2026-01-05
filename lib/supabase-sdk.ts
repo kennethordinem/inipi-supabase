@@ -408,6 +408,22 @@ async function bookSession(params: {
     console.error('Error creating invoice:', invoiceError);
   }
 
+  // Send booking confirmation email (async, don't wait)
+  fetch('/api/email/booking-confirmation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ bookingId: booking.id }),
+  }).catch(err => console.error('Error sending booking confirmation email:', err));
+
+  // If using punch card, send punch card used email
+  if (params.punchCardId) {
+    fetch('/api/email/punch-card-used', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: booking.id, punchCardId: params.punchCardId }),
+    }).catch(err => console.error('Error sending punch card used email:', err));
+  }
+
   return {
     success: true,
     appointmentId: booking.id,
@@ -494,6 +510,17 @@ async function cancelBooking(bookingId: string): Promise<{
   } else {
     compensationMessage = 'Booking aflyst';
   }
+
+  // Send cancellation email (async, don't wait)
+  fetch('/api/email/booking-cancellation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      bookingId, 
+      refundInfo: compensationMessage,
+      punchCardAdded: !booking.punch_card_id && (booking.payment_method === 'stripe' || booking.payment_method === 'card' || booking.payment_method === 'manual'),
+    }),
+  }).catch(err => console.error('Error sending cancellation email:', err));
 
   return {
     success: true,

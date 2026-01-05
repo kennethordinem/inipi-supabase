@@ -92,8 +92,56 @@ export async function POST(request: NextRequest) {
  */
 async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
   try {
-    const { sessionId, spots } = paymentIntent.metadata;
+    const { sessionId, source, punchCardTemplateId, patientId } = paymentIntent.metadata;
 
+    // Handle shop purchases (punch cards)
+    if (source === 'shop' && punchCardTemplateId && patientId) {
+      console.log('Processing shop purchase for punch card template:', punchCardTemplateId);
+      
+      // Get punch card template details
+      const { data: template } = await supabase
+        .from('punch_card_templates')
+        .select('*')
+        .eq('id', punchCardTemplateId)
+        .single();
+
+      if (template) {
+        // Create punch card for user
+        const { data: newPunchCard, error: punchCardError } = await supabase
+          .from('punch_cards')
+          .insert({
+            user_id: patientId,
+            name: template.name,
+            total_punches: template.total_punches,
+            remaining_punches: template.total_punches,
+            price: paymentIntent.amount / 100, // Convert from øre to DKK
+            valid_for_group_types: template.valid_for_group_types || [],
+            expiry_date: template.validity_months 
+              ? new Date(Date.now() + template.validity_months * 30 * 24 * 60 * 60 * 1000).toISOString()
+              : null,
+            status: 'active',
+          })
+          .select()
+          .single();
+
+        if (!punchCardError && newPunchCard) {
+          console.log('Punch card created:', newPunchCard.id);
+          
+          // Send purchase confirmation email
+          fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', 'https://')}/api/email/punch-card-purchase`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ punchCardId: newPunchCard.id }),
+          }).catch(err => console.error('Error sending punch card purchase email:', err));
+        } else {
+          console.error('Error creating punch card:', punchCardError);
+        }
+      }
+      
+      return;
+    }
+
+    // Handle booking payments
     if (!sessionId) {
       console.error('No sessionId in payment intent metadata');
       return;
