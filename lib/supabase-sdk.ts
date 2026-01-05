@@ -1237,7 +1237,7 @@ async function bookGuestForSession(sessionId: string, guestName: string, guestEm
 }
 
 /**
- * Get sessions for staff members (where they are assigned as employees)
+ * Get ALL sessions for staff/management (not filtered by employee assignment)
  */
 async function getStaffSessions(filters?: {
   startDate?: string;
@@ -1246,30 +1246,7 @@ async function getStaffSessions(filters?: {
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Get employee record for current user
-  const { data: employee, error: employeeError } = await supabase
-    .from('employees')
-    .select('id')
-    .eq('user_id', user.id)
-    .single();
-
-  if (employeeError || !employee) {
-    return { sessions: [], count: 0 };
-  }
-
-  // Get all sessions where this employee is assigned
-  const { data: assignments, error: assignError } = await supabase
-    .from('session_employees')
-    .select('session_id')
-    .eq('employee_id', employee.id);
-
-  if (!assignments || assignments.length === 0) {
-    return { sessions: [], count: 0 };
-  }
-
-  const sessionIds = assignments.map(a => a.session_id);
-
-  // Build query - get sessions where employee is assigned
+  // Build query - get ALL active sessions (not filtered by employee)
   let query = supabase
     .from('sessions')
     .select(`
@@ -1279,10 +1256,9 @@ async function getStaffSessions(filters?: {
         employees(id, name)
       )
     `)
-    .in('id', sessionIds)
     .eq('status', 'active');
 
-  // Apply date filters - make sure to use >= for start and <= for end
+  // Apply date filters
   if (filters?.startDate) {
     query = query.gte('date', filters.startDate);
   }
@@ -1301,16 +1277,6 @@ async function getStaffSessions(filters?: {
   }
 
   if (!data || data.length === 0) {
-    // If no sessions found with filters, let's check without filters for debugging
-    const { data: allSessions } = await supabase
-      .from('sessions')
-      .select('id, date, name')
-      .in('id', sessionIds)
-      .eq('status', 'active');
-    
-    console.log('[getStaffSessions] No sessions in date range. All assigned sessions:', allSessions);
-    console.log('[getStaffSessions] Date filters:', filters);
-    
     return { sessions: [], count: 0 };
   }
 

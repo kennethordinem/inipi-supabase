@@ -122,7 +122,7 @@ export function Header() {
       profileDropdownEmployee.push({ name: 'Gus Mester', href: '/gusmester', icon: Star, isSeparated: true });
     }
     if (frontendPermissions.staff) {
-      profileDropdownEmployee.push({ name: 'Medarbejder', href: '/personale', icon: Users, isSeparated: true });
+      profileDropdownEmployee.push({ name: 'Ledelse', href: '/personale', icon: Users, isSeparated: true });
     }
     if (frontendPermissions.administration) {
       profileDropdownEmployee.push({ name: 'Administration', href: '/admin', icon: Settings, isSeparated: true });
