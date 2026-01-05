@@ -8,7 +8,7 @@ import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { 
   Calendar, Clock, Users, MapPin, Plus, Edit, Trash2, X, 
-  Save, Loader2, AlertCircle, CheckCircle, Copy 
+  Save, Loader2, AlertCircle, CheckCircle, Copy, Filter, SortAsc 
 } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { da } from 'date-fns/locale';
@@ -53,12 +53,24 @@ export default function AdminSessionsPage() {
   const [hasAccess, setHasAccess] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [groupTypes, setGroupTypes] = useState<GroupType[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Filter and sort state
+  const [filters, setFilters] = useState({
+    dateFrom: format(new Date(), 'yyyy-MM-dd'),
+    dateTo: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+    groupTypeId: '',
+    status: 'all',
+    searchText: '',
+  });
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'participants' | 'price'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -115,20 +127,70 @@ export default function AdminSessionsPage() {
     return () => unsubscribe();
   }, []);
 
+  // Filter and sort effect
+  useEffect(() => {
+    let filtered = [...sessions];
+
+    // Apply filters
+    if (filters.dateFrom) {
+      filtered = filtered.filter(s => s.date >= filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      filtered = filtered.filter(s => s.date <= filters.dateTo);
+    }
+    if (filters.groupTypeId) {
+      filtered = filtered.filter(s => s.group_type_id === filters.groupTypeId);
+    }
+    if (filters.status !== 'all') {
+      filtered = filtered.filter(s => s.status === filters.status);
+    }
+    if (filters.searchText) {
+      const search = filters.searchText.toLowerCase();
+      filtered = filtered.filter(s => 
+        s.name.toLowerCase().includes(search) ||
+        s.description?.toLowerCase().includes(search) ||
+        s.location.toLowerCase().includes(search)
+      );
+    }
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'date':
+          comparison = a.date.localeCompare(b.date) || a.time.localeCompare(b.time);
+          break;
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'participants':
+          comparison = a.current_participants - b.current_participants;
+          break;
+        case 'price':
+          comparison = a.price - b.price;
+          break;
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    setFilteredSessions(filtered);
+  }, [sessions, filters, sortBy, sortOrder]);
+
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Load sessions
+      // Load ALL sessions (we'll filter client-side)
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select(`
           *,
           group_types (name, color)
         `)
-        .gte('date', format(new Date(), 'yyyy-MM-dd'))
-        .order('date', { ascending: true })
+        .order('date', { ascending: false })
         .order('time', { ascending: true });
 
       if (sessionsError) throw sessionsError;
@@ -554,6 +616,139 @@ export default function AdminSessionsPage() {
           </div>
         )}
 
+        {/* Filters and Sort */}
+        <div className="mb-6 bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <Filter className="w-5 h-5 text-[#502B30]" />
+            <h3 className="text-lg font-semibold text-gray-900">Filtrer & Sorter</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            {/* Search */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Søg
+              </label>
+              <input
+                type="text"
+                value={filters.searchText}
+                onChange={(e) => setFilters({ ...filters, searchText: e.target.value })}
+                placeholder="Navn, beskrivelse, lokation..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
+              />
+            </div>
+
+            {/* Date From */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fra dato
+              </label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
+              />
+            </div>
+
+            {/* Date To */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Til dato
+              </label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
+              />
+            </div>
+
+            {/* Group Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type
+              </label>
+              <select
+                value={filters.groupTypeId}
+                onChange={(e) => setFilters({ ...filters, groupTypeId: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
+              >
+                <option value="">Alle typer</option>
+                {groupTypes.map(gt => (
+                  <option key={gt.id} value={gt.id}>{gt.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
+              >
+                <option value="all">Alle</option>
+                <option value="active">Aktiv</option>
+                <option value="cancelled">Aflyst</option>
+                <option value="completed">Gennemført</option>
+              </select>
+            </div>
+
+            {/* Sort By */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sorter efter
+              </label>
+              <div className="flex space-x-2">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
+                >
+                  <option value="date">Dato</option>
+                  <option value="name">Navn</option>
+                  <option value="participants">Deltagere</option>
+                  <option value="price">Pris</option>
+                </select>
+                <button
+                  onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                  className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  title={sortOrder === 'asc' ? 'Stigende' : 'Faldende'}
+                >
+                  <SortAsc className={`w-5 h-5 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Results count and reset */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Viser <strong>{filteredSessions.length}</strong> af <strong>{sessions.length}</strong> sessioner
+            </p>
+            <button
+              onClick={() => {
+                setFilters({
+                  dateFrom: format(new Date(), 'yyyy-MM-dd'),
+                  dateTo: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+                  groupTypeId: '',
+                  status: 'all',
+                  searchText: '',
+                });
+                setSortBy('date');
+                setSortOrder('asc');
+              }}
+              className="text-sm text-[#502B30] hover:underline"
+            >
+              Nulstil filtre
+            </button>
+          </div>
+        </div>
+
         {/* Sessions List */}
         {loading ? (
           <div className="flex justify-center py-12">
@@ -564,9 +759,28 @@ export default function AdminSessionsPage() {
             <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">Ingen sessioner endnu. Opret den første!</p>
           </div>
+        ) : filteredSessions.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-lg shadow">
+            <Filter className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">Ingen sessioner matcher dine filtre.</p>
+            <button
+              onClick={() => {
+                setFilters({
+                  dateFrom: format(new Date(), 'yyyy-MM-dd'),
+                  dateTo: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+                  groupTypeId: '',
+                  status: 'all',
+                  searchText: '',
+                });
+              }}
+              className="mt-4 text-[#502B30] hover:underline"
+            >
+              Nulstil filtre
+            </button>
+          </div>
         ) : (
           <div className="grid gap-4">
-            {sessions.map(session => (
+            {filteredSessions.map(session => (
               <div
                 key={session.id}
                 className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
