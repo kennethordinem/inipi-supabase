@@ -6,7 +6,7 @@ import type { AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { 
-  Loader2, AlertCircle, Calendar, Ticket, Users, UserPlus, Settings, CreditCard
+  Loader2, AlertCircle, Calendar, Ticket, Users, UserPlus, Settings, CreditCard, Palette
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -89,6 +89,13 @@ export default function AdminPage() {
       icon: Ticket,
       href: '/admin-punch-cards',
       color: 'bg-amber-500',
+    },
+    {
+      title: 'Temaer',
+      description: 'Administrer session temaer',
+      icon: Palette,
+      href: '/admin-themes',
+      color: 'bg-pink-500',
     },
     {
       title: 'Brugere & Medarbejdere',
