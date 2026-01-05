@@ -252,7 +252,7 @@ export default function PersonalePage() {
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-[#502B30] tracking-wide flex items-center">
               <Users className="h-10 w-10 mr-3" />
-              Ledelse
+ovybci              Ledelse
             </h1>
             <p className="mt-3 text-lg text-[#4a2329]/80">
               Administrer alle sessioner, bookinger og deltagere
