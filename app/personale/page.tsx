@@ -59,16 +59,29 @@ interface StaffSessionParticipant {
   isGuest: boolean;
 }
 
+interface Client {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  member_since: string;
+  isEmployee: boolean;
+}
+
 export default function PersonalePage() {
   const [isEmployee, setIsEmployee] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [sessions, setSessions] = useState<StaffSession[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     return startOfWeek(new Date(), { weekStartsOn: 1, locale: da });
   });
+  const [activeTab, setActiveTab] = useState<'sessions' | 'clients'>('sessions');
+  const [clientSearch, setClientSearch] = useState('');
 
   useEffect(() => {
     // Subscribe to auth state changes
@@ -130,6 +143,27 @@ export default function PersonalePage() {
     }
   };
 
+  const loadClients = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const { data: allClients } = await members.getAllClients();
+      setClients(allClients || []);
+    } catch (err: any) {
+      console.error('[Personale] Error loading clients:', err);
+      setError(err.message || 'Kunne ikke indlæse klienter');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isEmployee && activeTab === 'clients') {
+      loadClients();
+    }
+  }, [activeTab, isEmployee]);
+
   const toggleSessionExpanded = (sessionId: string) => {
     setExpandedSessions(prev => {
       const newSet = new Set(prev);
@@ -176,6 +210,18 @@ export default function PersonalePage() {
     
     return grouped;
   }, [sessions]);
+
+  const filteredClients = useMemo(() => {
+    const search = clientSearch.toLowerCase();
+    if (!search) return clients;
+    
+    return clients.filter(client => 
+      client.first_name?.toLowerCase().includes(search) ||
+      client.last_name?.toLowerCase().includes(search) ||
+      client.email?.toLowerCase().includes(search) ||
+      client.phone?.toLowerCase().includes(search)
+    );
+  }, [clients, clientSearch]);
 
   const getPaymentStatusIcon = (status: string) => {
     switch (status) {
@@ -252,13 +298,44 @@ export default function PersonalePage() {
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-[#502B30] tracking-wide flex items-center">
               <Users className="h-10 w-10 mr-3" />
-ovybci              Ledelse
+              Ledelse
             </h1>
             <p className="mt-3 text-lg text-[#4a2329]/80">
               Administrer alle sessioner, bookinger og deltagere
             </p>
           </div>
 
+          {/* Tabs */}
+          <div className="mb-6">
+            <div className="flex gap-2 border-b border-[#502B30]/20">
+              <button
+                onClick={() => setActiveTab('sessions')}
+                className={`px-6 py-3 font-semibold transition-colors relative ${
+                  activeTab === 'sessions'
+                    ? 'text-[#502B30] border-b-2 border-[#502B30]'
+                    : 'text-[#502B30]/60 hover:text-[#502B30]/80'
+                }`}
+              >
+                <Calendar className="h-4 w-4 inline mr-2" />
+                Sessioner
+              </button>
+              <button
+                onClick={() => setActiveTab('clients')}
+                className={`px-6 py-3 font-semibold transition-colors relative ${
+                  activeTab === 'clients'
+                    ? 'text-[#502B30] border-b-2 border-[#502B30]'
+                    : 'text-[#502B30]/60 hover:text-[#502B30]/80'
+                }`}
+              >
+                <Users className="h-4 w-4 inline mr-2" />
+                Klienter
+              </button>
+            </div>
+          </div>
+
+          {/* Sessions Tab */}
+          {activeTab === 'sessions' && (
+            <>
           {/* Week Navigation */}
           <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6 mb-6">
             <div className="flex items-center justify-between">
@@ -504,6 +581,98 @@ ovybci              Ledelse
               </div>
             )}
           </div>
+          </>
+          )}
+
+          {/* Clients Tab */}
+          {activeTab === 'clients' && (
+            <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10">
+              {/* Search */}
+              <div className="p-6 border-b border-[#502B30]/10">
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#502B30]/40 h-5 w-5" />
+                  <input
+                    type="text"
+                    placeholder="Søg efter navn, email eller telefon..."
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-[#502B30]/20 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Clients Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-[#502B30]/5 border-b border-[#502B30]/10">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[#502B30] uppercase tracking-wider">
+                        Navn
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[#502B30] uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[#502B30] uppercase tracking-wider">
+                        Telefon
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[#502B30] uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-[#502B30] uppercase tracking-wider">
+                        Medlem siden
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-[#502B30]/10">
+                    {filteredClients.map((client) => (
+                        <tr key={client.id} className="hover:bg-[#502B30]/5">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-[#502B30]">
+                              {client.first_name} {client.last_name}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center text-sm text-[#4a2329]/80">
+                              <Mail className="h-4 w-4 mr-2 text-[#502B30]/40" />
+                              {client.email}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center text-sm text-[#4a2329]/80">
+                              <Phone className="h-4 w-4 mr-2 text-[#502B30]/40" />
+                              {client.phone || '-'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {client.isEmployee ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#502B30] text-amber-50">
+                                Medarbejder
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Medlem
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-[#4a2329]/80">
+                            {format(parseISO(client.member_since), 'dd MMM yyyy', { locale: da })}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {clients.length === 0 && (
+                <div className="p-12 text-center">
+                  <Users className="h-16 w-16 text-[#502B30]/30 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-[#502B30] mb-2">
+                    Ingen klienter fundet
+                  </h3>
+                </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
       <Footer />

@@ -1343,6 +1343,52 @@ async function getStaffSessions(filters?: {
 }
 
 /**
+ * Get all clients (profiles) for management view
+ */
+async function getAllClients(): Promise<{ data: any[]; count: number }> {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Check if user has staff permission
+  const employeeCheck = await checkIfEmployee();
+  if (!employeeCheck.isEmployee || !employeeCheck.frontendPermissions?.staff) {
+    throw new Error('Unauthorized - staff permission required');
+  }
+
+  // Get all profiles with employee status
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('member_since', { ascending: false});
+
+  if (profilesError) {
+    console.error('[getAllClients] Error loading profiles:', profilesError);
+    throw new Error(profilesError.message);
+  }
+
+  // Get all employees to mark which profiles are employees
+  const { data: employees, error: employeesError } = await supabase
+    .from('employees')
+    .select('user_id');
+
+  if (employeesError) {
+    console.error('[getAllClients] Error loading employees:', employeesError);
+  }
+
+  const employeeUserIds = new Set(employees?.map(e => e.user_id) || []);
+
+  const clientsWithEmployeeStatus = (profiles || []).map(profile => ({
+    ...profile,
+    isEmployee: employeeUserIds.has(profile.id)
+  }));
+
+  return {
+    data: clientsWithEmployeeStatus,
+    count: clientsWithEmployeeStatus.length
+  };
+}
+
+/**
  * Get participants for a specific session (for staff view)
  */
 async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
@@ -1548,6 +1594,7 @@ export const members = {
   // Staff
   getStaffSessions,
   getStaffSessionParticipants,
+  getAllClients,
 
   // Admin
   getAdminMembers,
