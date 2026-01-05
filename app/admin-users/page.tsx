@@ -115,6 +115,7 @@ export default function AdminUsersPage() {
         .order('member_since', { ascending: false });
 
       if (profilesError) throw profilesError;
+      console.log('[Admin Users] Loaded profiles:', profilesData?.length, profilesData);
       setUsers(profilesData || []);
 
       // Load all employees
@@ -124,6 +125,7 @@ export default function AdminUsersPage() {
         .order('created_at', { ascending: false });
 
       if (employeesError) throw employeesError;
+      console.log('[Admin Users] Loaded employees:', employeesData?.length, employeesData);
       setEmployees(employeesData || []);
 
     } catch (err: any) {
