@@ -1,161 +1,314 @@
-# INIPI - Saunagus Website
+# INIPI - Sauna Booking System
 
-Example website demonstrating integration with Clinio Members API for booking sauna sessions (saunagus).
+A complete, independent sauna booking and management system built with Next.js and Supabase. Perfect for wellness businesses, saunas, and group activity providers.
 
-## Features
+## 🌟 Features
 
-- 🔥 **Browse Saunagus Sessions** - View all available sauna sessions with real-time availability
-- 👤 **Member Registration & Login** - Firebase Authentication powered by Clinio
+### For Members/Guests
+- 🔥 **Browse Sessions** - View all available sauna sessions with real-time availability
+- 👤 **Member Registration & Login** - Supabase Authentication
 - 📅 **Session Booking** - Book sauna sessions with multiple payment options
-- 💳 **Multiple Payment Methods** - Card, MobilePay, or Punch Cards
-- 🎫 **Punch Card Management** - View and use your punch cards
-- 📊 **Member Dashboard** - Manage bookings and view your profile
-- 🎨 **Modern Nordic Design** - Clean, minimalist aesthetic perfect for wellness businesses
+- 💳 **Stripe Payments** - Secure card payments for bookings and purchases
+- 🎫 **Punch Card System** - Buy and use punch cards (klippekort)
+- 🛒 **Online Shop** - Purchase punch cards and products
+- 📊 **Member Dashboard** - Manage bookings, view invoices, and profile
+- 📄 **Invoices/Receipts** - View all payment history and receipts
+- ❌ **Booking Cancellation** - Cancel bookings with automatic refunds/compensation
 
-## Tech Stack
+### For Staff/Gusmester
+- 🎯 **Gusmester System** - Points-based system for employees
+- 👥 **Host Sessions** - Manage guest spots for sessions
+- 📈 **Employee Dashboard** - Track points and hosting sessions
+- 🎁 **Guest Spot Booking** - Book spots for guests using points
 
-- **Next.js 15** - React framework with App Router
+### For Administrators
+- ⚙️ **Admin Dashboard** - Centralized management interface
+- 📅 **Session Management** - Create, edit, and delete sessions
+- 🎫 **Punch Card Management** - Create and manage punch cards
+- 👥 **User Management** - Create users and employees
+- 💳 **Stripe Integration** - Configure payment processing
+- 📊 **Full Control** - Complete system administration
+
+## 🛠️ Tech Stack
+
+- **Next.js 16** - React framework with App Router
 - **TypeScript** - Type safety throughout
-- **Tailwind CSS** - Utility-first styling
-- **@clinio/members-sdk** - Integration with Clinio Members API
-- **Firebase** - Authentication and backend services
+- **Tailwind CSS** - Modern, responsive styling
+- **Supabase** - Backend (Database, Auth, RLS)
+- **PostgreSQL** - Relational database
+- **Stripe** - Payment processing
+- **Coolify** - Self-hosted deployment
 
-## Setup
+## 📦 Database Schema
 
-### 1. Install Dependencies
+The system includes 17 tables:
+- `profiles` - User profiles
+- `employees` - Staff and gusmester data
+- `sessions` - Sauna sessions/classes
+- `bookings` - User bookings
+- `punch_cards` - User punch cards
+- `punch_card_templates` - Admin-created punch card types
+- `invoices` - Payment receipts
+- `group_types` - Session categories
+- `themes` - Session themes
+- `guest_spots` - Gusmester guest spots
+- `gusmester_bookings` - Guest bookings
+- And more...
+
+## 🚀 Setup Instructions
+
+### 1. Clone Repository
+
+```bash
+git clone https://github.com/yourusername/inipi-supabase.git
+cd inipi-supabase
+```
+
+### 2. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Configure Clinio Integration
+### 3. Set Up Supabase
 
-Open `lib/clinio.ts` and replace `'your-unique-id'` with your actual clinic's uniqueId from Clinio:
+1. Create a new project at [supabase.com](https://supabase.com)
+2. Copy your project URL and anon key
+3. Create `.env.local`:
 
-```typescript
-membersInstance = new ClinioMembers({
-  uniqueId: 'your-actual-unique-id', // Get this from Clinio
-  firebaseApp: firebaseApp
-});
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
-**Note:** The SDK is currently copied into `lib/members-sdk/` due to Next.js Turbopack compatibility. When the SDK is published to NPM, you can install it normally with `npm install @clinio/members-sdk` and import from the package.
+### 4. Run Database Migrations
 
-### 3. Run Development Server
+In Supabase SQL Editor, run these files in order:
+
+1. `supabase-setup/SUPABASE_SCHEMA.sql` - Main database schema
+2. `supabase-setup/PUNCH_CARD_FUNCTIONS.sql` - Punch card logic
+3. `supabase-setup/GUSMESTER_FUNCTIONS.sql` - Gusmester system
+4. `supabase-setup/PUNCH_CARD_RLS_ADMIN.sql` - Admin policies
+5. `supabase-setup/STRIPE_SETUP.sql` - Stripe configuration
+6. `supabase-setup/FIX_PUNCH_CARD_FK.sql` - Foreign key fix
+7. `supabase-setup/CREATE_MISSING_GUEST_SPOTS.sql` - Guest spots setup
+
+Optional test data:
+- `supabase-setup/SUPABASE_TEST_DATA.sql` - Sample data
+
+### 5. Create Admin User
+
+In Supabase SQL Editor:
+
+```sql
+-- Create admin user (replace with your email)
+INSERT INTO employees (user_id, name, email, frontend_permissions, status)
+VALUES (
+  'your-user-id-from-auth-users',
+  'Admin Name',
+  'admin@example.com',
+  '{"gusmester": true, "staff": true, "administration": true}',
+  'active'
+);
+```
+
+### 6. Configure Stripe (Optional)
+
+1. Sign up at [stripe.com](https://stripe.com)
+2. Get your Test Mode API keys
+3. Log in as admin → Administration → Stripe Integration
+4. Enter your keys and enable Stripe
+
+See `supabase-setup/STRIPE_SETUP_GUIDE.md` for detailed instructions.
+
+### 7. Run Development Server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the website.
+Open [http://localhost:3000](http://localhost:3000)
 
-## Project Structure
+## 📁 Project Structure
 
 ```
-inipi/
-├── app/                      # Next.js App Router pages
-│   ├── page.tsx             # Homepage
-│   ├── sessions/            # Browse sessions
-│   ├── login/               # Login & Registration
-│   ├── dashboard/           # Member dashboard
-│   └── book/[sessionId]/    # Booking flow
+inipi-supabase/
+├── app/                          # Next.js App Router
+│   ├── page.tsx                 # Homepage
+│   ├── sessions/                # Browse sessions
+│   ├── login/                   # Authentication
+│   ├── dashboard/               # Member dashboard
+│   ├── profile/                 # User profile
+│   ├── mine-hold/               # My bookings
+│   ├── invoices/                # Payment receipts
+│   ├── klippekort/              # Punch cards
+│   ├── shop/                    # Online shop
+│   ├── gusmester/               # Gusmester dashboard
+│   ├── personale/               # Staff dashboard
+│   ├── admin/                   # Admin dashboard
+│   ├── admin-sessions/          # Session management
+│   ├── admin-users/             # User management
+│   ├── admin-punch-cards/       # Punch card management
+│   ├── admin-stripe/            # Stripe settings
+│   ├── book/[sessionId]/        # Booking flow
+│   ├── components/              # Reusable components
+│   └── api/                     # API routes
+│       ├── admin/               # Admin endpoints
+│       └── stripe/              # Stripe endpoints
 ├── lib/
-│   ├── firebase.ts          # Firebase configuration
-│   └── clinio.ts            # Clinio SDK initialization
-└── package.json
+│   ├── supabase.ts              # Supabase client
+│   ├── supabase-sdk.ts          # Custom SDK wrapper
+│   ├── stripe-server.ts         # Stripe server utilities
+│   ├── cache.ts                 # Caching utilities
+│   └── cachedMembers.ts         # Cached SDK wrapper
+├── supabase-setup/              # SQL migration files
+│   ├── SUPABASE_SCHEMA.sql
+│   ├── STRIPE_SETUP.sql
+│   ├── STRIPE_SETUP_GUIDE.md
+│   └── ...
+└── public/
+    └── images/                  # Image assets
 ```
 
-## Key Pages
+## 🔑 Key Features Explained
 
-### Homepage (`/`)
-- Hero section with call-to-action
-- About section explaining saunagus
-- Features showcase
-- Navigation to sessions and login
+### Booking System
+- Users can book sauna sessions
+- Pay with Stripe or use punch cards
+- Automatic invoice generation
+- Email confirmations (if configured)
+- Cancellation with refunds/compensation
 
-### Sessions (`/sessions`)
-- List all available saunagus sessions
-- Real-time availability
-- Filter by date/time
-- Quick booking buttons
+### Punch Card System
+- Admins create punch card templates
+- Users purchase in shop with Stripe
+- Use for bookings instead of payment
+- Automatic deduction and restoration
+- Expiry date tracking
 
-### Login/Register (`/login`)
-- Toggle between login and registration
-- Firebase Authentication
-- Automatic redirect after successful login
+### Gusmester System
+- Employees earn points for hosting sessions
+- Spend points to book guest spots
+- Automatic guest spot creation
+- Points tracking and management
 
-### Dashboard (`/dashboard`)
-- View active bookings
-- Manage punch cards
-- Cancel bookings
-- Profile information
+### Payment Processing
+- Stripe integration for card payments
+- Test and Live modes
+- Webhook support for payment events
+- Automatic invoice creation
+- Refund handling
 
-### Booking (`/book/[sessionId]`)
-- Session details
-- Select number of spots
-- Choose payment method (card, MobilePay, punch card)
-- Complete booking
+### Admin Features
+- Complete session management
+- User and employee creation
+- Punch card template management
+- Stripe configuration
+- Full system control
 
-## Customization
+## 🎨 Customization
 
 ### Branding
-- Update color scheme in Tailwind config
+- Update colors in Tailwind classes (search for `#502B30`, `amber-*`)
 - Replace "INIPI" with your business name
-- Add your logo/images
-- Customize Danish text to match your brand voice
+- Add your logo in `public/images/`
+- Update Danish text throughout
 
 ### Styling
-All styling uses Tailwind CSS utility classes. Main colors:
-- `amber-*` - Primary brand color
-- `orange-*` - Accent colors
-- `gray-*` - Neutral colors
+All styling uses Tailwind CSS:
+- Primary: `#502B30` (dark brown)
+- Secondary: `amber-*` (warm orange)
+- Background: `#faf8f5` (cream)
 
 ### Content
-- Update homepage hero text in `app/page.tsx`
-- Customize session display in `app/sessions/page.tsx`
-- Modify dashboard sections in `app/dashboard/page.tsx`
+- Homepage: `app/page.tsx`
+- About page: `app/about/page.tsx`
+- Contact: `app/contact/page.tsx`
 
-## Deployment
+## 🚢 Deployment
 
 ### Deploy to Coolify
 
-1. **Create Git Repository**
+1. **Push to Git**
 ```bash
 git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/yourusername/inipi.git
-git push -u origin main
+git commit -m "Initial setup"
+git push origin main
 ```
 
-2. **Deploy to Coolify**
-- Connect your Git repository
+2. **Configure Coolify**
+- Connect Git repository
 - Set build command: `npm run build`
 - Set start command: `npm start`
+- Add environment variables
 - Deploy!
 
 ### Environment Variables
-No environment variables needed - Firebase config is public and SDK handles authentication.
 
-## Integration with Clinio
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
 
-This website uses the `@clinio/members-sdk` to integrate with Clinio. The SDK provides:
+## 📚 Documentation
 
-- ✅ Authentication (login, register, logout)
-- ✅ Session browsing and details
-- ✅ Booking management
-- ✅ Punch card management
-- ✅ Profile management
-- ✅ Payment processing
+- **Setup Guide**: This README
+- **Stripe Integration**: `supabase-setup/STRIPE_SETUP_GUIDE.md`
+- **Database Schema**: `supabase-setup/SUPABASE_SCHEMA.sql`
+- **API Documentation**: Check `app/api/` folders
 
-All data is stored in Clinio's Firebase database and managed through the Clinio admin panel.
+## 🔒 Security
 
-## Support
+- Row Level Security (RLS) enabled on all tables
+- Admin-only access to sensitive operations
+- Secure Stripe key storage
+- Authentication required for bookings
+- Encrypted payment processing
 
-For issues related to:
-- **Website functionality** - Check this repository
-- **Clinio integration** - Refer to Clinio Members SDK documentation
-- **Payment processing** - Contact Clinio support
+## 🧪 Testing
 
-## License
+### Test Accounts
+Create test users via `/login` or admin panel
 
-This is an example template for use with Clinio. Customize freely for your business.
+### Test Payments
+Use Stripe test cards in Test Mode:
+- Success: `4242 4242 4242 4242`
+- 3D Secure: `4000 0025 0000 3155`
+- Declined: `4000 0000 0000 9995`
+
+### Test Bookings
+1. Create sessions in admin panel
+2. Assign employees as gusmester
+3. Book as regular user
+4. Test cancellations and refunds
+
+## 🤝 Contributing
+
+This is a standalone project. Feel free to fork and customize for your needs.
+
+## 📄 License
+
+MIT License - Use freely for your business
+
+## 💡 Support
+
+For questions or issues:
+- Check documentation in `supabase-setup/`
+- Review SQL files for database structure
+- Check API routes for endpoint details
+
+## 🎯 Roadmap
+
+Potential future features:
+- Email notifications
+- SMS reminders
+- Multi-language support
+- Advanced reporting
+- Mobile app
+- Calendar integrations
+
+---
+
+Built with ❤️ for wellness businesses
