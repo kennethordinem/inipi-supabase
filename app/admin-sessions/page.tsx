@@ -617,16 +617,16 @@ export default function AdminSessionsPage() {
         )}
 
         {/* Filters and Sort */}
-        <div className="mb-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-md p-6 border border-amber-100">
-          <div className="flex items-center space-x-2 mb-6">
+        <div className="mb-6 bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center space-x-2 mb-4">
             <Filter className="w-5 h-5 text-[#502B30]" />
-            <h3 className="text-lg font-semibold text-[#502B30]">Filtrer & Sorter</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Filtrer & Sorter</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             {/* Search */}
             <div>
-              <label className="block text-sm font-medium text-[#502B30] mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Søg
               </label>
               <input
@@ -634,45 +634,45 @@ export default function AdminSessionsPage() {
                 value={filters.searchText}
                 onChange={(e) => setFilters({ ...filters, searchText: e.target.value })}
                 placeholder="Navn, beskrivelse, lokation..."
-                className="w-full px-4 py-2.5 bg-white border-2 border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all text-gray-900 placeholder-gray-400"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
               />
             </div>
 
             {/* Date From */}
             <div>
-              <label className="block text-sm font-medium text-[#502B30] mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Fra dato
               </label>
               <input
                 type="date"
                 value={filters.dateFrom}
                 onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                className="w-full px-4 py-2.5 bg-white border-2 border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
               />
             </div>
 
             {/* Date To */}
             <div>
-              <label className="block text-sm font-medium text-[#502B30] mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Til dato
               </label>
               <input
                 type="date"
                 value={filters.dateTo}
                 onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                className="w-full px-4 py-2.5 bg-white border-2 border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all text-gray-900"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
               />
             </div>
 
             {/* Group Type */}
             <div>
-              <label className="block text-sm font-medium text-[#502B30] mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Type
               </label>
               <select
                 value={filters.groupTypeId}
                 onChange={(e) => setFilters({ ...filters, groupTypeId: e.target.value })}
-                className="w-full px-4 py-2.5 bg-white border-2 border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all text-gray-900 cursor-pointer hover:border-amber-300"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
               >
                 <option value="">Alle typer</option>
                 {groupTypes.map(gt => (
@@ -683,13 +683,13 @@ export default function AdminSessionsPage() {
 
             {/* Status */}
             <div>
-              <label className="block text-sm font-medium text-[#502B30] mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Status
               </label>
               <select
                 value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="w-full px-4 py-2.5 bg-white border-2 border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all text-gray-900 cursor-pointer hover:border-amber-300"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
               >
                 <option value="all">Alle</option>
                 <option value="active">Aktiv</option>
@@ -700,14 +700,14 @@ export default function AdminSessionsPage() {
 
             {/* Sort By */}
             <div>
-              <label className="block text-sm font-medium text-[#502B30] mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Sorter efter
               </label>
               <div className="flex space-x-2">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="flex-1 px-4 py-2.5 bg-white border-2 border-amber-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all text-gray-900 cursor-pointer hover:border-amber-300"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
                 >
                   <option value="date">Dato</option>
                   <option value="name">Navn</option>
@@ -716,19 +716,19 @@ export default function AdminSessionsPage() {
                 </select>
                 <button
                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                  className="px-3 py-2.5 bg-white border-2 border-amber-200 rounded-lg hover:bg-amber-50 hover:border-amber-300 transition-all"
+                  className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   title={sortOrder === 'asc' ? 'Stigende' : 'Faldende'}
                 >
-                  <SortAsc className={`w-5 h-5 text-[#502B30] transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                  <SortAsc className={`w-5 h-5 transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Results count and reset */}
-          <div className="flex items-center justify-between pt-4 border-t-2 border-amber-200">
-            <p className="text-sm text-[#502B30] font-medium">
-              Viser <span className="font-bold text-amber-600">{filteredSessions.length}</span> af <span className="font-bold">{sessions.length}</span> sessioner
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-600">
+              Viser <strong>{filteredSessions.length}</strong> af <strong>{sessions.length}</strong> sessioner
             </p>
             <button
               onClick={() => {
@@ -742,10 +742,9 @@ export default function AdminSessionsPage() {
                 setSortBy('date');
                 setSortOrder('asc');
               }}
-              className="text-sm font-medium text-[#502B30] hover:text-amber-600 transition-colors flex items-center space-x-1"
+              className="text-sm text-[#502B30] hover:underline"
             >
-              <X className="w-4 h-4" />
-              <span>Nulstil filtre</span>
+              Nulstil filtre
             </button>
           </div>
         </div>
@@ -761,9 +760,9 @@ export default function AdminSessionsPage() {
             <p className="text-gray-600">Ingen sessioner endnu. Opret den første!</p>
           </div>
         ) : filteredSessions.length === 0 ? (
-          <div className="text-center py-12 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-md border border-amber-100">
-            <Filter className="w-16 h-16 text-amber-400 mx-auto mb-4" />
-            <p className="text-[#502B30] font-medium mb-4">Ingen sessioner matcher dine filtre.</p>
+          <div className="text-center py-12 bg-white rounded-lg shadow">
+            <Filter className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">Ingen sessioner matcher dine filtre.</p>
             <button
               onClick={() => {
                 setFilters({
@@ -774,7 +773,7 @@ export default function AdminSessionsPage() {
                   searchText: '',
                 });
               }}
-              className="px-6 py-2 bg-[#502B30] text-amber-50 rounded-lg hover:bg-[#5e3023] transition-colors"
+              className="mt-4 text-[#502B30] hover:underline"
             >
               Nulstil filtre
             </button>
