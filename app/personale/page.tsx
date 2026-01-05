@@ -212,10 +212,13 @@ export default function PersonalePage() {
   }, [sessions]);
 
   const filteredClients = useMemo(() => {
-    const search = clientSearch.toLowerCase();
-    if (!search) return clients;
+    // Filter out employees - only show actual clients
+    const nonEmployeeClients = clients.filter(client => !client.isEmployee);
     
-    return clients.filter(client => 
+    const search = clientSearch.toLowerCase();
+    if (!search) return nonEmployeeClients;
+    
+    return nonEmployeeClients.filter(client => 
       client.first_name?.toLowerCase().includes(search) ||
       client.last_name?.toLowerCase().includes(search) ||
       client.email?.toLowerCase().includes(search) ||
@@ -616,9 +619,6 @@ export default function PersonalePage() {
                         Telefon
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-[#502B30] uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-[#502B30] uppercase tracking-wider">
                         Medlem siden
                       </th>
                     </tr>
@@ -642,17 +642,6 @@ export default function PersonalePage() {
                               <Phone className="h-4 w-4 mr-2 text-[#502B30]/40" />
                               {client.phone || '-'}
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {client.isEmployee ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#502B30] text-amber-50">
-                                Medarbejder
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                Medlem
-                              </span>
-                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-[#4a2329]/80">
                             {format(parseISO(client.member_since), 'dd MMM yyyy', { locale: da })}
