@@ -57,11 +57,12 @@ interface PointsHistoryItem {
 export default function GusmesterPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [employeeStats, setEmployeeStats] = useState<{ employeeName: string; points: number; pointsHistory: PointsHistoryItem[] } | null>(null);
+  const [employeeStats, setEmployeeStats] = useState<{ employeeName: string; points: number; pointsHistory: PointsHistoryItem[]; autoReleasePreference?: string } | null>(null);
   const [availableSpots, setAvailableSpots] = useState<AvailableSpot[]>([]);
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [hostingSessions, setHostingSessions] = useState<HostingSession[]>([]);
   const [showPointsHistory, setShowPointsHistory] = useState(false);
+  const [autoReleasePreference, setAutoReleasePreference] = useState<string>('never');
   
   // Modal states
   const [showBookModal, setShowBookModal] = useState(false);
@@ -101,6 +102,7 @@ export default function GusmesterPage() {
       // Load employee stats
       const stats = await members.getEmployeeStats();
       setEmployeeStats(stats);
+      setAutoReleasePreference(stats.autoReleasePreference || 'never');
 
       // Load available spots
       const spotsData = await members.getAvailableGusmesterSpots();
@@ -201,6 +203,30 @@ export default function GusmesterPage() {
     }
   };
 
+  const handleBookSelfAsGuest = async (sessionId: string) => {
+    if (!employeeStats) return;
+
+    try {
+      setIsSubmitting(true);
+      setError('');
+
+      // Book self - use employee's own name and email
+      await members.bookSelfAsGuest(sessionId);
+
+      setSuccess('Du har booket dig selv som gæst!');
+
+      // Reload data
+      await loadData();
+
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err: any) {
+      console.error('[Gusmester] Book self error:', err);
+      setError(err.message || 'Kunne ikke booke dig selv');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleBookGuestForSession = async () => {
     if (!selectedSessionForGuest) return;
 
@@ -233,6 +259,24 @@ export default function GusmesterPage() {
     } catch (err: any) {
       console.error('[Gusmester] Book guest error:', err);
       setError(err.message || 'Kunne ikke booke gæst');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateAutoRelease = async (preference: string) => {
+    try {
+      setIsSubmitting(true);
+      setError('');
+
+      await members.updateAutoReleasePreference(preference);
+      setAutoReleasePreference(preference);
+      setSuccess('Automatisk frigivelse opdateret!');
+
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err: any) {
+      console.error('[Gusmester] Update auto-release error:', err);
+      setError(err.message || 'Kunne ikke opdatere indstilling');
     } finally {
       setIsSubmitting(false);
     }
@@ -354,6 +398,64 @@ export default function GusmesterPage() {
                   )}
                 </div>
               )}
+
+              {/* Auto-Release Preference */}
+              <div className="mt-4 border-t border-[#502B30]/10 pt-4">
+                <h3 className="text-lg font-semibold text-[#502B30] mb-3">Automatisk Frigivelse af Gæsteplads</h3>
+                <p className="text-sm text-[#502B30]/60 mb-4">
+                  Vælg hvornår din gæsteplads skal frigives automatisk, hvis du ikke har booket den:
+                </p>
+                
+                <div className="space-y-3">
+                  <label className="flex items-start p-3 border border-[#502B30]/20 rounded-sm cursor-pointer hover:bg-[#502B30]/5 transition-colors">
+                    <input
+                      type="radio"
+                      name="autoRelease"
+                      value="never"
+                      checked={autoReleasePreference === 'never'}
+                      onChange={(e) => handleUpdateAutoRelease(e.target.value)}
+                      disabled={isSubmitting}
+                      className="mt-1 mr-3 text-[#502B30] focus:ring-[#502B30]"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-[#502B30]">Min Gusmesterplads skal ikke frigives automatisk</p>
+                      <p className="text-sm text-[#502B30]/60 mt-1">Standard indstilling - du skal frigive manuelt</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start p-3 border border-[#502B30]/20 rounded-sm cursor-pointer hover:bg-[#502B30]/5 transition-colors">
+                    <input
+                      type="radio"
+                      name="autoRelease"
+                      value="3_hours"
+                      checked={autoReleasePreference === '3_hours'}
+                      onChange={(e) => handleUpdateAutoRelease(e.target.value)}
+                      disabled={isSubmitting}
+                      className="mt-1 mr-3 text-[#502B30] focus:ring-[#502B30]"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-[#502B30]">Min Gusmesterplads skal frigives 3 timer før gus start, hvis jeg ikke har booket den</p>
+                      <p className="text-sm text-[#502B30]/60 mt-1">Giver dig mulighed for at booke sent, men frigiver automatisk</p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start p-3 border border-[#502B30]/20 rounded-sm cursor-pointer hover:bg-[#502B30]/5 transition-colors">
+                    <input
+                      type="radio"
+                      name="autoRelease"
+                      value="24_hours"
+                      checked={autoReleasePreference === '24_hours'}
+                      onChange={(e) => handleUpdateAutoRelease(e.target.value)}
+                      disabled={isSubmitting}
+                      className="mt-1 mr-3 text-[#502B30] focus:ring-[#502B30]"
+                    />
+                    <div className="flex-1">
+                      <p className="font-medium text-[#502B30]">Min Gusmesterplads skal frigives automatisk 24 timer før min gus, hvis jeg ikke har booket den</p>
+                      <p className="text-sm text-[#502B30]/60 mt-1">Maksimerer chancen for at andre kan booke pladsen</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
           )}
 
@@ -524,13 +626,19 @@ export default function GusmesterPage() {
                     {session.guestSpotStatus === 'reserved_for_host' && (
                       <>
                         <button
+                          onClick={() => handleBookSelfAsGuest(session.id)}
+                          className="flex-1 px-4 py-2 bg-[#502B30] text-amber-100 rounded-sm hover:bg-[#5e3023] transition-colors"
+                        >
+                          Book Selv
+                        </button>
+                        <button
                           onClick={() => {
                             setSelectedSessionForGuest(session);
                             setShowBookGuestModal(true);
                           }}
-                          className="flex-1 px-4 py-2 bg-[#502B30] text-amber-100 rounded-sm hover:bg-[#5e3023] transition-colors"
+                          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 transition-colors"
                         >
-                          Book Gæst
+                          Book Anden Gæst
                         </button>
                         {session.canRelease && (
                           <button
@@ -547,7 +655,7 @@ export default function GusmesterPage() {
                     )}
                     {session.guestSpotStatus === 'booked_by_host' && (
                       <p className="text-sm text-[#502B30]/60 text-center w-full">
-                        Gæst booket: {session.guestName}
+                        {session.guestName ? `Gæst booket: ${session.guestName}` : 'Vært bruger pladsen'}
                       </p>
                     )}
                     {session.guestSpotStatus === 'released_to_public' && (

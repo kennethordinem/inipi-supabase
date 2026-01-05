@@ -775,6 +775,7 @@ async function getEmployeeStats(): Promise<{
   employeeName: string;
   points: number;
   pointsHistory: any[];
+  autoReleasePreference: string;
 }> {
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
@@ -795,7 +796,30 @@ async function getEmployeeStats(): Promise<{
     employeeName: employee.name,
     points: employee.points,
     pointsHistory: employee.employee_points_history || [],
+    autoReleasePreference: employee.auto_release_guest_spot || 'never',
   };
+}
+
+/**
+ * Update auto-release preference
+ */
+async function updateAutoReleasePreference(preference: string): Promise<{ success: boolean }> {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Validate preference
+  if (!['never', '3_hours', '24_hours'].includes(preference)) {
+    throw new Error('Invalid preference value');
+  }
+
+  const { error } = await supabase
+    .from('employees')
+    .update({ auto_release_guest_spot: preference })
+    .eq('user_id', user.id);
+
+  if (error) throw new Error(error.message);
+
+  return { success: true };
 }
 
 // ============================================
@@ -1321,6 +1345,40 @@ async function releaseGuestSpot(sessionId: string): Promise<{ success: boolean; 
 }
 
 /**
+ * Book self as guest for my hosting session (no details needed)
+ */
+async function bookSelfAsGuest(sessionId: string): Promise<{ success: boolean }> {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get employee record
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!employee) throw new Error('Not an employee');
+
+  // Mark spot as used by host (no guest details stored)
+  const { error } = await supabase
+    .from('guest_spots')
+    .update({
+      status: 'booked_by_host',
+      guest_name: null,
+      guest_email: null,
+      guest_phone: null,
+    })
+    .eq('session_id', sessionId)
+    .eq('host_employee_id', employee.id)
+    .eq('status', 'reserved_for_host');
+
+  if (error) throw new Error(error.message);
+
+  return { success: true };
+}
+
+/**
  * Book a guest for my hosting session
  */
 async function bookGuestForSession(sessionId: string, guestName: string, guestEmail: string, guestPhone?: string): Promise<{ success: boolean; guestName: string }> {
@@ -1786,12 +1844,14 @@ export const members = {
   // Employee/Gusmester
   checkIfEmployee,
   getEmployeeStats,
+  updateAutoReleasePreference,
   getAvailableGusmesterSpots,
   getMyGusmesterBookings,
   bookGusmesterSpot,
   cancelGusmesterBooking,
   getMyHostingSessions,
   releaseGuestSpot,
+  bookSelfAsGuest,
   bookGuestForSession,
 
   // Staff
