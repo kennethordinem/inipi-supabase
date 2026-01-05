@@ -95,6 +95,7 @@ export default function PersonalePage() {
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [availableSessions, setAvailableSessions] = useState<StaffSession[]>([]);
   const [targetSessionId, setTargetSessionId] = useState('');
+  const [actionReason, setActionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -184,6 +185,8 @@ export default function PersonalePage() {
     setSelectedBooking({ ...participant, currentSession });
     setActionError(null);
     setActionSuccess(null);
+    setActionReason('');
+    setTargetSessionId('');
     
     // Load available sessions (excluding current one)
     try {
@@ -203,11 +206,15 @@ export default function PersonalePage() {
     setSelectedBooking(participant);
     setActionError(null);
     setActionSuccess(null);
+    setActionReason('');
     setShowCancelModal(true);
   };
 
   const confirmMoveBooking = async () => {
-    if (!selectedBooking || !targetSessionId) return;
+    if (!selectedBooking || !targetSessionId || !actionReason.trim()) {
+      setActionError('Udfyld venligst både session og årsag');
+      return;
+    }
     
     setActionLoading(true);
     setActionError(null);
@@ -226,11 +233,12 @@ export default function PersonalePage() {
         throw new Error('Booking ikke fundet');
       }
       
-      const result = await members.adminMoveBooking(bookings[0].id, targetSessionId);
+      const result = await members.adminMoveBooking(bookings[0].id, targetSessionId, actionReason);
       
       setActionSuccess(result.message);
       setShowMoveModal(false);
       setTargetSessionId('');
+      setActionReason('');
       
       // Reload sessions
       await loadSessions();
@@ -242,7 +250,10 @@ export default function PersonalePage() {
   };
 
   const confirmCancelBooking = async (issueCompensation: boolean) => {
-    if (!selectedBooking) return;
+    if (!selectedBooking || !actionReason.trim()) {
+      setActionError('Angiv venligst en årsag til aflysningen');
+      return;
+    }
     
     setActionLoading(true);
     setActionError(null);
@@ -260,15 +271,16 @@ export default function PersonalePage() {
         throw new Error('Booking ikke fundet');
       }
       
-      const result = await members.adminCancelBooking(bookings[0].id, issueCompensation);
+      const result = await members.adminCancelBooking(bookings[0].id, actionReason, issueCompensation);
       
       setActionSuccess(result.message);
       setShowCancelModal(false);
+      setActionReason('');
       
       // Reload sessions
       await loadSessions();
     } catch (err: any) {
-      setActionError(err.message || 'Kunne ikke aflysebooking');
+      setActionError(err.message || 'Kunne ikke aflyse booking');
     } finally {
       setActionLoading(false);
     }
@@ -822,23 +834,42 @@ export default function PersonalePage() {
                   </div>
                 )}
 
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Vælg ny session
-                  </label>
-                  <select
-                    value={targetSessionId}
-                    onChange={(e) => setTargetSessionId(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
-                  >
-                    <option value="">Vælg session...</option>
-                    {availableSessions.map((session) => (
-                      <option key={session.id} value={session.id}>
-                        {session.name} - {format(parseISO(session.date), 'd. MMM yyyy', { locale: da })} kl. {session.time}
-                        ({session.availableSpots} ledige pladser)
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Vælg ny session
+                    </label>
+                    <select
+                      value={targetSessionId}
+                      onChange={(e) => setTargetSessionId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                    >
+                      <option value="">Vælg session...</option>
+                      {availableSessions.map((session) => (
+                        <option key={session.id} value={session.id}>
+                          {session.name} - {format(parseISO(session.date), 'd. MMM yyyy', { locale: da })} kl. {session.time}
+                          ({session.availableSpots} ledige pladser)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Årsag til flytning <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={actionReason}
+                      onChange={(e) => setActionReason(e.target.value)}
+                      rows={3}
+                      placeholder="F.eks. Kunde ønskede anden tid, sygdom, etc."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Årsagen vil være synlig på kvitteringen og for kunden
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
@@ -851,7 +882,7 @@ export default function PersonalePage() {
                   </button>
                   <button
                     onClick={confirmMoveBooking}
-                    disabled={!targetSessionId || actionLoading}
+                    disabled={!targetSessionId || !actionReason.trim() || actionLoading}
                     className="flex-1 px-4 py-2 bg-[#502B30] text-white rounded-lg hover:bg-[#3d2024] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {actionLoading ? (
@@ -895,9 +926,26 @@ export default function PersonalePage() {
                   </div>
                 )}
 
-                <p className="text-gray-700 mb-6">
+                <p className="text-gray-700 mb-4">
                   Er du sikker på, at du vil aflyse bookingen for <strong>{selectedBooking?.patientName}</strong>?
                 </p>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Årsag til aflysning <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={actionReason}
+                    onChange={(e) => setActionReason(e.target.value)}
+                    rows={3}
+                    placeholder="F.eks. Kunde aflyste, sygdom, vejrforhold, etc."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Årsagen vil være synlig på kvitteringen og klippekortet
+                  </p>
+                </div>
 
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
                   <p className="text-sm text-amber-800">
@@ -915,14 +963,14 @@ export default function PersonalePage() {
                   </button>
                   <button
                     onClick={() => confirmCancelBooking(false)}
-                    disabled={actionLoading}
+                    disabled={!actionReason.trim() || actionLoading}
                     className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
                   >
                     Aflys uden klip
                   </button>
                   <button
                     onClick={() => confirmCancelBooking(true)}
-                    disabled={actionLoading}
+                    disabled={!actionReason.trim() || actionLoading}
                     className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {actionLoading ? (

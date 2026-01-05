@@ -75,7 +75,7 @@ export default function MineHoldPage() {
     }
   };
 
-  const canCancelBooking = (booking: Booking): { canCancel: boolean; reason?: string } => {
+  const canCancelBooking = (booking: Booking): { canCancel: boolean; reason?: string; willGetCompensation?: boolean } => {
     // Parse booking date and time
     const bookingDate = parseISO(booking.date);
     const [hours, minutes] = booking.time.split(':').map(Number);
@@ -93,7 +93,15 @@ export default function MineHoldPage() {
       return { canCancel: false, reason: 'Du skal aflyse mindst 3 timer før sessionen starter' };
     }
 
-    return { canCancel: true };
+    // Can cancel, but check if eligible for compensation
+    const willGetCompensation = hoursUntil >= 24;
+    return { 
+      canCancel: true, 
+      willGetCompensation,
+      reason: willGetCompensation 
+        ? undefined 
+        : 'Bemærk: Aflysning mindre end 24 timer før giver ikke kompensation'
+    };
   };
 
   const handleCancelClick = (booking: Booking) => {
@@ -410,38 +418,49 @@ export default function MineHoldPage() {
       <Footer />
 
       {/* Cancel Confirmation Modal */}
-      {showCancelModal && selectedBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-sm max-w-md w-full p-6 shadow-xl">
-            <h3 className="text-xl font-bold text-[#502B30] mb-4">Bekræft Aflysning</h3>
+      {showCancelModal && selectedBooking && (() => {
+        const cancelInfo = canCancelBooking(selectedBooking);
+        return (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-sm max-w-md w-full p-6 shadow-xl">
+              <h3 className="text-xl font-bold text-[#502B30] mb-4">Bekræft Aflysning</h3>
 
-            {!cancelSuccess ? (
-              <>
-                <div className="space-y-3 mb-6">
-                  <p className="text-[#502B30]/80"><strong>Session:</strong> {selectedBooking.type}</p>
-                  <p className="text-[#502B30]/80">
-                    <strong>Dato:</strong> {format(parseISO(selectedBooking.date), 'd. MMMM yyyy HH:mm', { locale: da })}
-                  </p>
-                  {selectedBooking.spots && selectedBooking.spots > 1 && (
-                    <p className="text-[#502B30]/80"><strong>Pladser:</strong> {selectedBooking.spots}</p>
+              {!cancelSuccess ? (
+                <>
+                  <div className="space-y-3 mb-6">
+                    <p className="text-[#502B30]/80"><strong>Session:</strong> {selectedBooking.type}</p>
+                    <p className="text-[#502B30]/80">
+                      <strong>Dato:</strong> {format(parseISO(selectedBooking.date), 'd. MMMM yyyy HH:mm', { locale: da })}
+                    </p>
+                    {selectedBooking.spots && selectedBooking.spots > 1 && (
+                      <p className="text-[#502B30]/80"><strong>Pladser:</strong> {selectedBooking.spots}</p>
+                    )}
+                  </div>
+
+                  {selectedBooking.paymentMethod === 'punch_card' ? (
+                    <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-sm">
+                      <p className="text-sm text-green-800">
+                        <CheckCircle className="h-4 w-4 inline mr-1" />
+                        Dine klip vil blive returneret til dit klippekort
+                      </p>
+                    </div>
+                  ) : cancelInfo.willGetCompensation ? (
+                    <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-sm">
+                      <p className="text-sm text-blue-800">
+                        <CheckCircle className="h-4 w-4 inline mr-1" />
+                        Du vil få et nyt klippekort med {selectedBooking.spots || 1} klip til samme holdtype
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mb-6 p-3 bg-amber-50 border border-amber-300 rounded-sm">
+                      <p className="text-sm text-amber-800 font-medium">
+                        ⚠️ Aflysning mindre end 24 timer før giver ikke kompensation
+                      </p>
+                      <p className="text-xs text-amber-700 mt-1">
+                        Da du aflyser mindre end 24 timer før sessionens start, får du ikke et kompensations-klippekort.
+                      </p>
+                    </div>
                   )}
-                </div>
-
-                {selectedBooking.paymentMethod === 'punch_card' ? (
-                  <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-sm">
-                    <p className="text-sm text-green-800">
-                      <CheckCircle className="h-4 w-4 inline mr-1" />
-                      Dine klip vil blive returneret til dit klippekort
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-sm">
-                    <p className="text-sm text-blue-800">
-                      <CheckCircle className="h-4 w-4 inline mr-1" />
-                      Du vil få et nyt klippekort med {selectedBooking.spots || 1} klip til samme holdtype
-                    </p>
-                  </div>
-                )}
 
                 {cancelError && (
                   <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm flex items-start">
@@ -487,7 +506,8 @@ export default function MineHoldPage() {
             )}
           </div>
         </div>
-      )}
+        );
+      })()}
     </>
   );
 }

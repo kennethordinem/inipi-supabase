@@ -202,6 +202,7 @@ export default function AdministrationPage() {
       setCancelling(true);
       const result = await members.adminCancelBooking(
         bookingToCancel.appointmentId,
+        cancelReason || 'Aflyst af administrator',
         true // Issue compensation
       );
 
@@ -275,7 +276,8 @@ export default function AdministrationPage() {
       setMoving(true);
       const result = await members.adminMoveBooking(
         bookingToMove.appointmentId,
-        newSessionId
+        newSessionId,
+        moveReason || 'Flyttet af administrator'
       );
 
       if (result.success) {

@@ -465,12 +465,23 @@ async function cancelBooking(bookingId: string): Promise<{
 
   if (fetchError) throw new Error(fetchError.message);
 
-  // Update booking status
+  // Calculate hours until session starts
+  const sessionDateTime = new Date(`${booking.sessions.date}T${booking.sessions.time}`);
+  const hoursUntil = (sessionDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
+  
+  // Determine if eligible for compensation (24-hour rule)
+  const eligibleForCompensation = hoursUntil >= 24;
+  const cancelReason = eligibleForCompensation 
+    ? 'Aflyst af bruger mere end 24 timer før sessionens start'
+    : 'Aflyst af bruger mindre end 24 timer før sessionens start (ingen kompensation)';
+
+  // Update booking status with automatic reason
   const { error: cancelError } = await supabase
     .from('bookings')
     .update({
       status: 'cancelled',
       cancelled_at: new Date().toISOString(),
+      admin_reason: cancelReason, // Store automatic reason
     })
     .eq('id', bookingId);
 
@@ -482,20 +493,20 @@ async function cancelBooking(bookingId: string): Promise<{
     decrement_by: booking.spots,
   });
 
-  // Restore punch card if used, or create compensation punch card if paid
+  // Restore punch card if used, or create compensation punch card if paid AND >24 hours
   let punchCardRestored = false;
   let compensationMessage = '';
   
   if (booking.punch_card_id) {
-    // Restore punches to existing punch card
+    // Always restore punches to existing punch card (regardless of timing)
     await supabase.rpc('restore_punch_card', {
       card_id: booking.punch_card_id,
       spots_to_restore: booking.spots,
     });
     punchCardRestored = true;
     compensationMessage = `Dine ${booking.spots} klip er blevet returneret til dit klippekort`;
-  } else if (booking.payment_method === 'stripe' || booking.payment_method === 'card' || booking.payment_method === 'manual') {
-    // Create compensation punch card for paid bookings
+  } else if ((booking.payment_method === 'stripe' || booking.payment_method === 'card' || booking.payment_method === 'manual') && eligibleForCompensation) {
+    // Create compensation punch card ONLY if paid AND cancelled >24 hours before
     const { data: session } = await supabase
       .from('sessions')
       .select('group_type_id, price')
@@ -512,6 +523,8 @@ async function cancelBooking(bookingId: string): Promise<{
         price: 0,
         valid_for_group_types: session?.group_type_id ? [session.group_type_id] : [],
         status: 'active',
+        reason: cancelReason,
+        related_booking_id: bookingId
       });
 
     if (punchCardError) {
@@ -520,6 +533,9 @@ async function cancelBooking(bookingId: string): Promise<{
     } else {
       compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip som kompensation`;
     }
+  } else if (!eligibleForCompensation && !booking.punch_card_id) {
+    // Cancelled less than 24 hours before - no compensation
+    compensationMessage = 'Booking aflyst. Ingen kompensation da aflysningen skete mindre end 24 timer før sessionens start';
   } else {
     compensationMessage = 'Booking aflyst';
   }
@@ -531,7 +547,7 @@ async function cancelBooking(bookingId: string): Promise<{
     body: JSON.stringify({ 
       bookingId, 
       refundInfo: compensationMessage,
-      punchCardAdded: !booking.punch_card_id && (booking.payment_method === 'stripe' || booking.payment_method === 'card' || booking.payment_method === 'manual'),
+      punchCardAdded: !booking.punch_card_id && eligibleForCompensation && (booking.payment_method === 'stripe' || booking.payment_method === 'card' || booking.payment_method === 'manual'),
     }),
   }).catch(err => console.error('Error sending cancellation email:', err));
 
@@ -1480,7 +1496,7 @@ async function getAdminMemberDetails(memberId: string): Promise<any> {
 /**
  * Admin: Cancel a booking and optionally issue compensation punch card
  */
-async function adminCancelBooking(bookingId: string, issueCompensation: boolean = true): Promise<{ success: boolean; message: string }> {
+async function adminCancelBooking(bookingId: string, reason: string, issueCompensation: boolean = true): Promise<{ success: boolean; message: string }> {
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -1501,11 +1517,16 @@ async function adminCancelBooking(bookingId: string, issueCompensation: boolean 
     if (bookingError) throw bookingError;
     if (!booking) throw new Error('Booking not found');
 
-    // Cancel the booking
+    // Cancel the booking with admin tracking
     const { error: cancelError } = await supabase
       .from('bookings')
       .update({ 
         status: 'cancelled',
+        cancelled_at: new Date().toISOString(),
+        admin_action: 'cancelled',
+        admin_reason: reason,
+        admin_user_id: user.id,
+        admin_action_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', bookingId);
@@ -1519,11 +1540,13 @@ async function adminCancelBooking(bookingId: string, issueCompensation: boolean 
         .insert({
           user_id: booking.user_id,
           name: 'Kompensation - Aflyst booking',
-          clips_total: 1,
-          clips_remaining: 1,
-          valid_from: new Date().toISOString(),
-          valid_until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
-          status: 'active'
+          total_punches: 1,
+          remaining_punches: 1,
+          price: 0,
+          status: 'active',
+          reason: `Kompensation for aflyst booking. Årsag: ${reason}`,
+          issued_by: user.id,
+          related_booking_id: bookingId
         });
 
       if (punchCardError) {
@@ -1544,7 +1567,7 @@ async function adminCancelBooking(bookingId: string, issueCompensation: boolean 
 /**
  * Admin: Move a booking to a different session
  */
-async function adminMoveBooking(bookingId: string, newSessionId: string): Promise<{ success: boolean; message: string }> {
+async function adminMoveBooking(bookingId: string, newSessionId: string, reason: string): Promise<{ success: boolean; message: string }> {
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -1580,11 +1603,15 @@ async function adminMoveBooking(bookingId: string, newSessionId: string): Promis
       throw new Error('Not enough available spots in target session');
     }
 
-    // Move the booking
+    // Move the booking with admin tracking
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ 
         session_id: newSessionId,
+        admin_action: 'moved',
+        admin_reason: reason,
+        admin_user_id: user.id,
+        admin_action_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', bookingId);
