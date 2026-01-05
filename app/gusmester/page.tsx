@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, User, Star, AlertCircle, CheckCircle, TrendingUp, MapPin } from 'lucide-react';
+import { Calendar, Clock, User, Star, AlertCircle, CheckCircle, TrendingUp, MapPin, FileText } from 'lucide-react';
 import { members } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
@@ -45,13 +45,23 @@ interface HostingSession {
   hoursUntilEvent: number;
 }
 
+interface PointsHistoryItem {
+  id: string;
+  amount: number;
+  reason: string;
+  timestamp: string;
+  related_session_id?: string;
+  related_booking_id?: string;
+}
+
 export default function GusmesterPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [employeeStats, setEmployeeStats] = useState<{ employeeName: string; points: number } | null>(null);
+  const [employeeStats, setEmployeeStats] = useState<{ employeeName: string; points: number; pointsHistory: PointsHistoryItem[] } | null>(null);
   const [availableSpots, setAvailableSpots] = useState<AvailableSpot[]>([]);
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [hostingSessions, setHostingSessions] = useState<HostingSession[]>([]);
+  const [showPointsHistory, setShowPointsHistory] = useState(false);
   
   // Modal states
   const [showBookModal, setShowBookModal] = useState(false);
@@ -277,7 +287,7 @@ export default function GusmesterPage() {
           {/* Employee Stats Card */}
           {employeeStats && (
             <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 mb-8 border border-[#502B30]/10">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-bold text-[#502B30]">{employeeStats.employeeName}</h2>
                   <p className="text-[#502B30]/60">Gus Mester</p>
@@ -290,6 +300,60 @@ export default function GusmesterPage() {
                   <p className="text-sm text-[#502B30]/60">Points</p>
                 </div>
               </div>
+              
+              <button
+                onClick={() => setShowPointsHistory(!showPointsHistory)}
+                className="w-full px-4 py-2 bg-[#502B30]/10 text-[#502B30] rounded-sm hover:bg-[#502B30]/20 transition-colors flex items-center justify-center"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                {showPointsHistory ? 'Skjul Point Historik' : 'Vis Point Historik'}
+              </button>
+
+              {showPointsHistory && (
+                <div className="mt-4 border-t border-[#502B30]/10 pt-4">
+                  <h3 className="text-lg font-semibold text-[#502B30] mb-3">Point Historik</h3>
+                  
+                  {employeeStats.pointsHistory && employeeStats.pointsHistory.length > 0 ? (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {employeeStats.pointsHistory
+                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                        .map((item) => (
+                          <div
+                            key={item.id}
+                            className={`p-3 rounded-sm border ${
+                              item.amount > 0
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-red-50 border-red-200'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <p className={`font-semibold ${
+                                  item.amount > 0 ? 'text-green-700' : 'text-red-700'
+                                }`}>
+                                  {item.amount > 0 ? '+' : ''}{item.amount} points
+                                </p>
+                                <p className="text-sm text-[#502B30]/70 mt-1">{item.reason}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-[#502B30]/60">
+                                  {format(new Date(item.timestamp), 'd. MMM yyyy', { locale: da })}
+                                </p>
+                                <p className="text-xs text-[#502B30]/60">
+                                  {format(new Date(item.timestamp), 'HH:mm', { locale: da })}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#502B30]/60 text-center py-4">
+                      Ingen point historik endnu
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
