@@ -6,7 +6,7 @@ import type { AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { 
-  Loader2, AlertCircle, Calendar, Ticket, Users, UserPlus, Settings
+  Loader2, AlertCircle, Calendar, Ticket, Users, UserPlus, Settings, CreditCard
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -96,6 +96,13 @@ export default function AdminPage() {
       icon: UserPlus,
       href: '/admin-users',
       color: 'bg-purple-500',
+    },
+    {
+      title: 'Stripe Integration',
+      description: 'Konfigurer Stripe betalinger',
+      icon: CreditCard,
+      href: '/admin-stripe',
+      color: 'bg-blue-500',
     },
   ];
 

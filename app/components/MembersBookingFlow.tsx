@@ -197,23 +197,21 @@ export function MembersBookingFlow({
     const initStripe = async () => {
       try {
         const { loadStripe } = await import('@stripe/stripe-js');
-        const { getFunctions, httpsCallable } = await import('firebase/functions');
-        const { getFirebaseApp } = await import('@/lib/firebase');
         
-        const functions = getFunctions(getFirebaseApp(), 'europe-west1');
-        const getStripePublicKey = httpsCallable(functions, 'getStripePublicKey');
-        const result = await getStripePublicKey();
-        const data = result.data as { publicKey: string; isLiveMode: boolean };
+        // Get Stripe config from our database
+        const config = await members.getStripeConfig();
         
-        if (data.publicKey && data.publicKey.startsWith('pk_')) {
-          console.log('[MembersBookingFlow] Initializing Stripe');
-          setStripePromise(loadStripe(data.publicKey));
+        if (config && config.enabled && config.publishable_key && config.publishable_key.startsWith('pk_')) {
+          console.log('[MembersBookingFlow] Initializing Stripe with key:', config.publishable_key.substring(0, 15) + '...');
+          setStripePromise(loadStripe(config.publishable_key));
+        } else {
+          console.log('[MembersBookingFlow] Stripe not configured or not enabled');
         }
       } catch (err) {
         console.error('[MembersBookingFlow] Error initializing Stripe:', err);
       }
     };
-    
+
     initStripe();
   }, []);
 
@@ -294,31 +292,30 @@ export function MembersBookingFlow({
 
   const createPaymentIntent = async () => {
     try {
-      console.log('[MembersBookingFlow] Creating payment intent for amount:', totalPrice);
+      console.log('[MembersBookingFlow] Creating payment intent for session:', session.id, 'spots:', selectedSpots);
       
-      const profile = await members.getProfile();
-      
-      const metadata = {
-        clinicId: profile.clinicId || '',
-        patientId: profile.id,
-        patientName: `${profile.firstName} ${profile.lastName}`,
-        patientEmail: profile.email,
-        sessionId: session.id,
-        sessionName: session.name,
-        spots: selectedSpots,
-        amount: totalPrice,
-        bookingSource: 'inipi_group_booking',
-        paymentCreatedAt: new Date().toISOString()
-      };
-
-      const result = await members.createPaymentIntent({
-        amount: totalPrice,
-        metadata
+      // Call our API endpoint to create payment intent
+      const response = await fetch('/api/stripe/create-payment-intent', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: session.id,
+          spots: selectedSpots,
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Kunne ikke oprette betalingsintent');
+      }
+
+      const result = await response.json();
 
       if (result && result.clientSecret) {
         setPaymentClientSecret(result.clientSecret);
-        console.log('[MembersBookingFlow] Payment intent created:', result.paymentIntentId);
+        console.log('[MembersBookingFlow] Payment intent created successfully');
       } else {
         throw new Error('Kunne ikke oprette betalingsintent');
       }

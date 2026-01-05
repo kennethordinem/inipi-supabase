@@ -1281,6 +1281,58 @@ async function adminMoveBooking(memberId: string, bookingId: string, newSessionI
 }
 
 // ============================================
+// STRIPE METHODS
+// ============================================
+
+/**
+ * Get Stripe configuration
+ */
+async function getStripeConfig(): Promise<any> {
+  const { data, error } = await supabase
+    .from('stripe_config')
+    .select('*')
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/**
+ * Update Stripe configuration
+ */
+async function updateStripeConfig(config: {
+  publishable_key: string;
+  secret_key: string;
+  webhook_secret?: string;
+  mode: 'test' | 'live';
+  enabled: boolean;
+}): Promise<void> {
+  // Get the existing config ID
+  const { data: existing } = await supabase
+    .from('stripe_config')
+    .select('id')
+    .single();
+
+  if (!existing) {
+    throw new Error('Stripe config not found');
+  }
+
+  const { error } = await supabase
+    .from('stripe_config')
+    .update({
+      publishable_key: config.publishable_key,
+      secret_key: config.secret_key,
+      webhook_secret: config.webhook_secret,
+      mode: config.mode,
+      enabled: config.enabled,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', existing.id);
+
+  if (error) throw new Error(error.message);
+}
+
+// ============================================
 // EXPORT SDK (Same API as Clinio SDK)
 // ============================================
 
@@ -1340,5 +1392,9 @@ export const members = {
   getAdminMemberDetails,
   adminCancelBooking,
   adminMoveBooking,
+  
+  // Stripe
+  getStripeConfig,
+  updateStripeConfig,
 };
 
