@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { members } from '@/lib/supabase-sdk';
+import { supabase } from '@/lib/supabase';
 import type { AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
@@ -18,7 +19,12 @@ import {
   CreditCard,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Edit2,
+  Trash2,
+  X as XIcon,
+  Save,
+  Loader2 as LoaderIcon
 } from 'lucide-react';
 import { format, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, getWeek } from 'date-fns';
 import { da } from 'date-fns/locale';
@@ -82,6 +88,16 @@ export default function PersonalePage() {
   });
   const [activeTab, setActiveTab] = useState<'sessions' | 'clients'>('sessions');
   const [clientSearch, setClientSearch] = useState('');
+  
+  // Booking management state
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [availableSessions, setAvailableSessions] = useState<StaffSession[]>([]);
+  const [targetSessionId, setTargetSessionId] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     // Subscribe to auth state changes
@@ -163,6 +179,100 @@ export default function PersonalePage() {
       loadClients();
     }
   }, [activeTab, isEmployee]);
+
+  const handleMoveBooking = async (participant: StaffSessionParticipant, currentSession: StaffSession) => {
+    setSelectedBooking({ ...participant, currentSession });
+    setActionError(null);
+    setActionSuccess(null);
+    
+    // Load available sessions (excluding current one)
+    try {
+      const { sessions: allSessions } = await members.getStaffSessions({
+        startDate: format(new Date(), 'yyyy-MM-dd'),
+        endDate: format(addWeeks(new Date(), 4), 'yyyy-MM-dd')
+      });
+      
+      setAvailableSessions(allSessions.filter(s => s.id !== currentSession.id));
+      setShowMoveModal(true);
+    } catch (err: any) {
+      setActionError('Kunne ikke indlæse tilgængelige sessioner');
+    }
+  };
+
+  const handleCancelBooking = (participant: StaffSessionParticipant) => {
+    setSelectedBooking(participant);
+    setActionError(null);
+    setActionSuccess(null);
+    setShowCancelModal(true);
+  };
+
+  const confirmMoveBooking = async () => {
+    if (!selectedBooking || !targetSessionId) return;
+    
+    setActionLoading(true);
+    setActionError(null);
+    
+    try {
+      // Find booking ID - we need to get it from the database
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('user_id', selectedBooking.patientId)
+        .eq('session_id', selectedBooking.currentSession.id)
+        .eq('status', 'confirmed')
+        .limit(1);
+      
+      if (!bookings || bookings.length === 0) {
+        throw new Error('Booking ikke fundet');
+      }
+      
+      const result = await members.adminMoveBooking(bookings[0].id, targetSessionId);
+      
+      setActionSuccess(result.message);
+      setShowMoveModal(false);
+      setTargetSessionId('');
+      
+      // Reload sessions
+      await loadSessions();
+    } catch (err: any) {
+      setActionError(err.message || 'Kunne ikke flytte booking');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const confirmCancelBooking = async (issueCompensation: boolean) => {
+    if (!selectedBooking) return;
+    
+    setActionLoading(true);
+    setActionError(null);
+    
+    try {
+      // Find booking ID
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('user_id', selectedBooking.patientId)
+        .eq('status', 'confirmed')
+        .limit(1);
+      
+      if (!bookings || bookings.length === 0) {
+        throw new Error('Booking ikke fundet');
+      }
+      
+      const result = await members.adminCancelBooking(bookings[0].id, issueCompensation);
+      
+      setActionSuccess(result.message);
+      setShowCancelModal(false);
+      
+      // Reload sessions
+      await loadSessions();
+    } catch (err: any) {
+      setActionError(err.message || 'Kunne ikke aflysebooking');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const toggleSessionExpanded = (sessionId: string) => {
     setExpandedSessions(prev => {
@@ -534,24 +644,46 @@ export default function PersonalePage() {
                                           </div>
                                         </div>
 
-                                        <div className="ml-4 text-right">
-                                          <div className="flex items-center gap-2 mb-2">
-                                            {getPaymentStatusIcon(participant.paymentStatus)}
-                                            <span className="text-sm font-medium text-[#502B30]">
-                                              {participant.paymentStatus === 'paid' ? 'Betalt' : 
-                                               participant.paymentStatus === 'pending' ? 'Afventer' : 
-                                               'Fejl'}
-                                            </span>
+                                        <div className="ml-4 flex items-center gap-4">
+                                          <div className="text-right">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              {getPaymentStatusIcon(participant.paymentStatus)}
+                                              <span className="text-sm font-medium text-[#502B30]">
+                                                {participant.paymentStatus === 'paid' ? 'Betalt' : 
+                                                 participant.paymentStatus === 'pending' ? 'Afventer' : 
+                                                 'Fejl'}
+                                              </span>
+                                            </div>
+                                            <div className="text-xs text-[#4a2329]/70">
+                                              {getPaymentMethodLabel(participant.paymentMethod)}
+                                              {participant.punchCardId && (
+                                                <div className="flex items-center justify-end mt-1">
+                                                  <CreditCard className="h-3 w-3 mr-1" />
+                                                  Klippekort
+                                                </div>
+                                              )}
+                                            </div>
                                           </div>
-                                          <div className="text-xs text-[#4a2329]/70">
-                                            {getPaymentMethodLabel(participant.paymentMethod)}
-                                            {participant.punchCardId && (
-                                              <div className="flex items-center justify-end mt-1">
-                                                <CreditCard className="h-3 w-3 mr-1" />
-                                                Klippekort
-                                              </div>
-                                            )}
-                                          </div>
+                                          
+                                          {/* Action Buttons */}
+                                          {!participant.isGuest && (
+                                            <div className="flex gap-2">
+                                              <button
+                                                onClick={() => handleMoveBooking(participant, session)}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="Flyt booking"
+                                              >
+                                                <Edit2 className="h-4 w-4" />
+                                              </button>
+                                              <button
+                                                onClick={() => handleCancelBooking(participant)}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="Aflys booking"
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </button>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
@@ -663,6 +795,153 @@ export default function PersonalePage() {
             </div>
           )}
         </main>
+
+        {/* Move Booking Modal */}
+        {showMoveModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-[#502B30]">Flyt Booking</h2>
+                  <button
+                    onClick={() => setShowMoveModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XIcon className="h-6 w-6" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  Flyt {selectedBooking?.patientName} til en anden session
+                </p>
+              </div>
+
+              <div className="p-6">
+                {actionError && (
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                    {actionError}
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Vælg ny session
+                  </label>
+                  <select
+                    value={targetSessionId}
+                    onChange={(e) => setTargetSessionId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  >
+                    <option value="">Vælg session...</option>
+                    {availableSessions.map((session) => (
+                      <option key={session.id} value={session.id}>
+                        {session.name} - {format(parseISO(session.date), 'd. MMM yyyy', { locale: da })} kl. {session.time}
+                        ({session.availableSpots} ledige pladser)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowMoveModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    disabled={actionLoading}
+                  >
+                    Annuller
+                  </button>
+                  <button
+                    onClick={confirmMoveBooking}
+                    disabled={!targetSessionId || actionLoading}
+                    className="flex-1 px-4 py-2 bg-[#502B30] text-white rounded-lg hover:bg-[#3d2024] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {actionLoading ? (
+                      <>
+                        <LoaderIcon className="h-4 w-4 animate-spin" />
+                        Flytter...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Flyt Booking
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Booking Modal */}
+        {showCancelModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-[#502B30]">Aflys Booking</h2>
+                  <button
+                    onClick={() => setShowCancelModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XIcon className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {actionError && (
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                    {actionError}
+                  </div>
+                )}
+
+                <p className="text-gray-700 mb-6">
+                  Er du sikker på, at du vil aflyse bookingen for <strong>{selectedBooking?.patientName}</strong>?
+                </p>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-amber-800">
+                    <strong>Kompensation:</strong> Hvis kunden ikke betalte med klippekort, vil de automatisk modtage et kompensationsklip.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowCancelModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    disabled={actionLoading}
+                  >
+                    Annuller
+                  </button>
+                  <button
+                    onClick={() => confirmCancelBooking(false)}
+                    disabled={actionLoading}
+                    className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    Aflys uden klip
+                  </button>
+                  <button
+                    onClick={() => confirmCancelBooking(true)}
+                    disabled={actionLoading}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {actionLoading ? (
+                      <>
+                        <LoaderIcon className="h-4 w-4 animate-spin" />
+                        Aflyser...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4" />
+                        Aflys med klip
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <Footer />
     </>

@@ -201,9 +201,8 @@ export default function AdministrationPage() {
     try {
       setCancelling(true);
       const result = await members.adminCancelBooking(
-        selectedMember.member.id,
         bookingToCancel.appointmentId,
-        cancelReason
+        true // Issue compensation
       );
 
       if (result.success) {
@@ -275,10 +274,8 @@ export default function AdministrationPage() {
     try {
       setMoving(true);
       const result = await members.adminMoveBooking(
-        selectedMember.member.id,
         bookingToMove.appointmentId,
-        newSessionId,
-        moveReason
+        newSessionId
       );
 
       if (result.success) {

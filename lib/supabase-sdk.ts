@@ -1477,14 +1477,128 @@ async function getAdminMemberDetails(memberId: string): Promise<any> {
   return null;
 }
 
-async function adminCancelBooking(memberId: string, bookingId: string, reason?: string): Promise<{ success: boolean; message: string }> {
-  // TODO: Implement admin cancel booking
-  throw new Error('Admin features not yet implemented');
+/**
+ * Admin: Cancel a booking and optionally issue compensation punch card
+ */
+async function adminCancelBooking(bookingId: string, issueCompensation: boolean = true): Promise<{ success: boolean; message: string }> {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Check if user has staff permission
+  const employeeCheck = await checkIfEmployee();
+  if (!employeeCheck.isEmployee || !employeeCheck.frontendPermissions?.staff) {
+    throw new Error('Unauthorized - staff permission required');
+  }
+
+  try {
+    // Get booking details
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select('*, sessions(*)')
+      .eq('id', bookingId)
+      .single();
+
+    if (bookingError) throw bookingError;
+    if (!booking) throw new Error('Booking not found');
+
+    // Cancel the booking
+    const { error: cancelError } = await supabase
+      .from('bookings')
+      .update({ 
+        status: 'cancelled',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bookingId);
+
+    if (cancelError) throw cancelError;
+
+    // Issue compensation punch card if payment was not by punch card
+    if (issueCompensation && booking.payment_method !== 'punch_card' && booking.payment_method !== 'punchCard') {
+      const { error: punchCardError } = await supabase
+        .from('punch_cards')
+        .insert({
+          user_id: booking.user_id,
+          name: 'Kompensation - Aflyst booking',
+          clips_total: 1,
+          clips_remaining: 1,
+          valid_from: new Date().toISOString(),
+          valid_until: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+          status: 'active'
+        });
+
+      if (punchCardError) {
+        console.error('Error issuing compensation punch card:', punchCardError);
+      }
+    }
+
+    return {
+      success: true,
+      message: issueCompensation ? 'Booking aflyst og kompensation udstedt' : 'Booking aflyst'
+    };
+  } catch (error: any) {
+    console.error('[adminCancelBooking] Error:', error);
+    throw new Error(error.message || 'Could not cancel booking');
+  }
 }
 
-async function adminMoveBooking(memberId: string, bookingId: string, newSessionId: string, reason?: string): Promise<{ success: boolean; message: string }> {
-  // TODO: Implement admin move booking
-  throw new Error('Admin features not yet implemented');
+/**
+ * Admin: Move a booking to a different session
+ */
+async function adminMoveBooking(bookingId: string, newSessionId: string): Promise<{ success: boolean; message: string }> {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Check if user has staff permission
+  const employeeCheck = await checkIfEmployee();
+  if (!employeeCheck.isEmployee || !employeeCheck.frontendPermissions?.staff) {
+    throw new Error('Unauthorized - staff permission required');
+  }
+
+  try {
+    // Get booking details
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', bookingId)
+      .single();
+
+    if (bookingError) throw bookingError;
+    if (!booking) throw new Error('Booking not found');
+
+    // Check if new session has availability
+    const { data: newSession, error: sessionError } = await supabase
+      .from('sessions')
+      .select('max_participants, current_participants')
+      .eq('id', newSessionId)
+      .single();
+
+    if (sessionError) throw sessionError;
+    if (!newSession) throw new Error('Target session not found');
+
+    const availableSpots = newSession.max_participants - newSession.current_participants;
+    if (availableSpots < booking.spots) {
+      throw new Error('Not enough available spots in target session');
+    }
+
+    // Move the booking
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ 
+        session_id: newSessionId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bookingId);
+
+    if (updateError) throw updateError;
+
+    return {
+      success: true,
+      message: 'Booking flyttet til ny session'
+    };
+  } catch (error: any) {
+    console.error('[adminMoveBooking] Error:', error);
+    throw new Error(error.message || 'Could not move booking');
+  }
 }
 
 // ============================================
