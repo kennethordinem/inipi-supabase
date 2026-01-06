@@ -44,6 +44,13 @@ export default function ProfilePage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   
+  // Email change state
+  const [showEmailSection, setShowEmailSection] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [confirmNewEmail, setConfirmNewEmail] = useState('');
+  const [isChangingEmail, setIsChangingEmail] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  
   // Password change state
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -230,6 +237,59 @@ export default function ProfilePage() {
       setError('Kunne ikke gemme gusmester profil');
     } finally {
       setIsSavingEmployee(false);
+    }
+  };
+
+  const handleChangeEmail = async () => {
+    // Validation
+    if (!newEmail || !confirmNewEmail) {
+      setEmailError('Udfyld begge felter');
+      return;
+    }
+
+    if (newEmail !== confirmNewEmail) {
+      setEmailError('Email adresser matcher ikke');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      setEmailError('Ugyldig email adresse');
+      return;
+    }
+
+    if (newEmail === profileData?.email) {
+      setEmailError('Ny email er den samme som nuværende email');
+      return;
+    }
+
+    try {
+      setIsChangingEmail(true);
+      setEmailError('');
+
+      // Update email in Supabase Auth
+      const { error: updateError } = await supabase.auth.updateUser({
+        email: newEmail,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Clear form
+      setNewEmail('');
+      setConfirmNewEmail('');
+      setShowEmailSection(false);
+      setSuccessMessage('Bekræftelses email sendt til ' + newEmail + '. Tjek din indbakke og bekræft din nye email.');
+
+      setTimeout(() => setSuccessMessage(''), 10000);
+
+    } catch (err: any) {
+      console.error('[Profile] Error changing email:', err);
+      setEmailError(err.message || 'Kunne ikke ændre email');
+    } finally {
+      setIsChangingEmail(false);
     }
   };
 
@@ -866,6 +926,107 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Change Email */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-[#502B30]">
+                  Email Adresse
+                </h2>
+                <p className="text-sm text-[#4a2329]/70 mt-1">
+                  Skift din email adresse og login
+                </p>
+              </div>
+              {!showEmailSection && (
+                <button
+                  onClick={() => setShowEmailSection(true)}
+                  className="flex items-center px-4 py-2 text-sm font-medium text-[#502B30] hover:bg-[#502B30]/10 rounded-sm transition-colors border border-[#502B30]/20"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Skift Email
+                </button>
+              )}
+            </div>
+
+            {showEmailSection && (
+              <div className="space-y-4">
+                {/* Email Error */}
+                {emailError && (
+                  <div className="bg-red-50 border border-red-200 rounded-sm p-3">
+                    <p className="text-sm text-red-800">{emailError}</p>
+                  </div>
+                )}
+
+                {/* New Email */}
+                <div>
+                  <label className="block text-sm font-medium text-[#502B30] mb-2">
+                    Ny Email Adresse
+                  </label>
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="ny@email.dk"
+                    className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Confirm New Email */}
+                <div>
+                  <label className="block text-sm font-medium text-[#502B30] mb-2">
+                    Bekræft Ny Email
+                  </label>
+                  <input
+                    type="email"
+                    value={confirmNewEmail}
+                    onChange={(e) => setConfirmNewEmail(e.target.value)}
+                    placeholder="ny@email.dk"
+                    className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Info Message */}
+                <div className="bg-blue-50 border border-blue-200 rounded-sm p-3">
+                  <p className="text-sm text-blue-800">
+                    Du vil modtage en bekræftelses email på din nye adresse. Klik på linket i emailen for at bekræfte ændringen.
+                  </p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowEmailSection(false);
+                      setNewEmail('');
+                      setConfirmNewEmail('');
+                      setEmailError('');
+                    }}
+                    className="px-4 py-2 text-sm font-medium text-[#4a2329]/80 hover:bg-[#502B30]/10 rounded-sm transition-colors disabled:opacity-50 border border-[#502B30]/20"
+                  >
+                    Annuller
+                  </button>
+                  <button
+                    onClick={handleChangeEmail}
+                    disabled={isChangingEmail}
+                    className="flex items-center px-4 py-2 text-sm font-medium text-amber-100 bg-[#502B30] hover:bg-[#5e3023] rounded-sm transition-colors disabled:opacity-50 shadow-md"
+                  >
+                    {isChangingEmail ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-100 border-t-transparent mr-2" />
+                        Skifter...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Skift Email
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Change Password */}
           <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6">
