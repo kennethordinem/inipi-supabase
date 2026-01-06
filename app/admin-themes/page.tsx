@@ -46,6 +46,8 @@ export default function AdminThemesPage() {
     price_per_seat: 150,
     status: 'active',
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     const unsubscribe = members.onAuthStateChanged(async (authState: AuthState) => {
@@ -97,6 +99,40 @@ export default function AdminThemesPage() {
     }
   };
 
+  const handleImageUpload = async (file: File): Promise<string | null> => {
+    try {
+      setUploadingImage(true);
+      
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `themes/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (err: any) {
+      console.error('Error uploading image:', err);
+      setError('Kunne ikke uploade billede: ' + err.message);
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -110,12 +146,20 @@ export default function AdminThemesPage() {
         return;
       }
 
+      // Upload image if selected
+      let imageUrl = formData.image_url;
+      if (selectedImageFile) {
+        const uploadedUrl = await handleImageUpload(selectedImageFile);
+        if (!uploadedUrl) return; // Error already set
+        imageUrl = uploadedUrl;
+      }
+
       const { error: insertError } = await supabase
         .from('themes')
         .insert({
           name: formData.name,
           description: formData.description || null,
-          image_url: formData.image_url || null,
+          image_url: imageUrl || null,
           color: formData.color,
           price_per_seat: formData.price_per_seat,
           status: formData.status,
@@ -151,12 +195,20 @@ export default function AdminThemesPage() {
         return;
       }
 
+      // Upload new image if selected
+      let imageUrl = formData.image_url;
+      if (selectedImageFile) {
+        const uploadedUrl = await handleImageUpload(selectedImageFile);
+        if (!uploadedUrl) return; // Error already set
+        imageUrl = uploadedUrl;
+      }
+
       const { error: updateError } = await supabase
         .from('themes')
         .update({
           name: formData.name,
           description: formData.description || null,
-          image_url: formData.image_url || null,
+          image_url: imageUrl || null,
           color: formData.color,
           price_per_seat: formData.price_per_seat,
           status: formData.status,
@@ -227,6 +279,7 @@ export default function AdminThemesPage() {
       status: 'active',
     });
     setSelectedTheme(null);
+    setSelectedImageFile(null);
     setError(null);
     setSuccess(null);
   };
@@ -431,19 +484,69 @@ export default function AdminThemesPage() {
                 />
               </div>
 
-              {/* Image URL */}
+              {/* Image Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <ImageIcon className="inline w-4 h-4 mr-2" />
-                  Billede URL
+                  Tema Billede
                 </label>
+                
+                {/* File Upload */}
+                <div className="mb-3">
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setSelectedImageFile(file);
+                          setFormData({ ...formData, image_url: '' }); // Clear URL if file selected
+                        }
+                      }}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-[#502B30] file:text-amber-50
+                        hover:file:bg-[#5e3023]
+                        cursor-pointer"
+                    />
+                  </label>
+                  {selectedImageFile && (
+                    <p className="text-sm text-green-600 mt-2">
+                      Valgt: {selectedImageFile.name}
+                    </p>
+                  )}
+                  {uploadingImage && (
+                    <p className="text-sm text-blue-600 mt-2">
+                      Uploader billede...
+                    </p>
+                  )}
+                </div>
+
+                {/* OR divider */}
+                <div className="flex items-center my-3">
+                  <div className="flex-1 border-t border-gray-300"></div>
+                  <span className="px-3 text-sm text-gray-500">eller</span>
+                  <div className="flex-1 border-t border-gray-300"></div>
+                </div>
+
+                {/* URL Input */}
                 <input
                   type="url"
                   value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, image_url: e.target.value });
+                    setSelectedImageFile(null); // Clear file if URL entered
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
                   placeholder="https://example.com/image.jpg"
+                  disabled={!!selectedImageFile}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Upload et billede eller indsæt en URL
+                </p>
               </div>
 
               {/* Color */}
