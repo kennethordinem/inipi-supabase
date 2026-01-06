@@ -9,7 +9,7 @@ import { Footer } from '../components/Footer';
 import { 
   UserPlus, Mail, User as UserIcon, Phone, AlertCircle, 
   CheckCircle, Loader2, Save, Shield, Edit, Trash2, Search,
-  Users, X, RefreshCw
+  Users, X, RefreshCw, Star, Plus
 } from 'lucide-react';
 
 interface UserProfile {
@@ -28,6 +28,14 @@ interface Employee {
   email: string;
   title: string | null;
   points: number;
+  public_profile?: {
+    bio?: string;
+    photoUrl?: string;
+    specializations?: string[];
+    qualifications?: string[];
+    experience?: string;
+    showInBooking?: boolean;
+  };
   frontend_permissions: {
     gusmester: boolean;
     staff: boolean;
@@ -55,6 +63,22 @@ export default function AdminUsersPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  
+  // Employee profile editing
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editingEmployeeProfile, setEditingEmployeeProfile] = useState<Employee | null>(null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileFormData, setProfileFormData] = useState({
+    title: '',
+    bio: '',
+    photoUrl: '',
+    experience: '',
+    specializations: [] as string[],
+    qualifications: [] as string[],
+    showInBooking: true,
+  });
+  const [newSpecialization, setNewSpecialization] = useState('');
+  const [newQualification, setNewQualification] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -243,6 +267,46 @@ export default function AdminUsersPage() {
       setError(err.message || 'Kunne ikke opdatere bruger');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleEditEmployeeProfile = (employee: Employee) => {
+    setEditingEmployeeProfile(employee);
+    setProfileFormData({
+      title: employee.title || '',
+      bio: employee.public_profile?.bio || '',
+      photoUrl: employee.public_profile?.photoUrl || '',
+      experience: employee.public_profile?.experience || '',
+      specializations: employee.public_profile?.specializations || [],
+      qualifications: employee.public_profile?.qualifications || [],
+      showInBooking: employee.public_profile?.showInBooking !== false,
+    });
+    setShowProfileModal(true);
+  };
+
+  const handleSaveEmployeeProfile = async () => {
+    if (!editingEmployeeProfile) return;
+
+    try {
+      setIsSavingProfile(true);
+      setError(null);
+
+      await members.adminUpdateEmployeeProfile(editingEmployeeProfile.id, profileFormData);
+
+      setSuccess('Medarbejder profil opdateret!');
+      setShowProfileModal(false);
+      setEditingEmployeeProfile(null);
+      
+      // Reload employees
+      await loadUsers();
+
+      setTimeout(() => setSuccess(null), 3000);
+
+    } catch (err: any) {
+      console.error('Error saving employee profile:', err);
+      setError(err.message || 'Kunne ikke gemme medarbejder profil');
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -508,12 +572,23 @@ export default function AdminUsersPage() {
                               <button
                                 onClick={() => handleEditUser(user)}
                                 className="text-blue-600 hover:text-blue-900 mr-4"
+                                title="Rediger bruger"
                               >
                                 <Edit className="w-4 h-4 inline" />
                               </button>
+                              {employee && (
+                                <button
+                                  onClick={() => handleEditEmployeeProfile(employee)}
+                                  className="text-amber-600 hover:text-amber-900 mr-4"
+                                  title="Rediger gusmester profil"
+                                >
+                                  <Star className="w-4 h-4 inline" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => handleDeleteUser(user.id)}
                                 className="text-red-600 hover:text-red-900"
+                                title="Slet bruger"
                               >
                                 <Trash2 className="w-4 h-4 inline" />
                               </button>
@@ -746,6 +821,259 @@ export default function AdminUsersPage() {
       </main>
 
       <Footer />
+
+      {/* Employee Profile Edit Modal */}
+      {showProfileModal && editingEmployeeProfile && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-lg">
+              <div className="flex items-center">
+                <Star className="h-6 w-6 text-amber-600 mr-2" />
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Rediger Gusmester Profil - {editingEmployeeProfile.name}
+                </h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowProfileModal(false);
+                  setEditingEmployeeProfile(null);
+                }}
+                disabled={isSavingProfile}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Titel
+                </label>
+                <input
+                  type="text"
+                  value={profileFormData.title}
+                  onChange={(e) => setProfileFormData({ ...profileFormData, title: e.target.value })}
+                  placeholder="F.eks. Certificeret Gusmester"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                />
+              </div>
+
+              {/* Experience */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Erfaring
+                </label>
+                <input
+                  type="text"
+                  value={profileFormData.experience}
+                  onChange={(e) => setProfileFormData({ ...profileFormData, experience: e.target.value })}
+                  placeholder="F.eks. 5+ års erfaring"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                />
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Om mig
+                </label>
+                <textarea
+                  value={profileFormData.bio}
+                  onChange={(e) => setProfileFormData({ ...profileFormData, bio: e.target.value })}
+                  rows={4}
+                  placeholder="Fortæl lidt om dig selv..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                />
+              </div>
+
+              {/* Photo URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Foto URL
+                </label>
+                <input
+                  type="url"
+                  value={profileFormData.photoUrl}
+                  onChange={(e) => setProfileFormData({ ...profileFormData, photoUrl: e.target.value })}
+                  placeholder="https://..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                />
+              </div>
+
+              {/* Specializations */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Specialer
+                </label>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {profileFormData.specializations.map((spec, idx) => (
+                      <span key={idx} className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-sm font-medium flex items-center">
+                        {spec}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newSpecs = [...profileFormData.specializations];
+                            newSpecs.splice(idx, 1);
+                            setProfileFormData({ ...profileFormData, specializations: newSpecs });
+                          }}
+                          className="ml-2 text-amber-700 hover:text-amber-900"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newSpecialization}
+                      onChange={(e) => setNewSpecialization(e.target.value)}
+                      placeholder="Tilføj speciale"
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newSpecialization.trim()) {
+                          e.preventDefault();
+                          setProfileFormData({
+                            ...profileFormData,
+                            specializations: [...profileFormData.specializations, newSpecialization.trim()]
+                          });
+                          setNewSpecialization('');
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newSpecialization.trim()) {
+                          setProfileFormData({
+                            ...profileFormData,
+                            specializations: [...profileFormData.specializations, newSpecialization.trim()]
+                          });
+                          setNewSpecialization('');
+                        }
+                      }}
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Qualifications */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Kvalifikationer
+                </label>
+                <div className="space-y-2">
+                  <div className="space-y-1 mb-2">
+                    {profileFormData.qualifications.map((qual, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                        <span className="text-sm text-gray-700 flex-1">{qual}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newQuals = [...profileFormData.qualifications];
+                            newQuals.splice(idx, 1);
+                            setProfileFormData({ ...profileFormData, qualifications: newQuals });
+                          }}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newQualification}
+                      onChange={(e) => setNewQualification(e.target.value)}
+                      placeholder="Tilføj kvalifikation"
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && newQualification.trim()) {
+                          e.preventDefault();
+                          setProfileFormData({
+                            ...profileFormData,
+                            qualifications: [...profileFormData.qualifications, newQualification.trim()]
+                          });
+                          setNewQualification('');
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newQualification.trim()) {
+                          setProfileFormData({
+                            ...profileFormData,
+                            qualifications: [...profileFormData.qualifications, newQualification.trim()]
+                          });
+                          setNewQualification('');
+                        }
+                      }}
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Show in Booking */}
+              <div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={profileFormData.showInBooking}
+                    onChange={(e) => setProfileFormData({ ...profileFormData, showInBooking: e.target.checked })}
+                    className="mr-2 text-[#502B30] focus:ring-[#502B30]"
+                  />
+                  <span className="text-sm text-gray-700">Vis profil når kunder booker sessioner</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-gray-200 rounded-b-lg flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowProfileModal(false);
+                  setEditingEmployeeProfile(null);
+                }}
+                disabled={isSavingProfile}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Annuller
+              </button>
+              <button
+                onClick={handleSaveEmployeeProfile}
+                disabled={isSavingProfile}
+                className="flex items-center px-4 py-2 bg-[#502B30] text-white rounded-lg hover:bg-[#3d2024] transition-colors disabled:opacity-50"
+              >
+                {isSavingProfile ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Gemmer...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Gem Profil
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
