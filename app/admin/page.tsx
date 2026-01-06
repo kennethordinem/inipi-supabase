@@ -6,7 +6,7 @@ import type { AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { 
-  Loader2, AlertCircle, Calendar, Ticket, Users, UserPlus, Settings, CreditCard, Palette
+  Loader2, AlertCircle, Calendar, Ticket, Users, UserPlus, Settings, CreditCard, Palette, ShoppingBag
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -85,7 +85,7 @@ export default function AdminPage() {
     },
     {
       title: 'Klippekort',
-      description: 'Administrer klippekort og se oversigt',
+      description: 'Administrer klippekort og shop produkter',
       icon: Ticket,
       href: '/admin-punch-cards',
       color: 'bg-amber-500',

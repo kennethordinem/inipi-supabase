@@ -51,6 +51,9 @@ export default function AdminPunchCardsPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'manual' | 'shop'>('manual');
+  
   // View toggle
   const [view, setView] = useState<'create' | 'list'>('list');
 
@@ -291,38 +294,75 @@ export default function AdminPunchCardsPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Klippekort Administration</h1>
-              <p className="text-gray-600 mt-1">
-                {view === 'create' ? 'Opret nyt klippekort' : 'Oversigt over alle klippekort'}
-              </p>
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setView('list')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  view === 'list'
-                    ? 'bg-[#502B30] text-amber-50'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                <List className="w-5 h-5" />
-                <span>Oversigt</span>
-              </button>
-              <button
-                onClick={() => setView('create')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  view === 'create'
-                    ? 'bg-[#502B30] text-amber-50'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                <Plus className="w-5 h-5" />
-                <span>Opret Nyt</span>
-              </button>
-            </div>
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-gray-900">Klippekort Administration</h1>
+            <p className="text-gray-600 mt-1">Administrer klippekort og shop produkter</p>
           </div>
+
+          {/* Tab Navigation */}
+          <div className="mb-8 border-b border-gray-200">
+            <nav className="flex space-x-8">
+              <button
+                onClick={() => {
+                  setActiveTab('manual');
+                  setView('list');
+                }}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'manual'
+                    ? 'border-[#502B30] text-[#502B30]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Opret Klippekort
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('shop');
+                  window.location.href = '/admin-shop';
+                }}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'shop'
+                    ? 'border-[#502B30] text-[#502B30]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Shop Produkter
+              </button>
+            </nav>
+          </div>
+
+          {/* View Toggle (only for manual tab) */}
+          {activeTab === 'manual' && (
+            <div className="mb-6 flex items-center justify-between">
+              <p className="text-gray-600">
+                {view === 'create' ? 'Opret nyt klippekort til en specifik bruger' : 'Oversigt over alle klippekort'}
+              </p>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setView('list')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    view === 'list'
+                      ? 'bg-[#502B30] text-amber-50'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  <List className="w-5 h-5" />
+                  <span>Oversigt</span>
+                </button>
+                <button
+                  onClick={() => setView('create')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    view === 'create'
+                      ? 'bg-[#502B30] text-amber-50'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Opret Nyt</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Success/Error Messages */}
           {success && (
