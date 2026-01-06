@@ -264,8 +264,8 @@ async function getClasses(filters?: {
     .select(`
       *,
       group_types!inner(id, name, color, is_private, minimum_seats),
-      session_employees!inner(
-        employees!inner(id, name)
+      session_employees(
+        employees(id, name)
       )
     `)
     .eq('status', 'active')
