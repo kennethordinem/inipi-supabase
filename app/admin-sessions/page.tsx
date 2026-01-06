@@ -1106,7 +1106,18 @@ export default function AdminSessionsPage() {
                 <select
                   required
                   value={formData.group_type_id}
-                  onChange={(e) => setFormData({ ...formData, group_type_id: e.target.value })}
+                  onChange={(e) => {
+                    const selectedType = groupTypes.find(gt => gt.id === e.target.value);
+                    const isPrivate = selectedType?.name?.toLowerCase().includes('privat');
+                    
+                    setFormData({ 
+                      ...formData, 
+                      group_type_id: e.target.value,
+                      minimum_participants: isPrivate ? 10 : 1,
+                      max_participants: isPrivate ? 20 : 12,
+                      max_seats_per_booking: isPrivate ? 20 : 6,
+                    });
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
                 >
                   <option value="">Vælg type...</option>

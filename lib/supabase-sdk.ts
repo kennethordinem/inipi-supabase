@@ -256,12 +256,8 @@ async function getClasses(filters?: {
   startDate?: string;
   endDate?: string;
 }): Promise<{ sessions: Session[]; count: number }> {
-  // Calculate date range: today to 30 days in the future
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
-  const thirtyDaysFromNow = new Date(today);
-  thirtyDaysFromNow.setDate(today.getDate() + 30);
-  const maxDateStr = thirtyDaysFromNow.toISOString().split('T')[0];
 
   let query = supabase
     .from('sessions')
@@ -274,7 +270,6 @@ async function getClasses(filters?: {
     `)
     .eq('status', 'active')
     .gte('date', todayStr)
-    .lte('date', maxDateStr) // Only show sessions within 30 days
     .order('date', { ascending: true })
     .order('time', { ascending: true });
 
@@ -287,9 +282,28 @@ async function getClasses(filters?: {
   if (error) throw new Error(error.message);
 
   // Format sessions
-  const sessions = (data || []).map((dbSession: any) => {
+  let sessions = (data || []).map((dbSession: any) => {
     const employees = dbSession.session_employees?.map((se: any) => se.employees) || [];
     return formatSession(dbSession, employees, dbSession.group_types);
+  });
+
+  // Filter by date range based on session type
+  const thirtyDaysFromNow = new Date(today);
+  thirtyDaysFromNow.setDate(today.getDate() + 30);
+  const oneYearFromNow = new Date(today);
+  oneYearFromNow.setFullYear(today.getFullYear() + 1);
+
+  sessions = sessions.filter((session: Session) => {
+    const sessionDate = new Date(session.date);
+    const isPrivate = session.isPrivate || session.groupTypeName?.toLowerCase().includes('privat');
+    
+    if (isPrivate) {
+      // Private events: show up to 1 year ahead
+      return sessionDate <= oneYearFromNow;
+    } else {
+      // Fyraftensgus: show only 30 days ahead
+      return sessionDate <= thirtyDaysFromNow;
+    }
   });
 
   return {
