@@ -85,7 +85,7 @@ export default function AdminSessionsPage() {
     date: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
     time: '17:00',
     duration: 90,
-    max_participants: 12,
+    max_participants: 18,
     minimum_participants: 1,
     max_seats_per_booking: 6,
     price: 150,
@@ -1114,7 +1114,7 @@ export default function AdminSessionsPage() {
                       ...formData, 
                       group_type_id: e.target.value,
                       minimum_participants: isPrivate ? 10 : 1,
-                      max_participants: isPrivate ? 20 : 12,
+                      max_participants: isPrivate ? 20 : 18,
                       max_seats_per_booking: isPrivate ? 20 : 6,
                     });
                   }}
