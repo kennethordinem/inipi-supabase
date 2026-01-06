@@ -823,7 +823,7 @@ export default function GusmesterPage() {
               <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedHosting.time}</p>
             </div>
 
-            {selectedHosting.willEarnPoints ? (
+            {selectedHosting.guestSpot?.willEarnPoints ? (
               <p className="text-sm text-green-600 mb-6">
                 Du vil tjene <strong>150 points</strong> ved at frigive gæstepladsen mindst 3 timer før sessionen.
               </p>
