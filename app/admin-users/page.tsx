@@ -79,6 +79,8 @@ export default function AdminUsersPage() {
   });
   const [newSpecialization, setNewSpecialization] = useState('');
   const [newQualification, setNewQualification] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -284,6 +286,40 @@ export default function AdminUsersPage() {
     setShowProfileModal(true);
   };
 
+  const handleImageUpload = async (file: File): Promise<string | null> => {
+    try {
+      setUploadingImage(true);
+      
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `employees/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (err: any) {
+      console.error('Error uploading image:', err);
+      setError('Kunne ikke uploade billede: ' + err.message);
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSaveEmployeeProfile = async () => {
     if (!editingEmployeeProfile) return;
 
@@ -291,11 +327,23 @@ export default function AdminUsersPage() {
       setIsSavingProfile(true);
       setError(null);
 
-      await members.adminUpdateEmployeeProfile(editingEmployeeProfile.id, profileFormData);
+      // Upload image if selected
+      let photoUrl = profileFormData.photoUrl;
+      if (selectedImageFile) {
+        const uploadedUrl = await handleImageUpload(selectedImageFile);
+        if (!uploadedUrl) return; // Error already set
+        photoUrl = uploadedUrl;
+      }
+
+      await members.adminUpdateEmployeeProfile(editingEmployeeProfile.id, {
+        ...profileFormData,
+        photoUrl,
+      });
 
       setSuccess('Medarbejder profil opdateret!');
       setShowProfileModal(false);
       setEditingEmployeeProfile(null);
+      setSelectedImageFile(null);
       
       // Reload employees
       await loadUsers();
@@ -890,18 +938,68 @@ export default function AdminUsersPage() {
                 />
               </div>
 
-              {/* Photo URL */}
+              {/* Photo Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Foto URL
+                  Profil Foto
                 </label>
+                
+                {/* File Upload */}
+                <div className="mb-3">
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setSelectedImageFile(file);
+                          setProfileFormData({ ...profileFormData, photoUrl: '' });
+                        }
+                      }}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-lg file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-[#502B30] file:text-amber-50
+                        hover:file:bg-[#5e3023]
+                        cursor-pointer"
+                    />
+                  </label>
+                  {selectedImageFile && (
+                    <p className="text-sm text-green-600 mt-2">
+                      Valgt: {selectedImageFile.name}
+                    </p>
+                  )}
+                  {uploadingImage && (
+                    <p className="text-sm text-blue-600 mt-2">
+                      Uploader billede...
+                    </p>
+                  )}
+                </div>
+
+                {/* OR divider */}
+                <div className="flex items-center my-3">
+                  <div className="flex-1 border-t border-gray-300"></div>
+                  <span className="px-3 text-sm text-gray-500">eller</span>
+                  <div className="flex-1 border-t border-gray-300"></div>
+                </div>
+
+                {/* URL Input */}
                 <input
                   type="url"
                   value={profileFormData.photoUrl}
-                  onChange={(e) => setProfileFormData({ ...profileFormData, photoUrl: e.target.value })}
+                  onChange={(e) => {
+                    setProfileFormData({ ...profileFormData, photoUrl: e.target.value });
+                    setSelectedImageFile(null);
+                  }}
                   placeholder="https://..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  disabled={!!selectedImageFile}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Upload et billede eller indsæt en URL
+                </p>
               </div>
 
               {/* Specializations */}

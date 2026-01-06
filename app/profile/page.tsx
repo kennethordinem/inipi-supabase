@@ -41,6 +41,8 @@ export default function ProfilePage() {
   });
   const [newSpecialization, setNewSpecialization] = useState('');
   const [newQualification, setNewQualification] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   
   // Password change state
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -160,15 +162,61 @@ export default function ProfilePage() {
     }
   };
 
+  const handleImageUpload = async (file: File): Promise<string | null> => {
+    try {
+      setUploadingImage(true);
+      
+      // Generate unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `employees/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (err: any) {
+      console.error('Error uploading image:', err);
+      setError('Kunne ikke uploade billede: ' + err.message);
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSaveEmployeeProfile = async () => {
     try {
       setIsSavingEmployee(true);
       setError('');
       setSuccessMessage('');
 
-      await members.updateEmployeePublicProfile(employeeFormData);
+      // Upload image if selected
+      let photoUrl = employeeFormData.photoUrl;
+      if (selectedImageFile) {
+        const uploadedUrl = await handleImageUpload(selectedImageFile);
+        if (!uploadedUrl) return; // Error already set
+        photoUrl = uploadedUrl;
+      }
+
+      await members.updateEmployeePublicProfile({
+        ...employeeFormData,
+        photoUrl,
+      });
 
       setIsEditingEmployee(false);
+      setSelectedImageFile(null);
       setSuccessMessage('Gusmester profil opdateret!');
       
       // Reload employee profile
@@ -581,19 +629,70 @@ export default function ProfilePage() {
                   )}
                 </div>
 
-                {/* Photo URL */}
+                {/* Photo Upload */}
                 <div>
                   <label className="block text-sm font-medium text-[#502B30] mb-2">
-                    Foto URL
+                    Profil Foto
                   </label>
                   {isEditingEmployee ? (
-                    <input
-                      type="url"
-                      value={employeeFormData.photoUrl}
-                      onChange={(e) => setEmployeeFormData({ ...employeeFormData, photoUrl: e.target.value })}
-                      placeholder="https://..."
-                      className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
-                    />
+                    <div>
+                      {/* File Upload */}
+                      <div className="mb-3">
+                        <label className="block">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setSelectedImageFile(file);
+                                setEmployeeFormData({ ...employeeFormData, photoUrl: '' });
+                              }
+                            }}
+                            className="block w-full text-sm text-gray-500
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-sm file:border-0
+                              file:text-sm file:font-semibold
+                              file:bg-[#502B30] file:text-amber-50
+                              hover:file:bg-[#5e3023]
+                              cursor-pointer"
+                          />
+                        </label>
+                        {selectedImageFile && (
+                          <p className="text-sm text-green-600 mt-2">
+                            Valgt: {selectedImageFile.name}
+                          </p>
+                        )}
+                        {uploadingImage && (
+                          <p className="text-sm text-blue-600 mt-2">
+                            Uploader billede...
+                          </p>
+                        )}
+                      </div>
+
+                      {/* OR divider */}
+                      <div className="flex items-center my-3">
+                        <div className="flex-1 border-t border-[#502B30]/20"></div>
+                        <span className="px-3 text-sm text-[#502B30]/60">eller</span>
+                        <div className="flex-1 border-t border-[#502B30]/20"></div>
+                      </div>
+
+                      {/* URL Input */}
+                      <input
+                        type="url"
+                        value={employeeFormData.photoUrl}
+                        onChange={(e) => {
+                          setEmployeeFormData({ ...employeeFormData, photoUrl: e.target.value });
+                          setSelectedImageFile(null);
+                        }}
+                        placeholder="https://..."
+                        className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
+                        disabled={!!selectedImageFile}
+                      />
+                      <p className="text-xs text-[#502B30]/60 mt-1">
+                        Upload et billede eller indsæt en URL
+                      </p>
+                    </div>
                   ) : (
                     <p className="text-[#502B30]">{employeeProfile.publicProfile?.photoUrl || 'Ikke angivet'}</p>
                   )}
