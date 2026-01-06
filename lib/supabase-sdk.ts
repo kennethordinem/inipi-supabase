@@ -1079,12 +1079,14 @@ async function getAvailableGusmesterSpots(): Promise<{ spots: any[] }> {
 
   const spots = (data || []).map(spot => ({
     id: spot.session_id,
+    spotId: spot.id,
     name: spot.sessions.name,
     date: spot.sessions.date,
     time: spot.sessions.time,
     duration: spot.sessions.duration,
     location: spot.sessions.location,
     hostName: spot.host_employee?.name || 'Unknown',
+    spotType: spot.spot_type || 'guest_spot',
     pointCost: 150, // Standard cost
   }));
 
@@ -1392,12 +1394,24 @@ async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
 
   if (sessionsError) throw new Error(sessionsError.message);
 
-  // Create map for easy lookup
-  const guestSpotsMap = new Map(guestSpotsData.map(gs => [gs.session_id, gs]));
+  // Group guest spots by session and type
+  const sessionSpotsMap = new Map<string, { gusmesterSpot?: any; guestSpot?: any }>();
+  
+  guestSpotsData.forEach(gs => {
+    if (!sessionSpotsMap.has(gs.session_id)) {
+      sessionSpotsMap.set(gs.session_id, {});
+    }
+    const spots = sessionSpotsMap.get(gs.session_id)!;
+    if (gs.spot_type === 'gusmester_spot') {
+      spots.gusmesterSpot = gs;
+    } else {
+      spots.guestSpot = gs;
+    }
+  });
 
   const sessions = (sessionsData || []).map(session => {
-    const guestSpot = guestSpotsMap.get(session.id);
-    if (!guestSpot) return null;
+    const spots = sessionSpotsMap.get(session.id);
+    if (!spots) return null;
 
     const sessionDate = new Date(`${session.date}T${session.time}`);
     const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
@@ -1409,11 +1423,25 @@ async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
       time: session.time,
       duration: session.duration,
       location: session.location,
-      guestSpotStatus: guestSpot.status,
-      guestName: guestSpot.guest_name,
-      guestEmail: guestSpot.guest_email,
-      canRelease: guestSpot.status === 'reserved_for_host',
-      willEarnPoints: hoursUntil > 3,
+      // Gusmester Spot (auto-released 3h before, no manual control)
+      gusmesterSpot: spots.gusmesterSpot ? {
+        id: spots.gusmesterSpot.id,
+        status: spots.gusmesterSpot.status,
+        spotType: 'gusmester_spot',
+        autoRelease: true,
+        canManuallyRelease: false,
+      } : null,
+      // Guest Spot (manually releasable, earns points)
+      guestSpot: spots.guestSpot ? {
+        id: spots.guestSpot.id,
+        status: spots.guestSpot.status,
+        spotType: 'guest_spot',
+        guestName: spots.guestSpot.guest_name,
+        guestEmail: spots.guestSpot.guest_email,
+        canRelease: spots.guestSpot.status === 'reserved_for_host',
+        willEarnPoints: hoursUntil > 3,
+        autoRelease: false,
+      } : null,
       hoursUntilEvent: hoursUntil,
     };
   }).filter(s => s !== null);
@@ -1423,8 +1451,9 @@ async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
 
 /**
  * Release guest spot to public (earn 150 points if >3h before)
+ * NOTE: Only works for 'guest_spot' type, not 'gusmester_spot' (which is auto-released)
  */
-async function releaseGuestSpot(sessionId: string): Promise<{ success: boolean; earnedPoints: boolean; newPoints: number }> {
+async function releaseGuestSpot(sessionId: string, spotId?: string): Promise<{ success: boolean; earnedPoints: boolean; newPoints: number }> {
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
 
@@ -1437,11 +1466,34 @@ async function releaseGuestSpot(sessionId: string): Promise<{ success: boolean; 
 
   if (empError || !employee) throw new Error('Not an employee');
 
+  // Get the guest spot to verify it's the right type and belongs to this employee
+  const spotQuery = supabase
+    .from('guest_spots')
+    .select('id, session_id, spot_type, status')
+    .eq('host_employee_id', employee.id)
+    .eq('spot_type', 'guest_spot'); // Only allow releasing guest_spot type
+  
+  if (spotId) {
+    spotQuery.eq('id', spotId);
+  } else {
+    spotQuery.eq('session_id', sessionId);
+  }
+
+  const { data: guestSpot, error: spotError } = await spotQuery.single();
+
+  if (spotError || !guestSpot) {
+    throw new Error('Guest spot not found or you do not have permission');
+  }
+
+  if (guestSpot.status !== 'reserved_for_host' && guestSpot.status !== 'booked_by_host') {
+    throw new Error('This spot has already been released');
+  }
+
   // Get session details
   const { data: session, error: sessionError } = await supabase
     .from('sessions')
     .select('date, time')
-    .eq('id', sessionId)
+    .eq('id', guestSpot.session_id)
     .single();
 
   if (sessionError) throw new Error(sessionError.message);
@@ -1459,8 +1511,7 @@ async function releaseGuestSpot(sessionId: string): Promise<{ success: boolean; 
       released_at: new Date().toISOString(),
       points_earned: earnPoints,
     })
-    .eq('session_id', sessionId)
-    .eq('host_employee_id', employee.id);
+    .eq('id', guestSpot.id);
 
   if (updateError) throw new Error(updateError.message);
 
@@ -1479,7 +1530,7 @@ async function releaseGuestSpot(sessionId: string): Promise<{ success: boolean; 
       employee_id: employee.id,
       amount: 150,
       reason: 'Released guest spot to public',
-      related_session_id: sessionId,
+      related_session_id: guestSpot.session_id,
     });
   }
 
@@ -1502,7 +1553,8 @@ async function bookSelfAsGuest(sessionId: string): Promise<{ success: boolean }>
 
   if (!employee) throw new Error('Not an employee');
 
-  // Mark spot as used by host (no guest details stored)
+  // Mark guest spot as used by host (no guest details stored)
+  // Only works for guest_spot type
   const { error } = await supabase
     .from('guest_spots')
     .update({
@@ -1513,6 +1565,7 @@ async function bookSelfAsGuest(sessionId: string): Promise<{ success: boolean }>
     })
     .eq('session_id', sessionId)
     .eq('host_employee_id', employee.id)
+    .eq('spot_type', 'guest_spot')
     .eq('status', 'reserved_for_host');
 
   if (error) throw new Error(error.message);
@@ -1537,6 +1590,7 @@ async function bookGuestForSession(sessionId: string, guestName: string, guestEm
   if (!employee) throw new Error('Not an employee');
 
   // Update guest spot with guest details
+  // Only works for guest_spot type
   const { error } = await supabase
     .from('guest_spots')
     .update({
@@ -1547,6 +1601,7 @@ async function bookGuestForSession(sessionId: string, guestName: string, guestEm
     })
     .eq('session_id', sessionId)
     .eq('host_employee_id', employee.id)
+    .eq('spot_type', 'guest_spot')
     .eq('status', 'reserved_for_host');
 
   if (error) throw new Error(error.message);

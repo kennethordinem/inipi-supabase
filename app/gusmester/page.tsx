@@ -10,12 +10,14 @@ import { da } from 'date-fns/locale';
 
 interface AvailableSpot {
   id: string;
+  spotId: string;
   name: string;
   date: string;
   time: string;
   duration: number;
   location: string;
   hostName: string;
+  spotType: string;
   pointCost: number;
 }
 
@@ -37,11 +39,23 @@ interface HostingSession {
   time: string;
   duration: number;
   location: string;
-  guestSpotStatus: string;
-  guestName?: string;
-  guestEmail?: string;
-  canRelease: boolean;
-  willEarnPoints: boolean;
+  gusmesterSpot?: {
+    id: string;
+    status: string;
+    spotType: string;
+    autoRelease: boolean;
+    canManuallyRelease: boolean;
+  } | null;
+  guestSpot?: {
+    id: string;
+    status: string;
+    spotType: string;
+    guestName?: string;
+    guestEmail?: string;
+    canRelease: boolean;
+    willEarnPoints: boolean;
+    autoRelease: boolean;
+  } | null;
   hoursUntilEvent: number;
 }
 
@@ -473,8 +487,17 @@ export default function GusmesterPage() {
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {availableSpots.map((spot) => (
-                  <div key={spot.id} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 border border-[#502B30]/10 hover:border-[#502B30] transition-colors">
-                    <h3 className="text-xl font-bold text-[#502B30] mb-3">{spot.name}</h3>
+                  <div key={spot.spotId} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 border border-[#502B30]/10 hover:border-[#502B30] transition-colors">
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-xl font-bold text-[#502B30]">{spot.name}</h3>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        spot.spotType === 'gusmester_spot' 
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {spot.spotType === 'gusmester_spot' ? 'Gusmester Plads' : 'Gæste Plads'}
+                      </span>
+                    </div>
                     
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center text-[#502B30]/70">
@@ -590,80 +613,115 @@ export default function GusmesterPage() {
             <div className="grid gap-4 md:grid-cols-2">
               {hostingSessions.map((session) => (
                 <div key={session.id} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 border border-blue-200">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-xl font-bold text-[#502B30]">{session.name}</h3>
-                    <span className={`px-3 py-1 text-sm rounded-full ${
-                      session.guestSpotStatus === 'reserved_for_host' 
-                        ? 'bg-blue-100 text-blue-800'
-                        : session.guestSpotStatus === 'booked_by_host'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {session.guestSpotStatus === 'reserved_for_host' && 'Gæsteplads Reserveret'}
-                      {session.guestSpotStatus === 'booked_by_host' && 'Gæst Booket'}
-                      {session.guestSpotStatus === 'released_to_public' && 'Frigivet'}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-[#502B30]/70">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      {format(new Date(session.date), "EEEE d. MMMM yyyy", { locale: da })}
-                    </div>
-                    <div className="flex items-center text-[#502B30]/70">
-                      <Clock className="h-4 w-4 mr-2" />
-                      {session.time} ({session.duration} min)
-                    </div>
-                    {session.guestName && (
+                  <div className="mb-3">
+                    <h3 className="text-xl font-bold text-[#502B30] mb-2">{session.name}</h3>
+                    <div className="space-y-2">
                       <div className="flex items-center text-[#502B30]/70">
-                        <User className="h-4 w-4 mr-2" />
-                        Gæst: {session.guestName}
+                        <Calendar className="h-4 w-4 mr-2" />
+                        {format(new Date(session.date), "EEEE d. MMMM yyyy", { locale: da })}
                       </div>
-                    )}
+                      <div className="flex items-center text-[#502B30]/70">
+                        <Clock className="h-4 w-4 mr-2" />
+                        {session.time} ({session.duration} min)
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    {session.guestSpotStatus === 'reserved_for_host' && (
-                      <>
-                        <button
-                          onClick={() => handleBookSelfAsGuest(session.id)}
-                          className="flex-1 px-4 py-2 bg-[#502B30] text-amber-100 rounded-sm hover:bg-[#5e3023] transition-colors"
-                        >
-                          Book Selv
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedSessionForGuest(session);
-                            setShowBookGuestModal(true);
-                          }}
-                          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-sm hover:bg-blue-700 transition-colors"
-                        >
-                          Book Anden Gæst
-                        </button>
-                        {session.canRelease && (
-                          <button
-                            onClick={() => {
-                              setSelectedHosting(session);
-                              setShowReleaseModal(true);
-                            }}
-                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-sm hover:bg-green-700 transition-colors"
-                          >
-                            Frigiv (+150 points)
-                          </button>
+                  {/* Gusmester Spot - Auto-released 3h before */}
+                  {session.gusmesterSpot && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-sm p-4 mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-amber-900 flex items-center">
+                          <Star className="h-4 w-4 mr-1" />
+                          Gusmester Plads
+                        </h4>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          session.gusmesterSpot.status === 'reserved_for_host' 
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {session.gusmesterSpot.status === 'reserved_for_host' && 'Reserveret'}
+                          {session.gusmesterSpot.status === 'released_to_public' && 'Frigivet'}
+                          {session.gusmesterSpot.status === 'booked_by_gusmester' && 'Booket'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-700">
+                        Automatisk frigivet 3 timer før event
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Guest Spot - Manually releasable, earns points */}
+                  {session.guestSpot && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-sm p-4 mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-blue-900 flex items-center">
+                          <User className="h-4 w-4 mr-1" />
+                          Gæste Plads
+                        </h4>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          session.guestSpot.status === 'reserved_for_host' 
+                            ? 'bg-blue-100 text-blue-800'
+                            : session.guestSpot.status === 'booked_by_host'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {session.guestSpot.status === 'reserved_for_host' && 'Reserveret'}
+                          {session.guestSpot.status === 'booked_by_host' && 'Booket'}
+                          {session.guestSpot.status === 'released_to_public' && 'Frigivet'}
+                        </span>
+                      </div>
+                      
+                      {session.guestSpot.guestName && (
+                        <p className="text-sm text-blue-700 mb-2">
+                          Gæst: {session.guestSpot.guestName}
+                        </p>
+                      )}
+
+                      <div className="flex gap-2 mt-3">
+                        {session.guestSpot.status === 'reserved_for_host' && (
+                          <>
+                            <button
+                              onClick={() => handleBookSelfAsGuest(session.id)}
+                              className="flex-1 px-3 py-2 text-sm bg-[#502B30] text-amber-100 rounded-sm hover:bg-[#5e3023] transition-colors"
+                            >
+                              Book Selv
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedSessionForGuest(session);
+                                setShowBookGuestModal(true);
+                              }}
+                              className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-sm hover:bg-blue-700 transition-colors"
+                            >
+                              Book Gæst
+                            </button>
+                            {session.guestSpot.canRelease && (
+                              <button
+                                onClick={() => {
+                                  setSelectedHosting(session);
+                                  setShowReleaseModal(true);
+                                }}
+                                className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded-sm hover:bg-green-700 transition-colors"
+                              >
+                                Frigiv {session.guestSpot.willEarnPoints && '(+150)'}
+                              </button>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                    {session.guestSpotStatus === 'booked_by_host' && (
-                      <p className="text-sm text-[#502B30]/60 text-center w-full">
-                        {session.guestName ? `Gæst booket: ${session.guestName}` : 'Vært bruger pladsen'}
-                      </p>
-                    )}
-                    {session.guestSpotStatus === 'released_to_public' && (
-                      <p className="text-sm text-green-600 text-center w-full">
-                        Gæsteplads frigivet til offentligheden
-                      </p>
-                    )}
-                  </div>
+                        {session.guestSpot.status === 'booked_by_host' && (
+                          <p className="text-sm text-[#502B30]/60 text-center w-full">
+                            {session.guestSpot.guestName ? `Gæst booket: ${session.guestSpot.guestName}` : 'Vært bruger pladsen'}
+                          </p>
+                        )}
+                        {session.guestSpot.status === 'released_to_public' && (
+                          <p className="text-sm text-green-600 text-center w-full">
+                            Frigivet til offentligheden
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

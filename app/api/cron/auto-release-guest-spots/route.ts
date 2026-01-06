@@ -31,7 +31,61 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const releasedSpots: any[] = [];
 
-    // Get system settings for configurable hours
+    // ============================================
+    // PART 1: Auto-release GUSMESTER SPOTS (always 3 hours before)
+    // ============================================
+    const gusmesterThreshold = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+
+    const { data: gusmesterSpots, error: gusmesterError } = await supabase
+      .from('guest_spots')
+      .select(`
+        id,
+        spot_type,
+        host_employee_id,
+        sessions!inner(
+          id,
+          name,
+          start_time
+        )
+      `)
+      .eq('status', 'reserved_for_host')
+      .eq('spot_type', 'gusmester_spot')
+      .lte('sessions.start_time', gusmesterThreshold.toISOString())
+      .gte('sessions.start_time', now.toISOString());
+
+    if (gusmesterError) {
+      console.error('[Auto-Release] Error fetching gusmester spots:', gusmesterError);
+    } else if (gusmesterSpots && gusmesterSpots.length > 0) {
+      for (const spot of gusmesterSpots) {
+        const session = Array.isArray(spot.sessions) ? spot.sessions[0] : spot.sessions;
+        if (!session) continue;
+
+        // Release gusmester spot (no points awarded - this is automatic)
+        const { error: updateError } = await supabase
+          .from('guest_spots')
+          .update({ status: 'released_to_public' })
+          .eq('id', spot.id);
+
+        if (updateError) {
+          console.error(`[Auto-Release] Error releasing gusmester spot ${spot.id}:`, updateError);
+          continue;
+        }
+
+        releasedSpots.push({
+          sessionId: session.id,
+          sessionName: session.name,
+          spotType: 'gusmester_spot',
+          pointsAwarded: 0,
+          reason: 'Automatic 3-hour release',
+        });
+
+        console.log(`[Auto-Release] Released gusmester spot for ${session.name} (no points)`);
+      }
+    }
+
+    // ============================================
+    // PART 2: Auto-release GUEST SPOTS (based on employee preference)
+    // ============================================
     const { data: settings } = await supabase
       .from('system_settings')
       .select('*')
@@ -51,6 +105,7 @@ export async function GET(request: NextRequest) {
         .from('guest_spots')
         .select(`
           id,
+          spot_type,
           status,
           host_employee_id,
           sessions!inner(
@@ -66,17 +121,18 @@ export async function GET(request: NextRequest) {
           )
         `)
         .eq('status', 'reserved_for_host')
+        .eq('spot_type', 'guest_spot')
         .eq('employees.auto_release_guest_spot', preference)
         .lte('sessions.start_time', thresholdTime.toISOString())
         .gte('sessions.start_time', now.toISOString()); // Only future sessions
 
       if (spotsError) {
-        console.error(`[Auto-Release] Error fetching spots for ${preference}:`, spotsError);
+        console.error(`[Auto-Release] Error fetching guest spots for ${preference}:`, spotsError);
         continue;
       }
 
       if (!spotsToRelease || spotsToRelease.length === 0) {
-        console.log(`[Auto-Release] No spots to release for ${preference}`);
+        console.log(`[Auto-Release] No guest spots to release for ${preference}`);
         continue;
       }
 
@@ -99,7 +155,7 @@ export async function GET(request: NextRequest) {
           .eq('id', guestSpot.id);
 
         if (updateError) {
-          console.error(`[Auto-Release] Error releasing spot ${guestSpot.id}:`, updateError);
+          console.error(`[Auto-Release] Error releasing guest spot ${guestSpot.id}:`, updateError);
           continue;
         }
 
@@ -130,11 +186,12 @@ export async function GET(request: NextRequest) {
           sessionId: session.id,
           sessionName: session.name,
           employeeName: employee.name,
+          spotType: 'guest_spot',
           pointsAwarded: pointsToAdd,
           preference,
         });
 
-        console.log(`[Auto-Release] Released spot for ${employee.name} on ${session.name} (${pointsToAdd} points)`);
+        console.log(`[Auto-Release] Released guest spot for ${employee.name} on ${session.name} (${pointsToAdd} points)`);
       }
     }
 
