@@ -1135,18 +1135,28 @@ export default function AdminSessionsPage() {
                 </select>
               </div>
 
-              {/* Info about theme selection */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">Tema Valg</p>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Kunden vælger tema når de booker. Prisen bestemmes af det valgte tema.
-                    </p>
-                  </div>
-                </div>
-              </div>
+              {/* Info about theme selection - ONLY for Private Events */}
+              {(() => {
+                const selectedGroupType = groupTypes.find(gt => gt.id === formData.group_type_id);
+                const isPrivateEvent = selectedGroupType?.name?.toLowerCase().includes('privat');
+                
+                if (isPrivateEvent) {
+                  return (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-purple-900">Privat Event - Tema Valg</p>
+                          <p className="text-sm text-purple-700 mt-1">
+                            Kunden vælger tema når de booker. Prisen bestemmes af det valgte tema.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Submit Buttons */}
               <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
