@@ -1774,13 +1774,10 @@ async function getAllClients(): Promise<{ data: any[]; count: number }> {
  */
 async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
   try {
-    // Get regular bookings - use LEFT JOIN to include all bookings even if profile is missing
+    // Get regular bookings WITHOUT joining profiles (no FK relationship exists)
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
-      .select(`
-        *,
-        profiles(id, email, first_name, last_name, phone)
-      `)
+      .select('*')
       .eq('session_id', sessionId)
       .eq('status', 'confirmed');
 
@@ -1807,9 +1804,31 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
 
     console.log('[getStaffSessionParticipants] Raw gusmester bookings:', gusmesterBookings);
 
-    // Format regular bookings - handle missing profile data
+    // Get all user IDs from bookings
+    const userIds = (bookings || []).map(b => b.user_id).filter(Boolean);
+    
+    // Fetch profiles for all users in one query
+    let profilesMap = new Map();
+    if (userIds.length > 0) {
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, first_name, last_name, phone')
+        .in('id', userIds);
+      
+      if (!profilesError && profiles) {
+        profiles.forEach(profile => {
+          profilesMap.set(profile.id, profile);
+        });
+      } else {
+        console.error('[getStaffSessionParticipants] Profiles error:', profilesError);
+      }
+    }
+
+    console.log('[getStaffSessionParticipants] Profiles map:', profilesMap);
+
+    // Format regular bookings with profile data
     const regularParticipants = (bookings || []).map((booking: any) => {
-      const profile = booking.profiles;
+      const profile = profilesMap.get(booking.user_id);
       return {
         patientId: booking.user_id,
         patientName: profile 
