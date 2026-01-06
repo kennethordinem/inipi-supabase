@@ -4,7 +4,18 @@
  */
 
 import Stripe from 'stripe';
-import { supabase } from './supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Create server-side Supabase client with service role key
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
 
 let stripeInstance: Stripe | null = null;
 
@@ -13,13 +24,14 @@ let stripeInstance: Stripe | null = null;
  */
 export async function getStripeInstance(): Promise<Stripe | null> {
   try {
-    // Get Stripe config from database
-    const { data: config, error } = await supabase
+    // Get Stripe config from database using service role client
+    const { data: config, error } = await supabaseAdmin
       .from('stripe_config')
       .select('secret_key, enabled')
       .single();
 
     if (error || !config || !config.enabled || !config.secret_key) {
+      console.error('Stripe config error:', error);
       return null;
     }
 
@@ -41,12 +53,13 @@ export async function getStripeInstance(): Promise<Stripe | null> {
  */
 export async function getStripePublishableKey(): Promise<string | null> {
   try {
-    const { data: config, error } = await supabase
+    const { data: config, error } = await supabaseAdmin
       .from('stripe_config')
       .select('publishable_key, enabled')
       .single();
 
     if (error || !config || !config.enabled || !config.publishable_key) {
+      console.error('Stripe publishable key error:', error);
       return null;
     }
 
