@@ -796,7 +796,7 @@ async function getEmployeeStats(): Promise<{
     employeeName: employee.name,
     points: employee.points,
     pointsHistory: employee.employee_points_history || [],
-    autoReleasePreference: employee.auto_release_guest_spot || 'never',
+    autoReleasePreference: employee.auto_release_guest_spot || '3_hours',
   };
 }
 
@@ -816,6 +816,144 @@ async function updateAutoReleasePreference(preference: string): Promise<{ succes
     .from('employees')
     .update({ auto_release_guest_spot: preference })
     .eq('user_id', user.id);
+
+  if (error) throw new Error(error.message);
+
+  return { success: true };
+}
+
+/**
+ * Get employee public profile (for editing own profile)
+ */
+async function getEmployeePublicProfile(): Promise<{
+  employeeId: string;
+  name: string;
+  title: string;
+  publicProfile: {
+    bio?: string;
+    photoUrl?: string;
+    specializations?: string[];
+    qualifications?: string[];
+    experience?: string;
+    showInBooking?: boolean;
+  };
+}> {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data: employee, error } = await supabase
+    .from('employees')
+    .select('id, name, title, public_profile')
+    .eq('user_id', user.id)
+    .single();
+
+  if (error) throw new Error(error.message);
+
+  return {
+    employeeId: employee.id,
+    name: employee.name,
+    title: employee.title || '',
+    publicProfile: employee.public_profile || {},
+  };
+}
+
+/**
+ * Update employee public profile (for editing own profile)
+ */
+async function updateEmployeePublicProfile(data: {
+  title?: string;
+  bio?: string;
+  photoUrl?: string;
+  specializations?: string[];
+  qualifications?: string[];
+  experience?: string;
+  showInBooking?: boolean;
+}): Promise<{ success: boolean }> {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Get current profile
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('public_profile')
+    .eq('user_id', user.id)
+    .single();
+
+  const currentProfile = employee?.public_profile || {};
+
+  // Merge with new data
+  const updatedProfile = {
+    ...currentProfile,
+    bio: data.bio !== undefined ? data.bio : currentProfile.bio,
+    photoUrl: data.photoUrl !== undefined ? data.photoUrl : currentProfile.photoUrl,
+    specializations: data.specializations !== undefined ? data.specializations : currentProfile.specializations,
+    qualifications: data.qualifications !== undefined ? data.qualifications : currentProfile.qualifications,
+    experience: data.experience !== undefined ? data.experience : currentProfile.experience,
+    showInBooking: data.showInBooking !== undefined ? data.showInBooking : currentProfile.showInBooking,
+  };
+
+  const updateData: any = {
+    public_profile: updatedProfile,
+  };
+
+  if (data.title !== undefined) {
+    updateData.title = data.title;
+  }
+
+  const { error } = await supabase
+    .from('employees')
+    .update(updateData)
+    .eq('user_id', user.id);
+
+  if (error) throw new Error(error.message);
+
+  return { success: true };
+}
+
+/**
+ * Admin: Update employee public profile
+ */
+async function adminUpdateEmployeeProfile(employeeId: string, data: {
+  title?: string;
+  bio?: string;
+  photoUrl?: string;
+  specializations?: string[];
+  qualifications?: string[];
+  experience?: string;
+  showInBooking?: boolean;
+}): Promise<{ success: boolean }> {
+  // Get current profile
+  const { data: employee } = await supabase
+    .from('employees')
+    .select('public_profile')
+    .eq('id', employeeId)
+    .single();
+
+  const currentProfile = employee?.public_profile || {};
+
+  // Merge with new data
+  const updatedProfile = {
+    ...currentProfile,
+    bio: data.bio !== undefined ? data.bio : currentProfile.bio,
+    photoUrl: data.photoUrl !== undefined ? data.photoUrl : currentProfile.photoUrl,
+    specializations: data.specializations !== undefined ? data.specializations : currentProfile.specializations,
+    qualifications: data.qualifications !== undefined ? data.qualifications : currentProfile.qualifications,
+    experience: data.experience !== undefined ? data.experience : currentProfile.experience,
+    showInBooking: data.showInBooking !== undefined ? data.showInBooking : currentProfile.showInBooking,
+  };
+
+  const updateData: any = {
+    public_profile: updatedProfile,
+  };
+
+  if (data.title !== undefined) {
+    updateData.title = data.title;
+  }
+
+  const { error } = await supabase
+    .from('employees')
+    .update(updateData)
+    .eq('id', employeeId);
 
   if (error) throw new Error(error.message);
 
@@ -1845,6 +1983,8 @@ export const members = {
   checkIfEmployee,
   getEmployeeStats,
   updateAutoReleasePreference,
+  getEmployeePublicProfile,
+  updateEmployeePublicProfile,
   getAvailableGusmesterSpots,
   getMyGusmesterBookings,
   bookGusmesterSpot,
@@ -1864,6 +2004,7 @@ export const members = {
   getAdminMemberDetails,
   adminCancelBooking,
   adminMoveBooking,
+  adminUpdateEmployeeProfile,
   
   // Stripe
   getStripeConfig,

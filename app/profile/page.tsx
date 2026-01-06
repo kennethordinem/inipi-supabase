@@ -5,7 +5,7 @@ import { members } from '@/lib/supabase-sdk';
 import type { AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
-import { User, Mail, Phone, MapPin, Calendar, Lock, Save, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Lock, Save, Eye, EyeOff, Star, Plus, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface ProfileData {
@@ -24,6 +24,23 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // Employee/Gusmester state
+  const [isEmployee, setIsEmployee] = useState(false);
+  const [employeeProfile, setEmployeeProfile] = useState<any>(null);
+  const [isEditingEmployee, setIsEditingEmployee] = useState(false);
+  const [isSavingEmployee, setIsSavingEmployee] = useState(false);
+  const [employeeFormData, setEmployeeFormData] = useState({
+    title: '',
+    bio: '',
+    photoUrl: '',
+    experience: '',
+    specializations: [] as string[],
+    qualifications: [] as string[],
+    showInBooking: true,
+  });
+  const [newSpecialization, setNewSpecialization] = useState('');
+  const [newQualification, setNewQualification] = useState('');
   
   // Password change state
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -77,6 +94,25 @@ export default function ProfilePage() {
         city: '',
         postalCode: ''
       });
+
+      // Check if user is an employee
+      const employeeCheck = await members.checkIfEmployee();
+      setIsEmployee(employeeCheck.isEmployee);
+
+      if (employeeCheck.isEmployee) {
+        // Load employee public profile
+        const empProfile = await members.getEmployeePublicProfile();
+        setEmployeeProfile(empProfile);
+        setEmployeeFormData({
+          title: empProfile.title || '',
+          bio: empProfile.publicProfile?.bio || '',
+          photoUrl: empProfile.publicProfile?.photoUrl || '',
+          experience: empProfile.publicProfile?.experience || '',
+          specializations: empProfile.publicProfile?.specializations || [],
+          qualifications: empProfile.publicProfile?.qualifications || [],
+          showInBooking: empProfile.publicProfile?.showInBooking !== false,
+        });
+      }
     } catch (err: any) {
       console.error('[Profile] Error loading profile:', err);
       setError('Kunne ikke indlæse profil');
@@ -121,6 +157,31 @@ export default function ProfilePage() {
       setError('Kunne ikke gemme ændringer');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveEmployeeProfile = async () => {
+    try {
+      setIsSavingEmployee(true);
+      setError('');
+      setSuccessMessage('');
+
+      await members.updateEmployeePublicProfile(employeeFormData);
+
+      setIsEditingEmployee(false);
+      setSuccessMessage('Gusmester profil opdateret!');
+      
+      // Reload employee profile
+      const empProfile = await members.getEmployeePublicProfile();
+      setEmployeeProfile(empProfile);
+
+      setTimeout(() => setSuccessMessage(''), 3000);
+
+    } catch (err: any) {
+      console.error('[Profile] Error saving employee profile:', err);
+      setError('Kunne ikke gemme gusmester profil');
+    } finally {
+      setIsSavingEmployee(false);
     }
   };
 
@@ -406,6 +467,306 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* Gusmester Profile (only for employees) */}
+          {isEmployee && employeeProfile && (
+            <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <Star className="h-6 w-6 text-amber-600 mr-2" />
+                  <h2 className="text-xl font-semibold text-[#502B30]">
+                    Gusmester Profil
+                  </h2>
+                </div>
+                {!isEditingEmployee ? (
+                  <button
+                    onClick={() => setIsEditingEmployee(true)}
+                    className="px-4 py-2 text-sm font-medium text-[#502B30] hover:bg-[#502B30]/10 rounded-sm transition-colors border border-[#502B30]/20"
+                  >
+                    Rediger
+                  </button>
+                ) : (
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        setIsEditingEmployee(false);
+                        setEmployeeFormData({
+                          title: employeeProfile.title || '',
+                          bio: employeeProfile.publicProfile?.bio || '',
+                          photoUrl: employeeProfile.publicProfile?.photoUrl || '',
+                          experience: employeeProfile.publicProfile?.experience || '',
+                          specializations: employeeProfile.publicProfile?.specializations || [],
+                          qualifications: employeeProfile.publicProfile?.qualifications || [],
+                          showInBooking: employeeProfile.publicProfile?.showInBooking !== false,
+                        });
+                      }}
+                      disabled={isSavingEmployee}
+                      className="px-4 py-2 text-sm font-medium text-[#4a2329]/80 hover:bg-[#502B30]/10 rounded-sm transition-colors disabled:opacity-50 border border-[#502B30]/20"
+                    >
+                      Annuller
+                    </button>
+                    <button
+                      onClick={handleSaveEmployeeProfile}
+                      disabled={isSavingEmployee}
+                      className="flex items-center px-4 py-2 text-sm font-medium text-amber-100 bg-[#502B30] hover:bg-[#5e3023] rounded-sm transition-colors disabled:opacity-50 shadow-md"
+                    >
+                      {isSavingEmployee ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-100 border-t-transparent mr-2" />
+                          Gemmer...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Gem
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                {/* Title */}
+                <div>
+                  <label className="block text-sm font-medium text-[#502B30] mb-2">
+                    Titel
+                  </label>
+                  {isEditingEmployee ? (
+                    <input
+                      type="text"
+                      value={employeeFormData.title}
+                      onChange={(e) => setEmployeeFormData({ ...employeeFormData, title: e.target.value })}
+                      placeholder="F.eks. Certificeret Gusmester"
+                      className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
+                    />
+                  ) : (
+                    <p className="text-[#502B30]">{employeeProfile.title || 'Ikke angivet'}</p>
+                  )}
+                </div>
+
+                {/* Experience */}
+                <div>
+                  <label className="block text-sm font-medium text-[#502B30] mb-2">
+                    Erfaring
+                  </label>
+                  {isEditingEmployee ? (
+                    <input
+                      type="text"
+                      value={employeeFormData.experience}
+                      onChange={(e) => setEmployeeFormData({ ...employeeFormData, experience: e.target.value })}
+                      placeholder="F.eks. 5+ års erfaring"
+                      className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
+                    />
+                  ) : (
+                    <p className="text-[#502B30]">{employeeProfile.publicProfile?.experience || 'Ikke angivet'}</p>
+                  )}
+                </div>
+
+                {/* Bio */}
+                <div>
+                  <label className="block text-sm font-medium text-[#502B30] mb-2">
+                    Om mig
+                  </label>
+                  {isEditingEmployee ? (
+                    <textarea
+                      value={employeeFormData.bio}
+                      onChange={(e) => setEmployeeFormData({ ...employeeFormData, bio: e.target.value })}
+                      rows={4}
+                      placeholder="Fortæl lidt om dig selv..."
+                      className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
+                    />
+                  ) : (
+                    <p className="text-[#502B30] whitespace-pre-wrap">{employeeProfile.publicProfile?.bio || 'Ikke angivet'}</p>
+                  )}
+                </div>
+
+                {/* Photo URL */}
+                <div>
+                  <label className="block text-sm font-medium text-[#502B30] mb-2">
+                    Foto URL
+                  </label>
+                  {isEditingEmployee ? (
+                    <input
+                      type="url"
+                      value={employeeFormData.photoUrl}
+                      onChange={(e) => setEmployeeFormData({ ...employeeFormData, photoUrl: e.target.value })}
+                      placeholder="https://..."
+                      className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
+                    />
+                  ) : (
+                    <p className="text-[#502B30]">{employeeProfile.publicProfile?.photoUrl || 'Ikke angivet'}</p>
+                  )}
+                </div>
+
+                {/* Specializations */}
+                <div>
+                  <label className="block text-sm font-medium text-[#502B30] mb-2">
+                    Specialer
+                  </label>
+                  {isEditingEmployee ? (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {employeeFormData.specializations.map((spec, idx) => (
+                          <span key={idx} className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-sm font-medium flex items-center">
+                            {spec}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newSpecs = [...employeeFormData.specializations];
+                                newSpecs.splice(idx, 1);
+                                setEmployeeFormData({ ...employeeFormData, specializations: newSpecs });
+                              }}
+                              className="ml-2 text-amber-700 hover:text-amber-900"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newSpecialization}
+                          onChange={(e) => setNewSpecialization(e.target.value)}
+                          placeholder="Tilføj speciale"
+                          className="flex-1 px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && newSpecialization.trim()) {
+                              e.preventDefault();
+                              setEmployeeFormData({
+                                ...employeeFormData,
+                                specializations: [...employeeFormData.specializations, newSpecialization.trim()]
+                              });
+                              setNewSpecialization('');
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (newSpecialization.trim()) {
+                              setEmployeeFormData({
+                                ...employeeFormData,
+                                specializations: [...employeeFormData.specializations, newSpecialization.trim()]
+                              });
+                              setNewSpecialization('');
+                            }
+                          }}
+                          className="px-4 py-2 bg-amber-600 text-white rounded-sm hover:bg-amber-700 transition-colors"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {employeeProfile.publicProfile?.specializations && employeeProfile.publicProfile.specializations.length > 0 ? (
+                        employeeProfile.publicProfile.specializations.map((spec: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1 bg-amber-50 text-amber-700 rounded-full text-sm font-medium">
+                            {spec}
+                          </span>
+                        ))
+                      ) : (
+                        <p className="text-[#502B30]/60 italic">Ingen specialer angivet</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Qualifications */}
+                <div>
+                  <label className="block text-sm font-medium text-[#502B30] mb-2">
+                    Kvalifikationer
+                  </label>
+                  {isEditingEmployee ? (
+                    <div className="space-y-2">
+                      <div className="space-y-1 mb-2">
+                        {employeeFormData.qualifications.map((qual, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                            <span className="text-sm text-[#502B30] flex-1">{qual}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newQuals = [...employeeFormData.qualifications];
+                                newQuals.splice(idx, 1);
+                                setEmployeeFormData({ ...employeeFormData, qualifications: newQuals });
+                              }}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newQualification}
+                          onChange={(e) => setNewQualification(e.target.value)}
+                          placeholder="Tilføj kvalifikation"
+                          className="flex-1 px-4 py-2 border border-[#502B30]/20 rounded-sm bg-white text-[#502B30] focus:ring-2 focus:ring-[#502B30]/30 focus:border-transparent"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && newQualification.trim()) {
+                              e.preventDefault();
+                              setEmployeeFormData({
+                                ...employeeFormData,
+                                qualifications: [...employeeFormData.qualifications, newQualification.trim()]
+                              });
+                              setNewQualification('');
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (newQualification.trim()) {
+                              setEmployeeFormData({
+                                ...employeeFormData,
+                                qualifications: [...employeeFormData.qualifications, newQualification.trim()]
+                              });
+                              setNewQualification('');
+                            }
+                          }}
+                          className="px-4 py-2 bg-amber-600 text-white rounded-sm hover:bg-amber-700 transition-colors"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {employeeProfile.publicProfile?.qualifications && employeeProfile.publicProfile.qualifications.length > 0 ? (
+                        employeeProfile.publicProfile.qualifications.map((qual: string, idx: number) => (
+                          <div key={idx} className="flex items-start">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-600 mt-2 mr-2"></span>
+                            <span className="text-sm text-[#502B30]">{qual}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-[#502B30]/60 italic">Ingen kvalifikationer angivet</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Show in Booking */}
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={employeeFormData.showInBooking}
+                      onChange={(e) => setEmployeeFormData({ ...employeeFormData, showInBooking: e.target.checked })}
+                      disabled={!isEditingEmployee}
+                      className="mr-2 text-[#502B30] focus:ring-[#502B30]"
+                    />
+                    <span className="text-sm text-[#502B30]">Vis min profil når kunder booker mine sessioner</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Change Password */}
           <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6">

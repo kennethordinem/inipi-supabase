@@ -62,7 +62,7 @@ export default function GusmesterPage() {
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [hostingSessions, setHostingSessions] = useState<HostingSession[]>([]);
   const [showPointsHistory, setShowPointsHistory] = useState(false);
-  const [autoReleasePreference, setAutoReleasePreference] = useState<string>('never');
+  const [autoReleasePreference, setAutoReleasePreference] = useState<string>('3_hours');
   
   // Modal states
   const [showBookModal, setShowBookModal] = useState(false);
@@ -102,7 +102,7 @@ export default function GusmesterPage() {
       // Load employee stats
       const stats = await members.getEmployeeStats();
       setEmployeeStats(stats);
-      setAutoReleasePreference(stats.autoReleasePreference || 'never');
+      setAutoReleasePreference(stats.autoReleasePreference || '3_hours');
 
       // Load available spots
       const spotsData = await members.getAvailableGusmesterSpots();
@@ -419,7 +419,7 @@ export default function GusmesterPage() {
                     />
                     <div className="flex-1">
                       <p className="font-medium text-[#502B30]">Min Gusmesterplads skal ikke frigives automatisk</p>
-                      <p className="text-sm text-[#502B30]/60 mt-1">Standard indstilling - du skal frigive manuelt</p>
+                      <p className="text-sm text-[#502B30]/60 mt-1">Du skal frigive manuelt</p>
                     </div>
                   </label>
 
@@ -435,7 +435,7 @@ export default function GusmesterPage() {
                     />
                     <div className="flex-1">
                       <p className="font-medium text-[#502B30]">Min Gusmesterplads skal frigives 3 timer før gus start, hvis jeg ikke har booket den</p>
-                      <p className="text-sm text-[#502B30]/60 mt-1">Giver dig mulighed for at booke sent, men frigiver automatisk</p>
+                      <p className="text-sm text-[#502B30]/60 mt-1">Standard indstilling - giver dig mulighed for at booke sent, men frigiver automatisk</p>
                     </div>
                   </label>
 
