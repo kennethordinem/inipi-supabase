@@ -323,9 +323,6 @@ async function getSessionDetails(sessionId: string): Promise<any> {
       group_types(id, name, description, color, is_private, minimum_seats),
       session_employees(
         employees(id, name, title, public_profile)
-      ),
-      session_themes(
-        themes(id, name, description, image_url, color, price_per_seat)
       )
     `)
     .eq('id', sessionId)
@@ -334,10 +331,23 @@ async function getSessionDetails(sessionId: string): Promise<any> {
   if (error) throw new Error(error.message);
 
   const employees = data.session_employees?.map((se: any) => se.employees) || [];
-  const themes = data.session_themes?.map((st: any) => ({
-    ...st.themes,
-    pricePerSeat: st.themes.price_per_seat,
-  })) || [];
+  
+  // For private events, load all active themes for client selection
+  let themes: any[] = [];
+  if (data.group_types?.is_private) {
+    const { data: themesData, error: themesError } = await supabase
+      .from('themes')
+      .select('id, name, description, image_url, color, price_per_seat')
+      .eq('status', 'active')
+      .order('name', { ascending: true });
+    
+    if (!themesError && themesData) {
+      themes = themesData.map((theme: any) => ({
+        ...theme,
+        pricePerSeat: theme.price_per_seat,
+      }));
+    }
+  }
 
   return {
     session: formatSession(data, employees, data.group_types),
