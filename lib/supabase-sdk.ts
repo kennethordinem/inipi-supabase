@@ -1774,17 +1774,22 @@ async function getAllClients(): Promise<{ data: any[]; count: number }> {
  */
 async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
   try {
-    // Get regular bookings
+    // Get regular bookings - use LEFT JOIN to include all bookings even if profile is missing
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select(`
         *,
-        profiles!inner(id, email, first_name, last_name, phone)
+        profiles(id, email, first_name, last_name, phone)
       `)
       .eq('session_id', sessionId)
       .eq('status', 'confirmed');
 
-    if (bookingsError) throw bookingsError;
+    if (bookingsError) {
+      console.error('[getStaffSessionParticipants] Bookings error:', bookingsError);
+      throw bookingsError;
+    }
+
+    console.log('[getStaffSessionParticipants] Raw bookings:', bookings);
 
     // Get gusmester bookings
     const { data: gusmesterBookings, error: gusmesterError } = await supabase
@@ -1796,28 +1801,37 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
       .eq('guest_spots.session_id', sessionId)
       .eq('status', 'confirmed');
 
-    if (gusmesterError) throw gusmesterError;
+    if (gusmesterError) {
+      console.error('[getStaffSessionParticipants] Gusmester bookings error:', gusmesterError);
+    }
 
-    // Format regular bookings
-    const regularParticipants = (bookings || []).map((booking: any) => ({
-      patientId: booking.user_id,
-      patientName: `${booking.profiles.first_name} ${booking.profiles.last_name}`,
-      patientEmail: booking.profiles.email,
-      patientPhone: booking.profiles.phone,
-      spots: booking.spots,
-      bookedAt: booking.created_at,
-      paymentStatus: booking.payment_status,
-      paymentMethod: booking.payment_method,
-      paymentAmount: booking.amount,
-      selectedThemeId: booking.theme_id,
-      punchCardId: booking.punch_card_id,
-      isGuest: false,
-    }));
+    console.log('[getStaffSessionParticipants] Raw gusmester bookings:', gusmesterBookings);
+
+    // Format regular bookings - handle missing profile data
+    const regularParticipants = (bookings || []).map((booking: any) => {
+      const profile = booking.profiles;
+      return {
+        patientId: booking.user_id,
+        patientName: profile 
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Ukendt bruger'
+          : 'Ukendt bruger',
+        patientEmail: profile?.email || '',
+        patientPhone: profile?.phone || '',
+        spots: booking.spots,
+        bookedAt: booking.created_at,
+        paymentStatus: booking.payment_status,
+        paymentMethod: booking.payment_method,
+        paymentAmount: booking.amount,
+        selectedThemeId: booking.theme_id,
+        punchCardId: booking.punch_card_id,
+        isGuest: false,
+      };
+    });
 
     // Format gusmester bookings
     const guestParticipants = (gusmesterBookings || []).map((booking: any) => ({
       patientId: booking.id,
-      patientName: booking.guest_name,
+      patientName: booking.guest_name || 'Gæst',
       patientEmail: '',
       patientPhone: '',
       spots: booking.spots_used,
@@ -1827,9 +1841,12 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
       isGuest: true,
     }));
 
+    console.log('[getStaffSessionParticipants] Regular participants:', regularParticipants);
+    console.log('[getStaffSessionParticipants] Guest participants:', guestParticipants);
+
     return [...regularParticipants, ...guestParticipants];
   } catch (error) {
-    console.error('Error loading session participants:', error);
+    console.error('[getStaffSessionParticipants] Error loading session participants:', error);
     return [];
   }
 }
