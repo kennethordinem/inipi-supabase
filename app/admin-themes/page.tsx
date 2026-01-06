@@ -580,9 +580,12 @@ export default function AdminThemesPage() {
                   type="number"
                   required
                   min="0"
-                  step="10"
+                  step="1"
                   value={formData.price_per_seat}
-                  onChange={(e) => setFormData({ ...formData, price_per_seat: parseFloat(e.target.value) })}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                    setFormData({ ...formData, price_per_seat: isNaN(value) ? 0 : value });
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
                   placeholder="150"
                 />
