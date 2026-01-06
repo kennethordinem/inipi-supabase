@@ -80,18 +80,49 @@ export function ShopPaymentForm({
           metadata = JSON.parse(savedMetadata);
         }
 
-        // Call success callback with payment info
-        // The parent component will handle invoice and punch card creation
-        onSuccess({
-          invoiceId: paymentIntent.id, // Use payment intent ID temporarily
-          invoiceNumber: undefined,
-          itemName: metadata.shopItemName || itemName,
-          amount: amount,
-          itemType: metadata.shopItemType || 'punchCard'
-        });
+        // Complete the purchase (create punch card and invoice)
+        console.log('[ShopPaymentForm] Completing purchase...');
+        try {
+          const completeResponse = await fetch('/api/shop/complete-purchase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              paymentIntentId: paymentIntent.id,
+              userId: metadata.patientId,
+              shopProductId: metadata.shopItemId,
+            }),
+          });
 
-        // Clear pending payment data
-        localStorage.removeItem('pendingShopPayment');
+          const completeResult = await completeResponse.json();
+          
+          if (!completeResponse.ok || !completeResult.success) {
+            console.error('[ShopPaymentForm] Error completing purchase:', completeResult.error);
+            setError('Betaling gennemført, men kunne ikke oprette klippekort. Kontakt support.');
+            onError('Betaling gennemført, men kunne ikke oprette klippekort. Kontakt support.');
+            setIsProcessing(false);
+            return;
+          }
+
+          console.log('[ShopPaymentForm] Purchase completed successfully:', completeResult);
+
+          // Call success callback with payment info
+          onSuccess({
+            invoiceId: completeResult.invoiceId || paymentIntent.id,
+            invoiceNumber: completeResult.invoiceNumber,
+            itemName: metadata.shopItemName || itemName,
+            amount: amount,
+            itemType: metadata.shopItemType || 'punchCard'
+          });
+
+          // Clear pending payment data
+          localStorage.removeItem('pendingShopPayment');
+        } catch (completeError: any) {
+          console.error('[ShopPaymentForm] Error completing purchase:', completeError);
+          setError('Betaling gennemført, men kunne ikke oprette klippekort. Kontakt support.');
+          onError('Betaling gennemført, men kunne ikke oprette klippekort. Kontakt support.');
+          setIsProcessing(false);
+          return;
+        }
         
       } else if (paymentIntent.status === 'requires_action') {
         setError('Betalingen kræver yderligere handling');
