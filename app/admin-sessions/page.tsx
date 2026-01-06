@@ -21,6 +21,7 @@ interface Session {
   time: string;
   duration: number;
   max_participants: number;
+  minimum_participants: number;
   current_participants: number;
   price: number;
   location: string;
@@ -84,6 +85,7 @@ export default function AdminSessionsPage() {
     time: '17:00',
     duration: 90,
     max_participants: 12,
+    minimum_participants: 1,
     price: 150,
     location: 'Havkajakvej, Amagerstrand',
     group_type_id: '',
@@ -243,6 +245,7 @@ export default function AdminSessionsPage() {
       time: '17:00',
       duration: 90,
       max_participants: 12,
+      minimum_participants: 1,
       price: 150,
       location: 'Havkajakvej, Amagerstrand',
       group_type_id: groupTypes[0]?.id || '',
@@ -273,6 +276,7 @@ export default function AdminSessionsPage() {
       time: session.time,
       duration: session.duration,
       max_participants: session.max_participants,
+      minimum_participants: session.minimum_participants || 1,
       price: session.price,
       location: session.location || 'Havkajakvej, Amagerstrand',
       group_type_id: session.group_type_id,
@@ -377,6 +381,7 @@ export default function AdminSessionsPage() {
             time: repeatSession.time,
             duration: repeatSession.duration,
             max_participants: repeatSession.max_participants,
+            minimum_participants: repeatSession.minimum_participants || 1,
             current_participants: 0,
             price: repeatSession.price,
             location: repeatSession.location,
@@ -466,6 +471,7 @@ export default function AdminSessionsPage() {
             time: formData.time,
             duration: formData.duration,
             max_participants: formData.max_participants,
+            minimum_participants: formData.minimum_participants,
             price: formData.price,
             location: formData.location,
             group_type_id: formData.group_type_id,
@@ -510,6 +516,7 @@ export default function AdminSessionsPage() {
             time: formData.time,
             duration: formData.duration,
             max_participants: formData.max_participants,
+            minimum_participants: formData.minimum_participants,
             current_participants: 0,
             price: formData.price,
             location: formData.location,
@@ -1062,8 +1069,8 @@ export default function AdminSessionsPage() {
                 </div>
               </div>
 
-              {/* Duration, Max Participants, Price */}
-              <div className="grid grid-cols-3 gap-4">
+              {/* Duration, Min/Max Participants, Price */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Varighed (min) *
@@ -1080,19 +1087,6 @@ export default function AdminSessionsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Max deltagere *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    value={formData.max_participants}
-                    onChange={(e) => setFormData({ ...formData, max_participants: parseInt(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Pris (DKK) *
                   </label>
                   <input
@@ -1102,6 +1096,36 @@ export default function AdminSessionsPage() {
                     step="50"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Min and Max Participants */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Min deltagere *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={formData.minimum_participants}
+                    onChange={(e) => setFormData({ ...formData, minimum_participants: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max deltagere *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={formData.max_participants}
+                    onChange={(e) => setFormData({ ...formData, max_participants: parseInt(e.target.value) })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
                   />
                 </div>

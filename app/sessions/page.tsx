@@ -514,8 +514,19 @@ function SessionCard({ session, onClick }: { session: Session; onClick: () => vo
         
         <div className="pt-2">
           <div className="text-sm font-bold text-[#502B30]">
-            {session.price} kr
-            <span className="text-xs font-normal text-[#502B30]/60 ml-1">pr. plads</span>
+            {session.isPrivate ? (
+              <>
+                {(session.price || 0) * (session.minimumParticipants || 1)} kr
+                <span className="text-xs font-normal text-[#502B30]/60 ml-1">
+                  (min. {session.minimumParticipants} pladser)
+                </span>
+              </>
+            ) : (
+              <>
+                {session.price} kr
+                <span className="text-xs font-normal text-[#502B30]/60 ml-1">pr. plads</span>
+              </>
+            )}
           </div>
         </div>
         

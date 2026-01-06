@@ -27,6 +27,7 @@ export interface Session {
   time: string;
   duration: number;
   maxParticipants: number;
+  minimumParticipants: number;
   currentParticipants: number;
   availableSpots: number;
   groupTypeId: string;
@@ -39,6 +40,7 @@ export interface Session {
   themes?: any[];
   status?: string;
   maxSpotsPerBooking?: number;
+  isPrivate?: boolean;
 }
 
 export interface Booking {
@@ -104,6 +106,7 @@ function formatSession(dbSession: any, employees: any[] = [], groupType: any = n
     time: dbSession.time,
     duration: dbSession.duration,
     maxParticipants: dbSession.max_participants,
+    minimumParticipants: dbSession.minimum_participants || 1,
     currentParticipants: dbSession.current_participants,
     availableSpots: dbSession.max_participants - dbSession.current_participants,
     groupTypeId: dbSession.group_type_id,
@@ -115,6 +118,7 @@ function formatSession(dbSession: any, employees: any[] = [], groupType: any = n
     location: dbSession.location,
     status: dbSession.status,
     maxSpotsPerBooking: dbSession.max_spots_per_booking,
+    isPrivate: groupType?.is_private || false,
   };
 }
 

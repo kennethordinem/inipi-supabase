@@ -94,8 +94,8 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
   const hasParticipants = session.currentParticipants > 0;
   const isPrivateAndBooked = isPrivateSession && hasParticipants;
   
-  // Set minimum spots based on group type (for private sessions)
-  const minimumSpots = isPrivateSession ? (groupType?.minimumSeats || 1) : 1;
+  // Set minimum spots based on session minimum_participants
+  const minimumSpots = session.minimumParticipants || 1;
   
   // Check if this group type has themes
   const hasThemes = groupType?.themeIds && groupType.themeIds.length > 0;
