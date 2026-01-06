@@ -512,7 +512,6 @@ export default function ProfilePage() {
                   Email
                 </label>
                 <p className="text-[#502B30]">{profileData.email}</p>
-                <p className="text-xs text-[#4a2329]/60 mt-1">Email kan ikke ændres</p>
               </div>
 
               {/* Phone */}
