@@ -117,7 +117,7 @@ function formatSession(dbSession: any, employees: any[] = [], groupType: any = n
     price: parseFloat(dbSession.price),
     location: dbSession.location,
     status: dbSession.status,
-    maxSpotsPerBooking: dbSession.max_spots_per_booking,
+    maxSpotsPerBooking: dbSession.max_seats_per_booking || 6,
     isPrivate: groupType?.is_private || false,
   };
 }

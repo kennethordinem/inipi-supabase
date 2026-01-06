@@ -22,6 +22,7 @@ interface Session {
   duration: number;
   max_participants: number;
   minimum_participants: number;
+  max_seats_per_booking: number;
   current_participants: number;
   price: number;
   location: string;
@@ -86,6 +87,7 @@ export default function AdminSessionsPage() {
     duration: 90,
     max_participants: 12,
     minimum_participants: 1,
+    max_seats_per_booking: 6,
     price: 150,
     location: 'Havkajakvej, Amagerstrand',
     group_type_id: '',
@@ -246,6 +248,7 @@ export default function AdminSessionsPage() {
       duration: 90,
       max_participants: 12,
       minimum_participants: 1,
+      max_seats_per_booking: 6,
       price: 150,
       location: 'Havkajakvej, Amagerstrand',
       group_type_id: groupTypes[0]?.id || '',
@@ -277,6 +280,7 @@ export default function AdminSessionsPage() {
       duration: session.duration,
       max_participants: session.max_participants,
       minimum_participants: session.minimum_participants || 1,
+      max_seats_per_booking: session.max_seats_per_booking || 6,
       price: session.price,
       location: session.location || 'Havkajakvej, Amagerstrand',
       group_type_id: session.group_type_id,
@@ -472,6 +476,7 @@ export default function AdminSessionsPage() {
             duration: formData.duration,
             max_participants: formData.max_participants,
             minimum_participants: formData.minimum_participants,
+            max_seats_per_booking: formData.max_seats_per_booking,
             price: formData.price,
             location: formData.location,
             group_type_id: formData.group_type_id,
@@ -517,6 +522,7 @@ export default function AdminSessionsPage() {
             duration: formData.duration,
             max_participants: formData.max_participants,
             minimum_participants: formData.minimum_participants,
+            max_seats_per_booking: formData.max_seats_per_booking,
             current_participants: 0,
             price: formData.price,
             location: formData.location,
@@ -1102,7 +1108,7 @@ export default function AdminSessionsPage() {
               </div>
 
               {/* Min and Max Participants */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Min deltagere *
@@ -1128,6 +1134,20 @@ export default function AdminSessionsPage() {
                     onChange={(e) => setFormData({ ...formData, max_participants: parseInt(e.target.value) })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max pr. booking *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={formData.max_seats_per_booking}
+                    onChange={(e) => setFormData({ ...formData, max_seats_per_booking: parseInt(e.target.value) })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Inkl. klient selv</p>
                 </div>
               </div>
 
