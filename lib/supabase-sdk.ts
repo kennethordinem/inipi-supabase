@@ -256,6 +256,13 @@ async function getClasses(filters?: {
   startDate?: string;
   endDate?: string;
 }): Promise<{ sessions: Session[]; count: number }> {
+  // Calculate date range: today to 30 days in the future
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const thirtyDaysFromNow = new Date(today);
+  thirtyDaysFromNow.setDate(today.getDate() + 30);
+  const maxDateStr = thirtyDaysFromNow.toISOString().split('T')[0];
+
   let query = supabase
     .from('sessions')
     .select(`
@@ -266,7 +273,8 @@ async function getClasses(filters?: {
       )
     `)
     .eq('status', 'active')
-    .gte('date', new Date().toISOString().split('T')[0])
+    .gte('date', todayStr)
+    .lte('date', maxDateStr) // Only show sessions within 30 days
     .order('date', { ascending: true })
     .order('time', { ascending: true });
 
@@ -303,7 +311,7 @@ async function getSessionDetails(sessionId: string): Promise<any> {
         employees(id, name, title, public_profile)
       ),
       session_themes(
-        themes(id, name, description, image_url, color)
+        themes(id, name, description, image_url, color, price_per_seat)
       )
     `)
     .eq('id', sessionId)
@@ -312,7 +320,10 @@ async function getSessionDetails(sessionId: string): Promise<any> {
   if (error) throw new Error(error.message);
 
   const employees = data.session_employees?.map((se: any) => se.employees) || [];
-  const themes = data.session_themes?.map((st: any) => st.themes) || [];
+  const themes = data.session_themes?.map((st: any) => ({
+    ...st.themes,
+    pricePerSeat: st.themes.price_per_seat,
+  })) || [];
 
   return {
     session: formatSession(data, employees, data.group_types),
@@ -350,6 +361,29 @@ async function bookSession(params: {
   // Generate confirmation number
   const confirmationNumber = `INIPI-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
+  // Get session and theme details for pricing
+  const { data: sessionData } = await supabase
+    .from('sessions')
+    .select('name, price')
+    .eq('id', params.sessionId)
+    .single();
+
+  // If theme is selected, get theme price; otherwise use session price
+  let pricePerSeat = sessionData?.price || 0;
+  if (params.themeId) {
+    const { data: themeData } = await supabase
+      .from('themes')
+      .select('price_per_seat')
+      .eq('id', params.themeId)
+      .single();
+    
+    if (themeData?.price_per_seat) {
+      pricePerSeat = themeData.price_per_seat;
+    }
+  }
+
+  const totalAmount = pricePerSeat * params.spots;
+
   // Create booking
   const { data: booking, error: bookingError } = await supabase
     .from('bookings')
@@ -357,7 +391,7 @@ async function bookSession(params: {
       user_id: user.id,
       session_id: params.sessionId,
       spots: params.spots,
-      theme_id: params.themeId,
+      selected_theme_id: params.themeId, // Save selected theme
       payment_method: params.paymentMethod,
       payment_status: params.paymentMethod === 'stripe' ? 'paid' : 'pending',
       punch_card_id: params.punchCardId,
@@ -369,16 +403,6 @@ async function bookSession(params: {
     .single();
 
   if (bookingError) throw new Error(bookingError.message);
-
-  // Get session details for invoice
-  const { data: sessionData } = await supabase
-    .from('sessions')
-    .select('name, price')
-    .eq('id', params.sessionId)
-    .single();
-
-  const sessionPrice = sessionData?.price || 0;
-  const totalAmount = sessionPrice * params.spots;
 
   // Update session participants
   const { error: updateError } = await supabase.rpc('increment_session_participants', {

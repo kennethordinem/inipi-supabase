@@ -17,6 +17,7 @@ interface Theme {
   description: string | null;
   image_url: string | null;
   color: string;
+  price_per_seat: number;
   status: string;
   created_at: string;
 }
@@ -42,6 +43,7 @@ export default function AdminThemesPage() {
     description: '',
     image_url: '',
     color: '#6366f1',
+    price_per_seat: 150,
     status: 'active',
   });
 
@@ -115,6 +117,7 @@ export default function AdminThemesPage() {
           description: formData.description || null,
           image_url: formData.image_url || null,
           color: formData.color,
+          price_per_seat: formData.price_per_seat,
           status: formData.status,
         });
 
@@ -155,6 +158,7 @@ export default function AdminThemesPage() {
           description: formData.description || null,
           image_url: formData.image_url || null,
           color: formData.color,
+          price_per_seat: formData.price_per_seat,
           status: formData.status,
         })
         .eq('id', selectedTheme.id);
@@ -207,6 +211,7 @@ export default function AdminThemesPage() {
       description: theme.description || '',
       image_url: theme.image_url || '',
       color: theme.color,
+      price_per_seat: theme.price_per_seat || 150,
       status: theme.status,
     });
     setViewMode('edit');
@@ -218,6 +223,7 @@ export default function AdminThemesPage() {
       description: '',
       image_url: '',
       color: '#6366f1',
+      price_per_seat: 150,
       status: 'active',
     });
     setSelectedTheme(null);
@@ -357,10 +363,14 @@ export default function AdminThemesPage() {
                       </div>
 
                       {theme.description && (
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-3">
                           {theme.description}
                         </p>
                       )}
+
+                      <div className="text-lg font-bold text-[#502B30] mb-4">
+                        {theme.price_per_seat} kr/plads
+                      </div>
 
                       <div className="flex items-center gap-2 pt-4 border-t border-gray-200">
                         <button
@@ -456,6 +466,26 @@ export default function AdminThemesPage() {
                     placeholder="#6366f1"
                   />
                 </div>
+              </div>
+
+              {/* Price Per Seat */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Pris pr. Plads (DKK) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="10"
+                  value={formData.price_per_seat}
+                  onChange={(e) => setFormData({ ...formData, price_per_seat: parseFloat(e.target.value) })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  placeholder="150"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Denne pris bruges når kunder vælger dette tema ved booking af private events
+                </p>
               </div>
 
               {/* Status */}

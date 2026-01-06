@@ -33,6 +33,7 @@ interface Theme {
   name: string;
   description?: string;
   imageUrl?: string;
+  pricePerSeat?: number;
 }
 
 interface GroupType {
@@ -275,10 +276,21 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
               <div className="flex items-start space-x-3">
                 <DollarSign className="h-5 w-5 text-[#502B30]/70 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-[#502B30]">
-                    {session.price} kr
-                  </p>
-                  <p className="text-xs text-[#502B30]/60">pr. plads</p>
+                  {isPrivateSession && themes.length > 0 ? (
+                    <>
+                      <p className="text-sm font-medium text-[#502B30]">
+                        {selectedTheme?.pricePerSeat ? `${selectedTheme.pricePerSeat} kr` : 'Vælg tema'}
+                      </p>
+                      <p className="text-xs text-[#502B30]/60">pr. plads (afhænger af tema)</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-[#502B30]">
+                        {session.price} kr
+                      </p>
+                      <p className="text-xs text-[#502B30]/60">pr. plads</p>
+                    </>
+                  )}
                 </div>
               </div>
               
@@ -334,14 +346,21 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
                       />
                       
                       <div className="flex-1 text-left">
-                        <p className="text-sm font-medium text-[#502B30] group-hover:text-[#5e3023]">
-                          {theme.name}
-                          {selectedTheme?.id === theme.id && (
-                            <span className="ml-2 text-xs text-amber-100 bg-[#502B30] px-2 py-0.5 rounded-sm">
-                              Valgt
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-medium text-[#502B30] group-hover:text-[#5e3023]">
+                            {theme.name}
+                            {selectedTheme?.id === theme.id && (
+                              <span className="ml-2 text-xs text-amber-100 bg-[#502B30] px-2 py-0.5 rounded-sm">
+                                Valgt
+                              </span>
+                            )}
+                          </p>
+                          {theme.pricePerSeat && (
+                            <span className="text-sm font-bold text-[#502B30]">
+                              {theme.pricePerSeat} kr/plads
                             </span>
                           )}
-                        </p>
+                        </div>
                         {theme.description && (
                           <p className="text-xs text-[#502B30]/70 mt-1 line-clamp-2">
                             {theme.description}
@@ -440,7 +459,12 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
                 <div className="text-right">
                   <p className="text-sm text-[#502B30]/70">Total pris</p>
                   <p className="text-2xl font-bold text-[#502B30]">
-                    {selectedSpots * session.price!} kr
+                    {(() => {
+                      const pricePerSeat = (isPrivateSession && selectedTheme?.pricePerSeat) 
+                        ? selectedTheme.pricePerSeat 
+                        : session.price!;
+                      return selectedSpots * pricePerSeat;
+                    })()} kr
                   </p>
                   {isPrivateSession && selectedSpots === minimumSpots && (
                     <p className="text-xs text-[#502B30]/70 mt-1">Minimumspris</p>

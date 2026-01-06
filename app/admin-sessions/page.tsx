@@ -1202,31 +1202,54 @@ export default function AdminSessionsPage() {
                 </select>
               </div>
 
-              {/* Themes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Temaer
-                </label>
-                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                  {themes.map(theme => (
-                    <label key={theme.id} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.theme_ids.includes(theme.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({ ...formData, theme_ids: [...formData.theme_ids, theme.id] });
-                          } else {
-                            setFormData({ ...formData, theme_ids: formData.theme_ids.filter(id => id !== theme.id) });
-                          }
-                        }}
-                        className="rounded text-[#502B30] focus:ring-[#502B30]"
-                      />
-                      <span className="text-sm text-gray-700">{theme.name}</span>
+              {/* Themes - Only show for non-private events */}
+              {(() => {
+                const selectedGroupType = groupTypes.find(gt => gt.id === formData.group_type_id);
+                const isPrivateEvent = selectedGroupType?.name?.toLowerCase().includes('privat');
+                
+                if (isPrivateEvent) {
+                  return (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-purple-900">Privat Event</p>
+                          <p className="text-sm text-purple-700 mt-1">
+                            Kunden vælger tema når de booker. Prisen bestemmes af det valgte tema.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Temaer (valgfrit)
                     </label>
-                  ))}
-                </div>
-              </div>
+                    <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                      {themes.map(theme => (
+                        <label key={theme.id} className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.theme_ids.includes(theme.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, theme_ids: [...formData.theme_ids, theme.id] });
+                              } else {
+                                setFormData({ ...formData, theme_ids: formData.theme_ids.filter(id => id !== theme.id) });
+                              }
+                            }}
+                            className="rounded text-[#502B30] focus:ring-[#502B30]"
+                          />
+                          <span className="text-sm text-gray-700">{theme.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Submit Buttons */}
               <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
