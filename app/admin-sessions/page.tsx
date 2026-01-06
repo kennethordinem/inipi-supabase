@@ -92,12 +92,10 @@ export default function AdminSessionsPage() {
     location: 'Havkajakvej, Amagerstrand',
     group_type_id: '',
     employee_id: '', // Changed from array to single string
-    theme_ids: [] as string[],
   });
   const [repeatFormData, setRepeatFormData] = useState({
     dates: [''] as string[],
     keepEmployees: true,
-    keepThemes: true,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -253,7 +251,6 @@ export default function AdminSessionsPage() {
       location: 'Havkajakvej, Amagerstrand',
       group_type_id: groupTypes[0]?.id || '',
       employee_id: '',
-      theme_ids: [],
     });
     setShowModal(true);
   };
@@ -265,11 +262,6 @@ export default function AdminSessionsPage() {
     const { data: sessionEmployees } = await supabase
       .from('session_employees')
       .select('employee_id')
-      .eq('session_id', session.id);
-
-    const { data: sessionThemes } = await supabase
-      .from('session_themes')
-      .select('theme_id')
       .eq('session_id', session.id);
 
     setFormData({
@@ -285,7 +277,6 @@ export default function AdminSessionsPage() {
       location: session.location || 'Havkajakvej, Amagerstrand',
       group_type_id: session.group_type_id,
       employee_id: sessionEmployees?.[0]?.employee_id || '', // Get first employee only
-      theme_ids: sessionThemes?.map(st => st.theme_id) || [],
     });
     setShowModal(true);
   };
@@ -326,16 +317,10 @@ export default function AdminSessionsPage() {
       .select('employee_id')
       .eq('session_id', session.id);
 
-    const { data: sessionThemes } = await supabase
-      .from('session_themes')
-      .select('theme_id')
-      .eq('session_id', session.id);
-
     // Initialize with one date field (tomorrow)
     setRepeatFormData({
       dates: [format(addDays(new Date(session.date), 1), 'yyyy-MM-dd')],
       keepEmployees: (sessionEmployees?.length || 0) > 0,
-      keepThemes: (sessionThemes?.length || 0) > 0,
     });
     
     setShowRepeatModal(true);
@@ -350,9 +335,8 @@ export default function AdminSessionsPage() {
       setSubmitting(true);
       setError(null);
 
-      // Load original session's employees and themes if needed
+      // Load original session's employees if needed
       let employeeIds: string[] = [];
-      let themeIds: string[] = [];
 
       if (repeatFormData.keepEmployees) {
         const { data: sessionEmployees } = await supabase
@@ -360,14 +344,6 @@ export default function AdminSessionsPage() {
           .select('employee_id')
           .eq('session_id', repeatSession.id);
         employeeIds = sessionEmployees?.map(se => se.employee_id) || [];
-      }
-
-      if (repeatFormData.keepThemes) {
-        const { data: sessionThemes } = await supabase
-          .from('session_themes')
-          .select('theme_id')
-          .eq('session_id', repeatSession.id);
-        themeIds = sessionThemes?.map(st => st.theme_id) || [];
       }
 
       // Create a session for each date
@@ -406,17 +382,6 @@ export default function AdminSessionsPage() {
               employee_id: emp_id
             })));
           if (employeesError) throw employeesError;
-        }
-
-        // Add themes
-        if (themeIds.length > 0) {
-          const { error: themesError } = await supabase
-            .from('session_themes')
-            .insert(themeIds.map(theme_id => ({
-              session_id: newSession.id,
-              theme_id: theme_id
-            })));
-          if (themesError) throw themesError;
         }
 
         createdCount++;
@@ -497,18 +462,6 @@ export default function AdminSessionsPage() {
           if (employeesError) throw employeesError;
         }
 
-        // Update session themes
-        await supabase.from('session_themes').delete().eq('session_id', editingSession.id);
-        if (formData.theme_ids.length > 0) {
-          const { error: themesError } = await supabase
-            .from('session_themes')
-            .insert(formData.theme_ids.map(theme_id => ({
-              session_id: editingSession.id,
-              theme_id: theme_id
-            })));
-          if (themesError) throw themesError;
-        }
-
         setSuccess('Session opdateret');
       } else {
         // Create new session
@@ -543,17 +496,6 @@ export default function AdminSessionsPage() {
               employee_id: formData.employee_id
             });
           if (employeesError) throw employeesError;
-        }
-
-        // Add session themes
-        if (formData.theme_ids.length > 0) {
-          const { error: themesError } = await supabase
-            .from('session_themes')
-            .insert(formData.theme_ids.map(theme_id => ({
-              session_id: newSession.id,
-              theme_id: theme_id
-            })));
-          if (themesError) throw themesError;
         }
 
         setSuccess('Session oprettet');
@@ -950,15 +892,6 @@ export default function AdminSessionsPage() {
                   />
                   <span className="text-sm text-gray-700">Kopier gusmestre til nye sessioner</span>
                 </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={repeatFormData.keepThemes}
-                    onChange={(e) => setRepeatFormData({ ...repeatFormData, keepThemes: e.target.checked })}
-                    className="rounded text-[#502B30] focus:ring-[#502B30]"
-                  />
-                  <span className="text-sm text-gray-700">Kopier temaer til nye sessioner</span>
-                </label>
               </div>
 
               {/* Info Box */}
@@ -1202,54 +1135,18 @@ export default function AdminSessionsPage() {
                 </select>
               </div>
 
-              {/* Themes - Only show for non-private events */}
-              {(() => {
-                const selectedGroupType = groupTypes.find(gt => gt.id === formData.group_type_id);
-                const isPrivateEvent = selectedGroupType?.name?.toLowerCase().includes('privat');
-                
-                if (isPrivateEvent) {
-                  return (
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                      <div className="flex items-start space-x-2">
-                        <AlertCircle className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-purple-900">Privat Event</p>
-                          <p className="text-sm text-purple-700 mt-1">
-                            Kunden vælger tema når de booker. Prisen bestemmes af det valgte tema.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                
-                return (
+              {/* Info about theme selection */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Temaer (valgfrit)
-                    </label>
-                    <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                      {themes.map(theme => (
-                        <label key={theme.id} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.theme_ids.includes(theme.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setFormData({ ...formData, theme_ids: [...formData.theme_ids, theme.id] });
-                              } else {
-                                setFormData({ ...formData, theme_ids: formData.theme_ids.filter(id => id !== theme.id) });
-                              }
-                            }}
-                            className="rounded text-[#502B30] focus:ring-[#502B30]"
-                          />
-                          <span className="text-sm text-gray-700">{theme.name}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <p className="text-sm font-medium text-blue-900">Tema Valg</p>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Kunden vælger tema når de booker. Prisen bestemmes af det valgte tema.
+                    </p>
                   </div>
-                );
-              })()}
+                </div>
+              </div>
 
               {/* Submit Buttons */}
               <div className="flex items-center justify-end space-x-3 pt-4 border-t border-gray-200">
