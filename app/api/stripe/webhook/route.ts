@@ -103,32 +103,32 @@ export async function POST(request: NextRequest) {
  */
 async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
   try {
-    const { sessionId, source, punchCardTemplateId, patientId } = paymentIntent.metadata;
+    const { sessionId, source, shopProductId, patientId } = paymentIntent.metadata;
 
     // Handle shop purchases (punch cards)
-    if (source === 'shop' && punchCardTemplateId && patientId) {
-      console.log('Processing shop purchase for punch card template:', punchCardTemplateId);
+    if (source === 'shop' && shopProductId && patientId) {
+      console.log('Processing shop purchase for product:', shopProductId);
       
-      // Get punch card template details
-      const { data: template } = await supabase
-        .from('punch_card_templates')
+      // Get shop product details
+      const { data: product } = await supabase
+        .from('shop_products')
         .select('*')
-        .eq('id', punchCardTemplateId)
+        .eq('id', shopProductId)
         .single();
 
-      if (template) {
+      if (product) {
         // Create punch card for user
         const { data: newPunchCard, error: punchCardError } = await supabase
           .from('punch_cards')
           .insert({
             user_id: patientId,
-            name: template.name,
-            total_punches: template.total_punches,
-            remaining_punches: template.total_punches,
+            name: product.name,
+            total_punches: product.total_punches,
+            remaining_punches: product.total_punches,
             price: paymentIntent.amount / 100, // Convert from øre to DKK
-            valid_for_group_types: template.valid_for_group_types || [],
-            expiry_date: template.validity_months 
-              ? new Date(Date.now() + template.validity_months * 30 * 24 * 60 * 60 * 1000).toISOString()
+            valid_for_group_types: product.valid_for_group_types || [],
+            expiry_date: product.validity_months 
+              ? new Date(Date.now() + product.validity_months * 30 * 24 * 60 * 60 * 1000).toISOString()
               : null,
             status: 'active',
           })
@@ -137,6 +137,30 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
 
         if (!punchCardError && newPunchCard) {
           console.log('Punch card created:', newPunchCard.id);
+          
+          // Create invoice for shop purchase
+          const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+          const { error: invoiceError } = await supabase
+            .from('invoices')
+            .insert({
+              user_id: patientId,
+              invoice_number: invoiceNumber,
+              amount: paymentIntent.amount / 100,
+              vat_amount: 0,
+              total_amount: paymentIntent.amount / 100,
+              description: `${product.name} - Klippekort`,
+              payment_method: 'stripe',
+              payment_status: 'paid',
+              stripe_payment_intent_id: paymentIntent.id,
+              punch_card_id: newPunchCard.id,
+              paid_at: new Date().toISOString(),
+            });
+
+          if (invoiceError) {
+            console.error('Error creating invoice for shop purchase:', invoiceError);
+          } else {
+            console.log('Invoice created for shop purchase:', invoiceNumber);
+          }
           
           // Send purchase confirmation email
           fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', 'https://')}/api/email/punch-card-purchase`, {

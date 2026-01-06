@@ -25,20 +25,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If buying a punch card, get details
+    // If buying a punch card, get details from shop_products
     let itemName = 'Shop Purchase';
     if (punchCardId) {
-      const { data: punchCard, error } = await supabase
-        .from('punch_card_templates')
-        .select('name, total_punches')
+      const { data: product, error } = await supabase
+        .from('shop_products')
+        .select('name, total_punches, validity_months, valid_for_group_types')
         .eq('id', punchCardId)
         .single();
 
-      if (!error && punchCard) {
-        itemName = punchCard.name;
-        metadata.punchCardTemplateId = punchCardId;
-        metadata.punchCardName = punchCard.name;
-        metadata.punchCardPunches = punchCard.total_punches;
+      if (!error && product) {
+        itemName = product.name;
+        metadata.shopProductId = punchCardId;
+        metadata.shopProductName = product.name;
+        metadata.shopProductPunches = product.total_punches;
+        metadata.shopProductValidityMonths = product.validity_months;
+        metadata.shopProductGroupTypes = JSON.stringify(product.valid_for_group_types || []);
       }
     }
 
