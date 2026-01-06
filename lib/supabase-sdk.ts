@@ -1020,8 +1020,35 @@ async function adminUpdateEmployeeProfile(employeeId: string, data: {
  * Get shop punch cards
  */
 async function getShopPunchCards(): Promise<{ punchCards: any[] }> {
-  // For now, return empty array - will implement shop later
-  return { punchCards: [] };
+  try {
+    const { data: shopProducts, error } = await supabase
+      .from('shop_products')
+      .select('*')
+      .eq('status', 'active')
+      .order('price', { ascending: true });
+
+    if (error) {
+      console.error('[getShopPunchCards] Error:', error);
+      throw new Error(error.message);
+    }
+
+    // Format shop products to match PunchCard interface expected by shop page
+    const punchCards = (shopProducts || []).map((product: any) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      numberOfPunches: product.total_punches,
+      validityMonths: product.validity_months,
+      groupTypes: product.valid_for_group_types || [],
+      status: product.status,
+    }));
+
+    return { punchCards };
+  } catch (error: any) {
+    console.error('[getShopPunchCards] Error loading shop punch cards:', error);
+    return { punchCards: [] };
+  }
 }
 
 /**
