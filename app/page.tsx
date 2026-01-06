@@ -2,11 +2,57 @@
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, User } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+
+interface Gusmester {
+  id: string;
+  name: string;
+  title: string;
+  public_profile: {
+    bio?: string;
+    photoUrl?: string;
+    experience?: string;
+    specializations?: string[];
+    qualifications?: string[];
+    showInBooking?: boolean;
+  };
+}
 
 export default function Home() {
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
+  const [gusmesters, setGusmesters] = useState<Gusmester[]>([]);
+  const [loadingTeam, setLoadingTeam] = useState(true);
+
+  useEffect(() => {
+    loadGusmesters();
+  }, []);
+
+  const loadGusmesters = async () => {
+    try {
+      setLoadingTeam(true);
+      
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, name, title, public_profile')
+        .eq('status', 'active')
+        .eq('frontend_permissions->>gusmester', 'true');
+
+      if (error) throw error;
+
+      // Filter to only show gusmesters with showInBooking = true
+      const visibleGusmesters = (data || []).filter((g: Gusmester) => 
+        g.public_profile?.showInBooking !== false
+      );
+
+      setGusmesters(visibleGusmesters);
+    } catch (err) {
+      console.error('Error loading gusmesters:', err);
+    } finally {
+      setLoadingTeam(false);
+    }
+  };
   return (
     <>
       <Header />
@@ -187,19 +233,69 @@ export default function Home() {
               </p>
             </div>
             
-            {/* Team Grid - Placeholder */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              <div className="bg-[#faf8f5] rounded-sm shadow-lg overflow-hidden">
-                <div className="aspect-square bg-[#502B30]/10 flex items-center justify-center">
-                  <p className="text-[#502B30]/40">Team medlem foto</p>
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-[#502B30] mb-2">Navn</h3>
-                  <p className="text-[#4a2329]/70">Beskrivelse kommer her...</p>
-                </div>
+            {/* Team Grid */}
+            {loadingTeam ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#502B30] border-t-transparent"></div>
               </div>
-              {/* More team members will be added dynamically */}
-            </div>
+            ) : gusmesters.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-[#4a2329]/60">Ingen gusmestre at vise endnu</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {gusmesters.map((gusmester) => (
+                  <div key={gusmester.id} className="bg-[#faf8f5] rounded-sm shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                    {/* Photo */}
+                    <div className="aspect-square bg-[#502B30]/10 flex items-center justify-center overflow-hidden">
+                      {gusmester.public_profile?.photoUrl ? (
+                        <img 
+                          src={gusmester.public_profile.photoUrl} 
+                          alt={gusmester.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-24 h-24 text-[#502B30]/30" />
+                      )}
+                    </div>
+                    
+                    {/* Info */}
+                    <div className="p-6">
+                      <h3 className="text-xl font-semibold text-[#502B30] mb-1">
+                        {gusmester.name}
+                      </h3>
+                      {gusmester.title && (
+                        <p className="text-sm text-[#502B30]/60 mb-3 font-medium">
+                          {gusmester.title}
+                        </p>
+                      )}
+                      {gusmester.public_profile?.bio && (
+                        <p className="text-[#4a2329]/70 text-sm mb-4 line-clamp-4">
+                          {gusmester.public_profile.bio}
+                        </p>
+                      )}
+                      {gusmester.public_profile?.experience && (
+                        <p className="text-xs text-[#4a2329]/60 mb-3">
+                          <strong>Erfaring:</strong> {gusmester.public_profile.experience}
+                        </p>
+                      )}
+                      {gusmester.public_profile?.specializations && gusmester.public_profile.specializations.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {gusmester.public_profile.specializations.map((spec, idx) => (
+                            <span 
+                              key={idx}
+                              className="px-2 py-1 bg-amber-100 text-[#502B30] rounded-full text-xs font-medium"
+                            >
+                              {spec}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
