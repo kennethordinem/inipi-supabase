@@ -17,6 +17,7 @@ export function Header() {
   const [userName, setUserName] = useState('');
   const [isEmployee, setIsEmployee] = useState(false);
   const [totalPunchCardClips, setTotalPunchCardClips] = useState<number>(0);
+  const [gusmesterPoints, setGusmesterPoints] = useState<number>(0);
   const [frontendPermissions, setFrontendPermissions] = useState({
     gusmester: false,
     staff: false,
@@ -39,6 +40,17 @@ export function Header() {
     } catch (err) {
       console.error('[Header] Error fetching punch card balance:', err);
       setTotalPunchCardClips(0);
+    }
+  };
+
+  // Fetch gusmester points
+  const fetchGusmesterPoints = async () => {
+    try {
+      const stats = await members.getEmployeeStats();
+      setGusmesterPoints(stats.points);
+    } catch (err) {
+      console.error('[Header] Error fetching gusmester points:', err);
+      setGusmesterPoints(0);
     }
   };
 
@@ -71,6 +83,8 @@ export function Header() {
               setFrontendPermissions(employeeCheck.frontendPermissions);
               console.log('[Header] Frontend permissions:', employeeCheck.frontendPermissions);
             }
+            // Fetch gusmester points if employee
+            await fetchGusmesterPoints();
           }
         } catch (err) {
           console.error('[Header] Error checking employee status:', err);
@@ -81,6 +95,7 @@ export function Header() {
         setUserName('');
         setIsEmployee(false);
         setTotalPunchCardClips(0);
+        setGusmesterPoints(0);
         setFrontendPermissions({ gusmester: false, staff: false, administration: false });
       }
     });
@@ -245,16 +260,29 @@ export function Header() {
 
             {/* Right: Profile/Login (Desktop) */}
             <div className="hidden md:flex items-center space-x-4">
-              {/* Punch Card Balance */}
+              {/* Punch Card Balance & Gusmester Points */}
               {isAuthenticated && (
-                <Link
-                  href="/klippekort"
-                  className="flex items-center px-3 py-2 text-sm font-medium rounded-sm transition-colors bg-amber-100 text-[#502B30] hover:bg-amber-200 border border-amber-300"
-                  title="Mine klippekort"
-                >
-                  <Ticket className="h-4 w-4 mr-2" />
-                  <span className="font-semibold">{totalPunchCardClips} Klip</span>
-                </Link>
+                <div className="flex items-center space-x-4">
+                  <Link
+                    href="/klippekort"
+                    className="flex items-center text-sm font-medium text-[#502B30]/80 hover:text-[#502B30] transition-colors"
+                    title="Mine klippekort"
+                  >
+                    <Ticket className="h-4 w-4 mr-1.5" />
+                    <span className="font-semibold">{totalPunchCardClips} Klip</span>
+                  </Link>
+                  
+                  {isEmployee && (
+                    <Link
+                      href="/gusmester"
+                      className="flex items-center text-sm font-medium text-[#502B30]/80 hover:text-[#502B30] transition-colors"
+                      title="Mine gusmester points"
+                    >
+                      <Star className="h-4 w-4 mr-1.5" />
+                      <span className="font-semibold">{gusmesterPoints} GMP</span>
+                    </Link>
+                  )}
+                </div>
               )}
               
               {/* Profile Dropdown or Login Button */}
@@ -452,15 +480,28 @@ export function Header() {
               {/* User Section */}
               {isAuthenticated ? (
                 <>
-                  {/* Punch Card Balance */}
-                  <Link
-                    href="/klippekort"
-                    onClick={() => setShowMobileMenu(false)}
-                    className="flex items-center justify-center w-full px-4 py-3 mb-4 text-sm font-medium rounded-sm transition-colors bg-amber-100 text-[#502B30] hover:bg-amber-200 border border-amber-300"
-                  >
-                    <Ticket className="h-5 w-5 mr-2" />
-                    <span className="font-semibold">{totalPunchCardClips} Klip</span>
-                  </Link>
+                  {/* Punch Card Balance & Gusmester Points */}
+                  <div className="flex items-center justify-center gap-6 mb-4">
+                    <Link
+                      href="/klippekort"
+                      onClick={() => setShowMobileMenu(false)}
+                      className="flex items-center text-sm font-medium text-[#502B30]/80 hover:text-[#502B30] transition-colors"
+                    >
+                      <Ticket className="h-5 w-5 mr-2" />
+                      <span className="font-semibold">{totalPunchCardClips} Klip</span>
+                    </Link>
+                    
+                    {isEmployee && (
+                      <Link
+                        href="/gusmester"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="flex items-center text-sm font-medium text-[#502B30]/80 hover:text-[#502B30] transition-colors"
+                      >
+                        <Star className="h-5 w-5 mr-2" />
+                        <span className="font-semibold">{gusmesterPoints} GMP</span>
+                      </Link>
+                    )}
+                  </div>
                   
                   <div className="border-t border-[#502B30]/20 pt-4 mb-4">
                     <div className="px-4 py-2 mb-2">
