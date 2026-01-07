@@ -16,7 +16,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { sessionId, spots } = body;
+    const { sessionId, spots, themeId } = body;
 
     if (!sessionId || !spots) {
       return NextResponse.json(
@@ -39,8 +39,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine price per seat
+    let pricePerSeat = parseFloat(session.price) || 0;
+    
+    // If theme is selected, use theme price
+    if (themeId) {
+      const { data: theme } = await supabase
+        .from('themes')
+        .select('price_per_seat')
+        .eq('id', themeId)
+        .single();
+      
+      if (theme && theme.price_per_seat) {
+        pricePerSeat = theme.price_per_seat;
+      }
+    }
+
     // Calculate amount in øre (DKK cents)
-    const amount = Math.round(parseFloat(session.price) * spots * 100);
+    const amount = Math.round(pricePerSeat * spots * 100);
 
     // Create payment intent
     const paymentIntent = await createPaymentIntent({

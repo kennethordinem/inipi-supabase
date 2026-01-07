@@ -341,6 +341,7 @@ export function MembersBookingFlow({
         body: JSON.stringify({
           sessionId: session.id,
           spots: selectedSpots,
+          themeId: selectedThemeId,
         }),
       });
 
