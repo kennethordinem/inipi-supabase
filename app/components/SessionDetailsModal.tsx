@@ -90,12 +90,15 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
   const bookingCutoffTime = new Date(sessionStartTime.getTime() + 30 * 60 * 1000);
   const hasStarted = bookingCutoffTime <= new Date();
   
-  // Check if this is a private session
-  const isPrivateSession = groupType?.isPrivate || false;
+  // Check if this is a private session - use useMemo to recalculate when groupType changes
+  const isPrivateSession = useMemo(() => {
+    const isPrivate = groupType?.isPrivate || groupType?.is_private || false;
+    console.log('[SessionDetailsModal] Calculating isPrivateSession:', isPrivate, 'groupType:', groupType);
+    return isPrivate;
+  }, [groupType]);
+  
   const hasParticipants = session.currentParticipants > 0;
   const isPrivateAndBooked = isPrivateSession && hasParticipants;
-  
-  console.log('[SessionDetailsModal] isPrivateSession:', isPrivateSession, 'groupType:', groupType?.name, 'isPrivate:', groupType?.isPrivate);
   
   // Set minimum spots based on session minimum_participants
   const minimumSpots = session.minimumParticipants || 1;
