@@ -266,9 +266,9 @@ export default function GusmesterPage() {
   const handleBookGuestForSession = async () => {
     if (!selectedSessionForGuest) return;
 
-    // Validate guest details
-    if (!guestDetails.name || !guestDetails.email) {
-      setError('Udfyld venligst gæstens navn og email');
+    // Validate guest details - only name is required
+    if (!guestDetails.name) {
+      setError('Udfyld venligst gæstens navn');
       return;
     }
 
@@ -279,7 +279,7 @@ export default function GusmesterPage() {
       await members.bookGuestForSession(
         selectedSessionForGuest.id,
         guestDetails.name,
-        guestDetails.email,
+        guestDetails.email || '', // Email is optional
         guestDetails.phone
       );
 
@@ -767,12 +767,6 @@ export default function GusmesterPage() {
                         {session.guestSpot.status === 'reserved_for_host' && (
                           <>
                             <button
-                              onClick={() => handleBookSelfAsGuest(session.id)}
-                              className="flex-1 px-3 py-2 text-sm bg-[#502B30] text-amber-100 rounded-sm hover:bg-[#5e3023] transition-colors"
-                            >
-                              Book Selv
-                            </button>
-                            <button
                               onClick={() => {
                                 setSelectedSessionForGuest(session);
                                 setShowBookGuestModal(true);
@@ -970,7 +964,7 @@ export default function GusmesterPage() {
 
               <div>
                 <label className="block text-sm font-medium text-[#502B30] mb-2">
-                  Gæstens Email *
+                  Gæstens Email (valgfrit)
                 </label>
                 <input
                   type="email"
