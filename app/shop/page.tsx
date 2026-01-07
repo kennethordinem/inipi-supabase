@@ -8,6 +8,7 @@ import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { ShopPaymentForm } from '../components/ShopPaymentForm';
 import { members } from '@/lib/supabase-sdk';
+import { cachedMembers } from '@/lib/cachedMembers';
 import type { PunchCard } from '@/lib/supabase-sdk';
 
 // INIPI uniqueId (from Clinio config)
@@ -223,6 +224,9 @@ export default function ShopPage() {
 
   const handlePaymentSuccess = (result: PurchaseSuccess) => {
     console.log('[Shop] Payment successful:', result);
+    
+    // Clear caches so punch cards and invoices show up immediately
+    cachedMembers.invalidateAfterBooking();
     
     // Clear payment state
     setClientSecret(null);
