@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, Clock, Users, MapPin, DollarSign, User as UserIcon, ChevronRight, Lock } from 'lucide-react';
 import { ModernModal } from './ModernModal';
 import { EmployeeProfileModal } from './EmployeeProfileModal';
@@ -164,11 +164,11 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
   }, [selectedTheme]);
 
   // Calculate the price per seat based on session type and theme selection
-  const pricePerSeat = React.useMemo(() => {
+  const pricePerSeat = useMemo(() => {
     // For private sessions, ALWAYS use theme price (ignore session.price)
     if (isPrivateSession) {
       const price = selectedTheme?.pricePerSeat || 0;
-      console.log('[SessionDetailsModal] Private session - pricePerSeat:', price, 'theme:', selectedTheme?.name);
+      console.log('[SessionDetailsModal] Private session - pricePerSeat:', price, 'theme:', selectedTheme?.name, 'full theme:', selectedTheme);
       return price;
     }
     // For regular sessions, use session price
@@ -178,7 +178,7 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
   }, [isPrivateSession, selectedTheme, session.price]);
 
   // Calculate total price
-  const totalPrice = React.useMemo(() => {
+  const totalPrice = useMemo(() => {
     const total = selectedSpots * pricePerSeat;
     console.log('[SessionDetailsModal] Calculating totalPrice:', total, '=', selectedSpots, 'x', pricePerSeat);
     return total;
