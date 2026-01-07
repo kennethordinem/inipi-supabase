@@ -92,7 +92,7 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
   
   // Check if this is a private session - use useMemo to recalculate when groupType changes
   const isPrivateSession = useMemo(() => {
-    const isPrivate = groupType?.isPrivate || groupType?.is_private || false;
+    const isPrivate = groupType?.isPrivate || (groupType as any)?.is_private || false;
     console.log('[SessionDetailsModal] Calculating isPrivateSession:', isPrivate, 'groupType:', groupType);
     return isPrivate;
   }, [groupType]);
