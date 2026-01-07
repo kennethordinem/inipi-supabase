@@ -79,6 +79,9 @@ export default function GusmesterPage() {
   const [showPointsHistory, setShowPointsHistory] = useState(false);
   const [autoReleasePreference, setAutoReleasePreference] = useState<string>('3_hours');
   
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'overview' | 'hosting' | 'available' | 'bookings'>('overview');
+  
   // Modal states
   const [showBookModal, setShowBookModal] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState<AvailableSpot | null>(null);
@@ -346,8 +349,66 @@ export default function GusmesterPage() {
             </div>
           )}
 
-          {/* Employee Stats Card */}
-          {employeeStats && (
+          {/* Tabs Navigation */}
+          <div className="mb-8 bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 overflow-hidden">
+            <div className="flex border-b border-[#502B30]/10">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+                  activeTab === 'overview'
+                    ? 'bg-[#502B30] text-amber-100'
+                    : 'text-[#502B30] hover:bg-[#502B30]/5'
+                }`}
+              >
+                <div className="flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 mr-2" />
+                  Oversigt
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('hosting')}
+                className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+                  activeTab === 'hosting'
+                    ? 'bg-[#502B30] text-amber-100'
+                    : 'text-[#502B30] hover:bg-[#502B30]/5'
+                }`}
+              >
+                <div className="flex items-center justify-center">
+                  <User className="h-5 w-5 mr-2" />
+                  Mine Hosting Sessioner ({hostingSessions.length})
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('available')}
+                className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+                  activeTab === 'available'
+                    ? 'bg-[#502B30] text-amber-100'
+                    : 'text-[#502B30] hover:bg-[#502B30]/5'
+                }`}
+              >
+                <div className="flex items-center justify-center">
+                  <Star className="h-5 w-5 mr-2" />
+                  Ledige Pladser ({availableSpots.length})
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('bookings')}
+                className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+                  activeTab === 'bookings'
+                    ? 'bg-[#502B30] text-amber-100'
+                    : 'text-[#502B30] hover:bg-[#502B30]/5'
+                }`}
+              >
+                <div className="flex items-center justify-center">
+                  <Calendar className="h-5 w-5 mr-2" />
+                  Mine Bookinger ({myBookings.length})
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Overview Tab */}
+          {activeTab === 'overview' && employeeStats && (
             <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 mb-8 border border-[#502B30]/10">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -477,10 +538,11 @@ export default function GusmesterPage() {
             </div>
           )}
 
-          {/* Available Spots */}
+          {/* Available Spots Tab */}
+          {activeTab === 'available' && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-[#502B30] mb-4 flex items-center">
-              <Calendar className="h-6 w-6 mr-2" />
+              <Star className="h-6 w-6 mr-2" />
               Ledige Gus Mester Pladser ({availableSpots.length})
             </h2>
             
@@ -545,11 +607,13 @@ export default function GusmesterPage() {
               </div>
             )}
           </div>
+          )}
 
-          {/* My Bookings */}
+          {/* My Bookings Tab */}
+          {activeTab === 'bookings' && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-[#502B30] mb-4 flex items-center">
-              <CheckCircle className="h-6 w-6 mr-2" />
+              <Calendar className="h-6 w-6 mr-2" />
               Mine Bookede Spots ({myBookings.length})
             </h2>
             
@@ -601,8 +665,10 @@ export default function GusmesterPage() {
             </div>
           )}
           </div>
+          )}
 
-          {/* Hosting Sessions */}
+          {/* Hosting Sessions Tab */}
+          {activeTab === 'hosting' && (
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-[#502B30] mb-4 flex items-center">
               <User className="h-6 w-6 mr-2" />
@@ -731,6 +797,7 @@ export default function GusmesterPage() {
             </div>
           )}
           </div>
+          )}
         </main>
       </div>
       <Footer />
