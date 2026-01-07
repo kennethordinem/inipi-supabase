@@ -16,6 +16,7 @@ export function Header() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userName, setUserName] = useState('');
   const [isEmployee, setIsEmployee] = useState(false);
+  const [totalPunchCardClips, setTotalPunchCardClips] = useState<number>(0);
   const [frontendPermissions, setFrontendPermissions] = useState({
     gusmester: false,
     staff: false,
@@ -28,6 +29,18 @@ export function Header() {
     setShowGusTiderDropdown(false);
     setShowMobileMenu(false);
   }, [pathname]);
+
+  // Fetch punch card balance
+  const fetchPunchCardBalance = async () => {
+    try {
+      const { punchCards } = await cachedMembers.getPunchCards();
+      const total = punchCards.reduce((sum, card) => sum + card.remainingPunches, 0);
+      setTotalPunchCardClips(total);
+    } catch (err) {
+      console.error('[Header] Error fetching punch card balance:', err);
+      setTotalPunchCardClips(0);
+    }
+  };
 
   // Check authentication status and listen for changes
   useEffect(() => {
@@ -43,6 +56,9 @@ export function Header() {
       if (authState.isAuthenticated && authState.user) {
         const name = localStorage.getItem('userName') || authState.user.email?.split('@')[0] || 'Bruger';
         setUserName(name);
+
+        // Fetch punch card balance
+        await fetchPunchCardBalance();
 
         // Only check employee status when SDK confirms authentication (CACHED)
         try {
@@ -64,6 +80,7 @@ export function Header() {
       } else {
         setUserName('');
         setIsEmployee(false);
+        setTotalPunchCardClips(0);
         setFrontendPermissions({ gusmester: false, staff: false, administration: false });
       }
     });
@@ -228,6 +245,18 @@ export function Header() {
 
             {/* Right: Profile/Login (Desktop) */}
             <div className="hidden md:flex items-center space-x-4">
+              {/* Punch Card Balance */}
+              {isAuthenticated && (
+                <Link
+                  href="/klippekort"
+                  className="flex items-center px-3 py-2 text-sm font-medium rounded-sm transition-colors bg-amber-100 text-[#502B30] hover:bg-amber-200 border border-amber-300"
+                  title="Mine klippekort"
+                >
+                  <Ticket className="h-4 w-4 mr-2" />
+                  <span className="font-semibold">{totalPunchCardClips} Klip</span>
+                </Link>
+              )}
+              
               {/* Profile Dropdown or Login Button */}
               {isAuthenticated ? (
                 <div className="relative">
@@ -423,6 +452,16 @@ export function Header() {
               {/* User Section */}
               {isAuthenticated ? (
                 <>
+                  {/* Punch Card Balance */}
+                  <Link
+                    href="/klippekort"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center justify-center w-full px-4 py-3 mb-4 text-sm font-medium rounded-sm transition-colors bg-amber-100 text-[#502B30] hover:bg-amber-200 border border-amber-300"
+                  >
+                    <Ticket className="h-5 w-5 mr-2" />
+                    <span className="font-semibold">{totalPunchCardClips} Klip</span>
+                  </Link>
+                  
                   <div className="border-t border-[#502B30]/20 pt-4 mb-4">
                     <div className="px-4 py-2 mb-2">
                       <p className="text-xs text-[#502B30]/60 uppercase tracking-wider">
