@@ -851,17 +851,21 @@ async function getPunchCardHistory(): Promise<{ punchCards: any[] }> {
         .order('adjusted_at', { ascending: false});
 
       // Format usage data with session info
-      const formattedUsage = (usageData || []).map(u => ({
-        id: u.id,
-        type: 'usage',
-        timestamp: u.used_at,
-        spotsUsed: u.spots_used,
-        remainingAfter: u.remaining_after,
-        sessionName: u.bookings?.sessions?.name || 'Session',
-        sessionDate: u.bookings?.sessions?.date,
-        sessionTime: u.bookings?.sessions?.time,
-        usedAt: u.used_at
-      }));
+      const formattedUsage = (usageData || []).map((u: any) => {
+        // Access nested session data (bookings is an object, sessions is an object)
+        const session = u.bookings?.sessions;
+        return {
+          id: u.id,
+          type: 'usage',
+          timestamp: u.used_at,
+          spotsUsed: u.spots_used,
+          remainingAfter: u.remaining_after,
+          sessionName: session?.name || 'Session',
+          sessionDate: session?.date,
+          sessionTime: session?.time,
+          usedAt: u.used_at
+        };
+      });
 
       // Combine and sort both histories by timestamp
       const combinedHistory = [
