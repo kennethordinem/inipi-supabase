@@ -149,6 +149,18 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
     }
   }, [groupType]);
 
+  // Calculate cheapest theme price for display
+  const cheapestThemePrice = themes.length > 0 
+    ? Math.min(...themes.map(t => t.pricePerSeat || 0))
+    : null;
+
+  // Log when theme is selected for debugging
+  useEffect(() => {
+    if (selectedTheme) {
+      console.log('[SessionDetailsModal] Theme selected:', selectedTheme.name, 'Price:', selectedTheme.pricePerSeat);
+    }
+  }, [selectedTheme]);
+
   const handleBookClick = () => {
     // Validate theme selection if themes are available
     if (themes.length > 0 && !selectedTheme) {
@@ -279,7 +291,11 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
                   {isPrivateSession && themes.length > 0 ? (
                     <>
                       <p className="text-sm font-medium text-[#502B30]">
-                        {selectedTheme?.pricePerSeat ? `${selectedTheme.pricePerSeat} kr` : 'Vælg tema'}
+                        {selectedTheme?.pricePerSeat 
+                          ? `${selectedTheme.pricePerSeat} kr` 
+                          : cheapestThemePrice 
+                            ? `Fra ${cheapestThemePrice} kr` 
+                            : 'Vælg tema'}
                       </p>
                       <p className="text-xs text-[#502B30]/60">pr. plads (afhænger af tema)</p>
                     </>
@@ -458,16 +474,26 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
                 
                 <div className="text-right">
                   <p className="text-sm text-[#502B30]/70">Total pris</p>
-                  <p className="text-2xl font-bold text-[#502B30]">
-                    {(() => {
-                      const pricePerSeat = (isPrivateSession && selectedTheme?.pricePerSeat) 
-                        ? selectedTheme.pricePerSeat 
-                        : session.price!;
-                      return selectedSpots * pricePerSeat;
-                    })()} kr
-                  </p>
-                  {isPrivateSession && selectedSpots === minimumSpots && (
-                    <p className="text-xs text-[#502B30]/70 mt-1">Minimumspris</p>
+                  {isPrivateSession && !selectedTheme ? (
+                    <p className="text-lg font-bold text-amber-600">
+                      Vælg tema først
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-[#502B30]">
+                        {(() => {
+                          const pricePerSeat = (isPrivateSession && selectedTheme?.pricePerSeat) 
+                            ? selectedTheme.pricePerSeat 
+                            : session.price!;
+                          return selectedSpots * pricePerSeat;
+                        })()} kr
+                      </p>
+                      {isPrivateSession && selectedSpots === minimumSpots && selectedTheme && (
+                        <p className="text-xs text-[#502B30]/70 mt-1">
+                          Minimumspris ({minimumSpots} pladser × {selectedTheme.pricePerSeat} kr)
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
