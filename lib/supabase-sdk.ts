@@ -605,6 +605,11 @@ async function cancelBooking(bookingId: string): Promise<{
   const sessionDateTime = new Date(`${booking.sessions.date}T${booking.sessions.time}`);
   const hoursUntil = (sessionDateTime.getTime() - Date.now()) / (1000 * 60 * 60);
   
+  // Check if session has already started or passed
+  if (hoursUntil <= 0) {
+    throw new Error('Du kan ikke aflyse en session der allerede er startet eller afsluttet');
+  }
+  
   // Determine if eligible for compensation (24-hour rule)
   const eligibleForCompensation = hoursUntil >= 24;
   const cancelReason = eligibleForCompensation 
@@ -1618,6 +1623,10 @@ async function cancelGusmesterBooking(bookingId: string): Promise<{ success: boo
   // Check if can cancel (>3h before)
   const sessionDate = new Date(`${booking.sessions.date}T${booking.sessions.time}`);
   const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
+  
+  if (hoursUntil <= 0) {
+    throw new Error('Du kan ikke aflyse en session der allerede er startet eller afsluttet');
+  }
   
   if (hoursUntil <= 3) {
     throw new Error('Du kan ikke aflyse mindre end 3 timer før sessionen');
