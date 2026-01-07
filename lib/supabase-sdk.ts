@@ -302,10 +302,17 @@ async function getClasses(filters?: {
       (spot: any) => spot.status === 'booked_by_gusmester'
     ).length;
     
-    // Adjust current participants to include gusmester bookings
+    // Count reserved gusmester spots (not yet released or booked)
+    const reservedGusmesterSpots = (dbSession.guest_spots || []).filter(
+      (spot: any) => spot.status === 'reserved_for_host' || spot.status === 'booked_as_self'
+    ).length;
+    
+    // Adjust current participants to include:
+    // - booked gusmester spots (someone booked with points)
+    // - reserved gusmester spots (not yet released to public)
     const adjustedSession = {
       ...dbSession,
-      current_participants: dbSession.current_participants + bookedGusmesterSpots
+      current_participants: dbSession.current_participants + bookedGusmesterSpots + reservedGusmesterSpots
     };
     
     return formatSession(adjustedSession, employees, dbSession.group_types, releasedGuestSpots);
@@ -372,10 +379,17 @@ async function getSessionDetails(sessionId: string): Promise<any> {
     (spot: any) => spot.status === 'booked_by_gusmester'
   ).length;
   
-  // Adjust current participants to include gusmester bookings
+  // Count reserved gusmester spots (not yet released or booked)
+  const reservedGusmesterSpots = (data.guest_spots || []).filter(
+    (spot: any) => spot.status === 'reserved_for_host' || spot.status === 'booked_as_self'
+  ).length;
+  
+  // Adjust current participants to include:
+  // - booked gusmester spots (someone booked with points)
+  // - reserved gusmester spots (not yet released to public)
   const adjustedData = {
     ...data,
-    current_participants: data.current_participants + bookedGusmesterSpots
+    current_participants: data.current_participants + bookedGusmesterSpots + reservedGusmesterSpots
   };
   
   // For private events, load all active themes for client selection
