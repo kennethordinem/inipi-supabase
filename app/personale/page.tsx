@@ -26,7 +26,6 @@ import {
   Save,
   Loader2 as LoaderIcon,
   TrendingUp,
-  DollarSign,
   Filter,
   RefreshCw,
   History,
@@ -458,17 +457,19 @@ export default function PersonalePage() {
   const stats = useMemo(() => {
     const totalSessions = filteredSessions.length;
     const totalBookings = filteredSessions.reduce((sum, s) => sum + s.currentParticipants, 0);
-    const totalRevenue = filteredSessions.reduce((sum, s) => {
-      return sum + s.participants.reduce((pSum, p) => pSum + (p.paymentAmount || 0), 0);
-    }, 0);
     const averageOccupancy = totalSessions > 0 
       ? (filteredSessions.reduce((sum, s) => sum + (s.currentParticipants / s.maxParticipants * 100), 0) / totalSessions)
       : 0;
     
+    // Count unbooked private events (private events with 0 participants)
+    const unbookedPrivateEvents = filteredSessions.filter(s => 
+      s.groupTypeName.toLowerCase().includes('privat') && s.currentParticipants === 0
+    ).length;
+    
     return {
       totalSessions,
       totalBookings,
-      totalRevenue,
+      unbookedPrivateEvents,
       averageOccupancy: Math.round(averageOccupancy)
     };
   }, [filteredSessions]);
@@ -656,10 +657,11 @@ export default function PersonalePage() {
                 <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-[#502B30]/60 mb-1">Omsætning</p>
-                      <p className="text-3xl font-bold text-[#502B30]">{stats.totalRevenue} kr</p>
+                      <p className="text-sm text-[#502B30]/60 mb-1">Ubenyttede Private Events</p>
+                      <p className="text-3xl font-bold text-[#502B30]">{stats.unbookedPrivateEvents}</p>
+                      <p className="text-xs text-[#502B30]/50 mt-1">Ledig kapacitet</p>
                     </div>
-                    <DollarSign className="h-10 w-10 text-[#502B30]/20" />
+                    <AlertCircle className="h-10 w-10 text-[#502B30]/20" />
                   </div>
                 </div>
               </div>
