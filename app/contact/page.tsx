@@ -134,15 +134,19 @@ export default function ContactPage() {
 
                     <div className="flex items-start">
                       <div className="flex-shrink-0">
-                        <Clock className="h-6 w-6 text-[#502B30]" />
+                        <MapPin className="h-6 w-6 text-[#502B30]" />
                       </div>
                       <div className="ml-4">
                         <h3 className="text-lg font-semibold text-[#502B30] mb-1">
-                          Åbningstider
+                          Firmaoplysninger
                         </h3>
-                        <p className="text-[#4a2329]/80">
-                          Mandag - Fredag: 10:00 - 20:00<br />
-                          Lørdag - Søndag: 10:00 - 18:00
+                        <p className="text-[#4a2329]/80 whitespace-pre-line">
+                          Inipi Amagerstrand ApS
+                          Havkajakvej 8
+                          2300 København S
+                          
+                          E-mail: mail@inipi.dk
+                          Tlf: +45 31206011
                         </p>
                       </div>
                     </div>
