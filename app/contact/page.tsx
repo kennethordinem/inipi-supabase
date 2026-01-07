@@ -137,17 +137,34 @@ export default function ContactPage() {
                         <MapPin className="h-6 w-6 text-[#502B30]" />
                       </div>
                       <div className="ml-4">
-                        <h3 className="text-lg font-semibold text-[#502B30] mb-1">
+                        <h3 className="text-lg font-semibold text-[#502B30] mb-2">
                           Firmaoplysninger
                         </h3>
-                        <p className="text-[#4a2329]/80 whitespace-pre-line">
-                          Inipi Amagerstrand ApS
-                          Havkajakvej 8
-                          2300 København S
-                          
-                          E-mail: mail@inipi.dk
-                          Tlf: +45 31206011
-                        </p>
+                        <div className="text-[#4a2329]/80 space-y-1">
+                          <p className="font-medium">Inipi Amagerstrand ApS</p>
+                          <p>Havkajakvej 8</p>
+                          <p>2300 København S</p>
+                          <div className="pt-3 space-y-1">
+                            <p>
+                              <span className="font-medium">E-mail:</span>{' '}
+                              <a 
+                                href="mailto:mail@inipi.dk" 
+                                className="hover:text-[#5e3023] transition-colors"
+                              >
+                                mail@inipi.dk
+                              </a>
+                            </p>
+                            <p>
+                              <span className="font-medium">Tlf:</span>{' '}
+                              <a 
+                                href="tel:+4531206011" 
+                                className="hover:text-[#5e3023] transition-colors"
+                              >
+                                +45 31 20 60 11
+                              </a>
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
