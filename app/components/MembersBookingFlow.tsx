@@ -169,8 +169,43 @@ export function MembersBookingFlow({
   const [isLoadingPunchCards, setIsLoadingPunchCards] = useState(false);
   const [selectedPunchCard, setSelectedPunchCard] = useState<string | undefined>();
 
-  const totalPrice = session.price! * selectedSpots;
+  // Theme state
+  const [selectedTheme, setSelectedTheme] = useState<{ id: string; name: string; pricePerSeat: number } | null>(null);
+  const [isLoadingTheme, setIsLoadingTheme] = useState(false);
+
+  // Calculate total price based on theme or session price
+  const pricePerSeat = selectedTheme?.pricePerSeat || session.price!;
+  const totalPrice = pricePerSeat * selectedSpots;
   const sessionDate = new Date(session.date);
+
+  // Load theme details if selectedThemeId is provided
+  useEffect(() => {
+    const loadTheme = async () => {
+      if (!selectedThemeId) {
+        setSelectedTheme(null);
+        return;
+      }
+
+      setIsLoadingTheme(true);
+      try {
+        const sessionDetails = await members.getSessionDetails(session.id);
+        const theme = sessionDetails.themes?.find((t: any) => t.id === selectedThemeId);
+        if (theme) {
+          setSelectedTheme({
+            id: theme.id,
+            name: theme.name,
+            pricePerSeat: theme.pricePerSeat || session.price!,
+          });
+        }
+      } catch (err) {
+        console.error('[MembersBookingFlow] Error loading theme:', err);
+      } finally {
+        setIsLoadingTheme(false);
+      }
+    };
+
+    loadTheme();
+  }, [selectedThemeId, session.id, session.price]);
 
   // Check authentication on mount
   useEffect(() => {
@@ -457,9 +492,16 @@ export function MembersBookingFlow({
                   <span className="font-medium text-[#4a2329]">{selectedSpots}</span>
                 </div>
                 
+                {selectedTheme && (
+                  <div className="flex justify-between text-sm pb-2">
+                    <span className="text-[#5e3023]/70">Valgt tema:</span>
+                    <span className="font-medium text-[#4a2329]">{selectedTheme.name}</span>
+                  </div>
+                )}
+                
                 <div className="flex justify-between text-lg font-semibold pt-3 border-t border-[#5e3023]/20">
                   <span className="text-[#502B30]">Total pris:</span>
-                  <span className="text-[#502B30]">{session.price} kr × {selectedSpots} = {totalPrice} kr</span>
+                  <span className="text-[#502B30]">{pricePerSeat} kr × {selectedSpots} = {totalPrice} kr</span>
                 </div>
               </div>
             </div>

@@ -411,17 +411,21 @@ async function bookSession(params: {
     .eq('id', params.sessionId)
     .single();
 
-  // If theme is selected, get theme price; otherwise use session price
+  // If theme is selected, get theme price and name; otherwise use session price
   let pricePerSeat = sessionData?.price || 0;
+  let themeName: string | null = null;
   if (params.themeId) {
     const { data: themeData } = await supabase
       .from('themes')
-      .select('price_per_seat')
+      .select('name, price_per_seat')
       .eq('id', params.themeId)
       .single();
     
-    if (themeData?.price_per_seat) {
-      pricePerSeat = themeData.price_per_seat;
+    if (themeData) {
+      themeName = themeData.name;
+      if (themeData.price_per_seat) {
+        pricePerSeat = themeData.price_per_seat;
+      }
     }
   }
 
@@ -472,6 +476,13 @@ async function bookSession(params: {
 
   // Create invoice for this booking
   const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+  
+  // Build description with theme info if applicable
+  let invoiceDescription = `${sessionData?.name || 'Saunagus'} - ${params.spots} plads${params.spots > 1 ? 'er' : ''}`;
+  if (themeName) {
+    invoiceDescription += ` (${themeName} - ${pricePerSeat} kr/plads)`;
+  }
+  
   const { error: invoiceError } = await supabase
     .from('invoices')
     .insert({
@@ -480,7 +491,7 @@ async function bookSession(params: {
       amount: totalAmount,
       vat_amount: 0, // No VAT for now
       total_amount: totalAmount,
-      description: `${sessionData?.name || 'Saunagus'} - ${params.spots} plads${params.spots > 1 ? 'er' : ''}`,
+      description: invoiceDescription,
       payment_method: params.paymentMethod,
       payment_status: params.paymentMethod === 'stripe' ? 'paid' : params.paymentMethod === 'punch_card' ? 'paid' : 'pending',
       stripe_payment_intent_id: params.paymentIntentId,
@@ -1172,12 +1183,20 @@ async function getPaymentHistory(limit?: number): Promise<{ payments: any[] }> {
 // ============================================
 
 async function getConfig(): Promise<any> {
-  // TODO: Implement get config
-  // For now return empty config to allow compilation
+  // Return company configuration with actual company information
   return {
     clinicName: 'INIPI Amagerstrand',
     currency: 'DKK',
-    companyInfo: {},
+    companyInfo: {
+      address: {
+        street: 'Havkajakvej 8',
+        zipCode: '2300',
+        city: 'København S',
+      },
+      cvr: '38114174',
+      email: 'mail@inipi.dk',
+      phone: '+45 31 20 60 11',
+    },
     branding: {},
     terminology: {},
   };
