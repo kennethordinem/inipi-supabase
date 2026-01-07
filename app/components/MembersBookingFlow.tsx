@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { members } from '@/lib/supabase-sdk';
+import { cachedMembers } from '@/lib/cachedMembers';
 import type { Session } from '@/lib/supabase-sdk';
 import { Check, Loader2, User, Ticket, CreditCard, AlertCircle } from 'lucide-react';
 import { MembersAuthForm } from './MembersAuthForm';
@@ -351,7 +352,7 @@ export function MembersBookingFlow({
       console.log('[MembersBookingFlow] Payment info:', paymentInfo);
 
       // Book session using SDK (this will create invoice automatically on backend)
-      const result = await members.bookSession({
+      const result = await cachedMembers.bookSession({
         sessionId: session.id,
         spots: selectedSpots,
         themeId: selectedThemeId,

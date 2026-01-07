@@ -201,6 +201,12 @@ export const cachedMembers = {
     cache.clear('bookings_with_history');
     cache.clear('punch_cards');
     cache.clear('punch_card_history'); // Also clear punch card history
+    // Clear payment/invoice caches
+    Object.keys(cache).forEach(key => {
+      if (key.startsWith('payments_')) {
+        cache.clear(key);
+      }
+    });
     // Refresh sessions to get updated availability
     Object.keys(cache).forEach(key => {
       if (key.startsWith('sessions_')) {
