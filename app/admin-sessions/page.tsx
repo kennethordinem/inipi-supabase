@@ -32,6 +32,13 @@ interface Session {
     name: string;
     color: string;
   };
+  session_employees?: Array<{
+    employees: {
+      id: string;
+      name: string;
+    };
+  }>;
+  gusmesterName?: string; // Computed field for display
 }
 
 interface GroupType {
@@ -68,6 +75,7 @@ export default function AdminSessionsPage() {
     dateFrom: format(new Date(), 'yyyy-MM-dd'),
     dateTo: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
     groupTypeId: '',
+    employeeId: '', // Add gusmester filter
     status: 'all',
     searchText: '',
   });
@@ -143,6 +151,11 @@ export default function AdminSessionsPage() {
     if (filters.groupTypeId) {
       filtered = filtered.filter(s => s.group_type_id === filters.groupTypeId);
     }
+    if (filters.employeeId) {
+      filtered = filtered.filter(s => 
+        s.session_employees?.some(se => se.employees.id === filters.employeeId)
+      );
+    }
     if (filters.status !== 'all') {
       filtered = filtered.filter(s => s.status === filters.status);
     }
@@ -151,7 +164,8 @@ export default function AdminSessionsPage() {
       filtered = filtered.filter(s => 
         s.name.toLowerCase().includes(search) ||
         s.description?.toLowerCase().includes(search) ||
-        s.location.toLowerCase().includes(search)
+        s.location.toLowerCase().includes(search) ||
+        s.gusmesterName?.toLowerCase().includes(search)
       );
     }
 
@@ -185,18 +199,28 @@ export default function AdminSessionsPage() {
       setLoading(true);
       setError(null);
 
-      // Load ALL sessions (we'll filter client-side)
+      // Load ALL sessions with employees (we'll filter client-side)
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
         .select(`
           *,
-          group_types (name, color)
+          group_types (name, color),
+          session_employees (
+            employees (id, name)
+          )
         `)
         .order('date', { ascending: false })
         .order('time', { ascending: true });
 
       if (sessionsError) throw sessionsError;
-      setSessions(sessionsData || []);
+      
+      // Add computed gusmesterName field for easier filtering/display
+      const sessionsWithGusmester = (sessionsData || []).map(session => ({
+        ...session,
+        gusmesterName: session.session_employees?.[0]?.employees?.name || null,
+      }));
+      
+      setSessions(sessionsWithGusmester);
 
       // Load group types
       const { data: groupTypesData, error: groupTypesError } = await supabase
@@ -636,6 +660,23 @@ export default function AdminSessionsPage() {
               </select>
             </div>
 
+            {/* Gusmester Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Gusmester
+              </label>
+              <select
+                value={filters.employeeId}
+                onChange={(e) => setFilters({ ...filters, employeeId: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent text-sm"
+              >
+                <option value="">Alle gusmesters</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.name}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Status */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -724,6 +765,7 @@ export default function AdminSessionsPage() {
                   dateFrom: format(new Date(), 'yyyy-MM-dd'),
                   dateTo: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
                   groupTypeId: '',
+                  employeeId: '',
                   status: 'all',
                   searchText: '',
                 });
@@ -777,6 +819,18 @@ export default function AdminSessionsPage() {
                         <span>{session.location}</span>
                       </div>
                     </div>
+
+                    {/* Gusmester Display */}
+                    {session.gusmesterName && (
+                      <div className="mt-3 flex items-center space-x-2 text-sm">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800">
+                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          {session.gusmesterName}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="mt-3 text-lg font-semibold text-[#502B30]">
                       {session.price} DKK
