@@ -82,6 +82,9 @@ export default function GusmesterPage() {
   // Tab state
   const [activeTab, setActiveTab] = useState<'overview' | 'hosting' | 'available' | 'bookings'>('overview');
   
+  // Week filter state
+  const [currentWeekOffset, setCurrentWeekOffset] = useState(0); // 0 = this week, 1 = next week, -1 = last week
+  
   // Modal states
   const [showBookModal, setShowBookModal] = useState(false);
   const [selectedSpot, setSelectedSpot] = useState<AvailableSpot | null>(null);
@@ -111,6 +114,32 @@ export default function GusmesterPage() {
 
     return () => unsubscribe();
   }, []);
+
+  // Helper function to get week start and end dates
+  const getWeekDates = (weekOffset: number) => {
+    const today = new Date();
+    const currentDay = today.getDay();
+    const diff = currentDay === 0 ? -6 : 1 - currentDay; // Monday as start of week
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff + (weekOffset * 7));
+    monday.setHours(0, 0, 0, 0);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    
+    return { start: monday, end: sunday };
+  };
+
+  // Filter sessions by current week
+  const filterByWeek = <T extends { date: string }>(items: T[]): T[] => {
+    const { start, end } = getWeekDates(currentWeekOffset);
+    return items.filter(item => {
+      const itemDate = new Date(item.date);
+      return itemDate >= start && itemDate <= end;
+    });
+  };
 
   const loadData = async () => {
     try {
@@ -366,6 +395,31 @@ export default function GusmesterPage() {
 
           {/* Tabs Navigation */}
           <div className="mb-8 bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 overflow-hidden">
+            {/* Week Navigation - Only show for non-overview tabs */}
+            {activeTab !== 'overview' && (
+              <div className="flex items-center justify-between px-6 py-3 bg-amber-50 border-b border-[#502B30]/10">
+                <button
+                  onClick={() => setCurrentWeekOffset(currentWeekOffset - 1)}
+                  className="px-4 py-2 text-sm bg-white text-[#502B30] rounded-sm hover:bg-gray-50 transition-colors border border-[#502B30]/20"
+                >
+                  ← Forrige Uge
+                </button>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-[#502B30]">
+                    {currentWeekOffset === 0 ? 'Denne Uge' : currentWeekOffset > 0 ? `Om ${currentWeekOffset} uge${currentWeekOffset > 1 ? 'r' : ''}` : `${Math.abs(currentWeekOffset)} uge${Math.abs(currentWeekOffset) > 1 ? 'r' : ''} siden`}
+                  </p>
+                  <p className="text-xs text-[#502B30]/60">
+                    {format(getWeekDates(currentWeekOffset).start, 'd. MMM', { locale: da })} - {format(getWeekDates(currentWeekOffset).end, 'd. MMM yyyy', { locale: da })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCurrentWeekOffset(currentWeekOffset + 1)}
+                  className="px-4 py-2 text-sm bg-white text-[#502B30] rounded-sm hover:bg-gray-50 transition-colors border border-[#502B30]/20"
+                >
+                  Næste Uge →
+                </button>
+              </div>
+            )}
             <div className="flex border-b border-[#502B30]/10">
               <button
                 onClick={() => setActiveTab('overview')}
@@ -390,7 +444,7 @@ export default function GusmesterPage() {
               >
                 <div className="flex items-center justify-center">
                   <User className="h-5 w-5 mr-2" />
-                  Mine Hosting Sessioner ({hostingSessions.length})
+                  Mine Hosting Sessioner ({filterByWeek(hostingSessions).length})
                 </div>
               </button>
               <button
@@ -403,7 +457,7 @@ export default function GusmesterPage() {
               >
                 <div className="flex items-center justify-center">
                   <Star className="h-5 w-5 mr-2" />
-                  Ledige Pladser ({availableSpots.length})
+                  Ledige Pladser ({filterByWeek(availableSpots).length})
                 </div>
               </button>
               <button
@@ -416,7 +470,7 @@ export default function GusmesterPage() {
               >
                 <div className="flex items-center justify-center">
                   <Calendar className="h-5 w-5 mr-2" />
-                  Mine Bookinger ({myBookings.length})
+                  Mine Bookinger ({filterByWeek(myBookings).length})
                 </div>
               </button>
             </div>
@@ -561,13 +615,13 @@ export default function GusmesterPage() {
               Ledige Gus Mester Pladser ({availableSpots.length})
             </h2>
             
-            {availableSpots.length === 0 ? (
+            {filterByWeek(availableSpots).length === 0 ? (
               <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow p-8 text-center border border-[#502B30]/10">
                 <p className="text-[#502B30]/60">Ingen ledige pladser lige nu</p>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
-                {availableSpots.map((spot) => (
+                {filterByWeek(availableSpots).map((spot) => (
                   <div key={spot.spotId} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 border border-[#502B30]/10 hover:border-[#502B30] transition-colors">
                     <div className="flex items-start justify-between mb-3">
                       <h3 className="text-xl font-bold text-[#502B30]">{spot.name}</h3>
@@ -632,13 +686,13 @@ export default function GusmesterPage() {
               Mine Bookede Spots ({myBookings.length})
             </h2>
             
-            {myBookings.length === 0 ? (
+            {filterByWeek(myBookings).length === 0 ? (
             <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow p-8 text-center border border-[#502B30]/10">
               <p className="text-[#502B30]/60">Du har ingen bookede spots</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {myBookings.map((booking) => (
+              {filterByWeek(myBookings).map((booking) => (
                 <div key={booking.id} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 border border-green-200">
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="text-xl font-bold text-[#502B30]">{booking.name}</h3>
@@ -690,13 +744,13 @@ export default function GusmesterPage() {
               Mine Hosting Sessioner ({hostingSessions.length})
             </h2>
             
-            {hostingSessions.length === 0 ? (
+            {filterByWeek(hostingSessions).length === 0 ? (
             <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow p-8 text-center border border-[#502B30]/10">
               <p className="text-[#502B30]/60">Du har ingen hosting sessioner</p>
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
-              {hostingSessions.map((session) => (
+              {filterByWeek(hostingSessions).map((session) => (
                 <div key={session.id} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 border border-blue-200">
                   <div className="mb-3">
                     <h3 className="text-xl font-bold text-[#502B30] mb-2">{session.name}</h3>
