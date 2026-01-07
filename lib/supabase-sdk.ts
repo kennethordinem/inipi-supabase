@@ -923,7 +923,7 @@ async function getEmployeeStats(): Promise<{
     .from('employee_points_history')
     .select('*')
     .eq('employee_id', employee.id)
-    .order('created_at', { ascending: false });
+    .order('timestamp', { ascending: false });
 
   if (historyError) {
     console.error('[getEmployeeStats] Error loading points history:', historyError);
@@ -1364,15 +1364,16 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
   if (empError || !employee) throw new Error('Not an employee');
   if (employee.points < 150) throw new Error('Insufficient points');
 
-  // Check if guest spot exists and is available
+  // Check if gusmester spot exists and is available (gusmester_spot type, not guest_spot)
   const { data: guestSpot, error: spotError } = await supabase
     .from('guest_spots')
-    .select('id, status, session_id')
+    .select('id, status, session_id, spot_type')
     .eq('session_id', sessionId)
+    .eq('spot_type', 'gusmester_spot')
     .single();
 
   if (spotError || !guestSpot) {
-    throw new Error('No guest spot exists for this session');
+    throw new Error('No gusmester spot exists for this session');
   }
 
   if (guestSpot.status !== 'released_to_public') {
