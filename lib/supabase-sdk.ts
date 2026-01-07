@@ -1258,7 +1258,10 @@ async function getAvailableGusmesterSpots(): Promise<{ spots: any[] }> {
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Get guest spots that are released to public
+  // Get gusmester spots that are available for booking with points
+  // These are spots with spot_type = 'gusmester_spot' that are either:
+  // - reserved_for_host (not yet released to public, but bookable by gusmesters)
+  // - released_to_public (released to public, still bookable by gusmesters)
   const { data, error } = await supabase
     .from('guest_spots')
     .select(`
@@ -1276,7 +1279,8 @@ async function getAvailableGusmesterSpots(): Promise<{ spots: any[] }> {
         name
       )
     `)
-    .eq('status', 'released_to_public')
+    .eq('spot_type', 'gusmester_spot')
+    .in('status', ['reserved_for_host', 'released_to_public'])
     .gte('sessions.date', new Date().toISOString().split('T')[0])
     .eq('sessions.status', 'active');
 
