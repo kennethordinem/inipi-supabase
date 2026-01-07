@@ -444,7 +444,7 @@ export default function GusmesterPage() {
               >
                 <div className="flex items-center justify-center">
                   <Star className="h-5 w-5 mr-2" />
-                  Ledige Pladser ({filterByWeek(availableSpots).length})
+                  Ledige Gusmester Pladser ({filterByWeek(availableSpots).length})
                 </div>
               </button>
               <button
