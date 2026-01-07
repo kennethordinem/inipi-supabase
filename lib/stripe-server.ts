@@ -88,11 +88,9 @@ export async function createPaymentIntent(params: {
       amount: params.amount,
       currency: params.currency || 'dkk',
       metadata: params.metadata || {},
-      // Use automatic_payment_methods with allow_redirects to respect Stripe Dashboard settings
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'always', // This ensures it respects your Dashboard settings
-      },
+      // Explicitly specify allowed payment methods instead of automatic
+      // This gives you full control over which methods appear
+      payment_method_types: ['card'], // Only allow card payments
     });
 
     return paymentIntent;
