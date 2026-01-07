@@ -161,15 +161,18 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
 
   // Calculate the price per seat based on session type and theme selection
   const pricePerSeat = React.useMemo(() => {
-    if (isPrivateSession && selectedTheme?.pricePerSeat) {
-      return selectedTheme.pricePerSeat;
-    }
-    return session.price || 0;
+    const price = (isPrivateSession && selectedTheme?.pricePerSeat) 
+      ? selectedTheme.pricePerSeat 
+      : (session.price || 0);
+    console.log('[SessionDetailsModal] Calculating pricePerSeat:', price, 'isPrivate:', isPrivateSession, 'theme:', selectedTheme?.name);
+    return price;
   }, [isPrivateSession, selectedTheme, session.price]);
 
   // Calculate total price
   const totalPrice = React.useMemo(() => {
-    return selectedSpots * pricePerSeat;
+    const total = selectedSpots * pricePerSeat;
+    console.log('[SessionDetailsModal] Calculating totalPrice:', total, '=', selectedSpots, 'x', pricePerSeat);
+    return total;
   }, [selectedSpots, pricePerSeat]);
 
   const handleBookClick = () => {
@@ -302,13 +305,15 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
                   {isPrivateSession && themes.length > 0 ? (
                     <>
                       <p className="text-sm font-medium text-[#502B30]">
-                        {selectedTheme?.pricePerSeat 
-                          ? `${selectedTheme.pricePerSeat} kr` 
+                        {selectedTheme 
+                          ? `${pricePerSeat} kr` 
                           : cheapestThemePrice 
                             ? `Fra ${cheapestThemePrice} kr` 
                             : 'Vælg tema'}
                       </p>
-                      <p className="text-xs text-[#502B30]/60">pr. plads (afhænger af tema)</p>
+                      <p className="text-xs text-[#502B30]/60">
+                        {selectedTheme ? `pr. plads (${selectedTheme.name})` : 'pr. plads (afhænger af tema)'}
+                      </p>
                     </>
                   ) : (
                     <>
