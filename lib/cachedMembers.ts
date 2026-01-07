@@ -267,11 +267,6 @@ export const cachedMembers = {
     cachedMembers.invalidateAfterBooking();
     return result;
   },
-  cancelGusmesterBooking: async (bookingId: string) => {
-    const result = await members.cancelGusmesterBooking(bookingId);
-    cachedMembers.invalidateAfterBooking();
-    return result;
-  },
   getMyHostingSessions: () => members.getMyHostingSessions(),
   releaseGuestSpot: (sessionId: string) => members.releaseGuestSpot(sessionId),
   bookGuestForSession: (sessionId: string, guestName: string, guestEmail: string, guestPhone?: string) => members.bookGuestForSession(sessionId, guestName, guestEmail, guestPhone),
