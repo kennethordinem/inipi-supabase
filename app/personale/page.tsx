@@ -24,9 +24,20 @@ import {
   Trash2,
   X as XIcon,
   Save,
-  Loader2 as LoaderIcon
+  Loader2 as LoaderIcon,
+  TrendingUp,
+  DollarSign,
+  Filter,
+  RefreshCw,
+  History,
+  UserCog,
+  ChevronLeft,
+  ChevronRight,
+  Grid,
+  List,
+  BarChart3
 } from 'lucide-react';
-import { format, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, getWeek } from 'date-fns';
+import { format, parseISO, startOfWeek, endOfWeek, addWeeks, subWeeks, getWeek, addDays, isSameDay, startOfDay, endOfDay, isWithinInterval } from 'date-fns';
 import { da } from 'date-fns/locale';
 
 interface StaffSession {
@@ -75,11 +86,20 @@ interface Client {
   isEmployee: boolean;
 }
 
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+}
+
+type ViewMode = 'calendar' | 'list';
+
 export default function PersonalePage() {
   const [isEmployee, setIsEmployee] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [sessions, setSessions] = useState<StaffSession[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
@@ -88,10 +108,18 @@ export default function PersonalePage() {
   });
   const [activeTab, setActiveTab] = useState<'sessions' | 'clients'>('sessions');
   const [clientSearch, setClientSearch] = useState('');
+  const [viewMode, setViewMode] = useState<ViewMode>('calendar');
+  
+  // Filters
+  const [selectedGusmester, setSelectedGusmester] = useState<string>('');
+  const [selectedGroupType, setSelectedGroupType] = useState<string>('');
+  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>('');
   
   // Booking management state
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showEditSessionModal, setShowEditSessionModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<StaffSession | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [availableSessions, setAvailableSessions] = useState<StaffSession[]>([]);
   const [targetSessionId, setTargetSessionId] = useState('');
@@ -99,22 +127,21 @@ export default function PersonalePage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [newGusmesterId, setNewGusmesterId] = useState('');
 
   useEffect(() => {
     // Subscribe to auth state changes
     const unsubscribe = members.onAuthStateChanged(async (authState: AuthState) => {
       if (!authState.isLoading) {
         if (!authState.isAuthenticated) {
-          // Not logged in, redirect to login
           window.location.href = '/login';
         } else {
-          // Check if user is an employee with staff permission
           try {
             const employeeCheck = await members.checkIfEmployee();
             if (employeeCheck.isEmployee && employeeCheck.frontendPermissions?.staff) {
               setIsEmployee(true);
               setIsCheckingAuth(false);
-              loadSessions();
+              loadData();
             } else {
               setIsEmployee(false);
               setIsCheckingAuth(false);
@@ -139,6 +166,13 @@ export default function PersonalePage() {
     }
   }, [currentWeekStart, isEmployee]);
 
+  const loadData = async () => {
+    await Promise.all([
+      loadSessions(),
+      loadEmployees()
+    ]);
+  };
+
   const loadSessions = async () => {
     try {
       setLoading(true);
@@ -157,6 +191,22 @@ export default function PersonalePage() {
       setError(err.message || 'Kunne ikke indlæse sessioner');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEmployees = async () => {
+    try {
+      const { data } = await supabase
+        .from('employees')
+        .select('id, name, email')
+        .eq('status', 'active')
+        .order('name');
+      
+      if (data) {
+        setEmployees(data);
+      }
+    } catch (err: any) {
+      console.error('[Personale] Error loading employees:', err);
     }
   };
 
@@ -181,6 +231,44 @@ export default function PersonalePage() {
     }
   }, [activeTab, isEmployee]);
 
+  const handleEditSession = (session: StaffSession) => {
+    setSelectedSession(session);
+    setNewGusmesterId(session.employeeIds[0] || '');
+    setShowEditSessionModal(true);
+  };
+
+  const handleSaveSessionChanges = async () => {
+    if (!selectedSession || !newGusmesterId) return;
+    
+    setActionLoading(true);
+    setActionError(null);
+    
+    try {
+      // Update session_employees
+      await supabase
+        .from('session_employees')
+        .delete()
+        .eq('session_id', selectedSession.id);
+      
+      await supabase
+        .from('session_employees')
+        .insert({
+          session_id: selectedSession.id,
+          employee_id: newGusmesterId
+        });
+      
+      setActionSuccess('Gusmester opdateret!');
+      setShowEditSessionModal(false);
+      await loadSessions();
+      
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch (err: any) {
+      setActionError(err.message || 'Kunne ikke opdatere session');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleMoveBooking = async (participant: StaffSessionParticipant, currentSession: StaffSession) => {
     setSelectedBooking({ ...participant, currentSession });
     setActionError(null);
@@ -188,7 +276,6 @@ export default function PersonalePage() {
     setActionReason('');
     setTargetSessionId('');
     
-    // Load available sessions (excluding current one)
     try {
       const { sessions: allSessions } = await members.getStaffSessions({
         startDate: format(new Date(), 'yyyy-MM-dd'),
@@ -220,7 +307,6 @@ export default function PersonalePage() {
     setActionError(null);
     
     try {
-      // Find booking ID - we need to get it from the database
       const { data: bookings } = await supabase
         .from('bookings')
         .select('id')
@@ -240,7 +326,6 @@ export default function PersonalePage() {
       setTargetSessionId('');
       setActionReason('');
       
-      // Reload sessions
       await loadSessions();
     } catch (err: any) {
       setActionError(err.message || 'Kunne ikke flytte booking');
@@ -259,7 +344,6 @@ export default function PersonalePage() {
     setActionError(null);
     
     try {
-      // Find booking ID
       const { data: bookings } = await supabase
         .from('bookings')
         .select('id')
@@ -277,7 +361,6 @@ export default function PersonalePage() {
       setShowCancelModal(false);
       setActionReason('');
       
-      // Reload sessions
       await loadSessions();
     } catch (err: any) {
       setActionError(err.message || 'Kunne ikke aflyse booking');
@@ -313,11 +396,37 @@ export default function PersonalePage() {
   const weekNumber = getWeek(currentWeekStart, { weekStartsOn: 1, locale: da });
   const currentMonthYear = format(currentWeekStart, 'MMMM yyyy', { locale: da });
 
-  // Group sessions by date
+  // Generate week days
+  const weekDays = useMemo(() => {
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      days.push(addDays(currentWeekStart, i));
+    }
+    return days;
+  }, [currentWeekStart]);
+
+  // Filter sessions
+  const filteredSessions = useMemo(() => {
+    return sessions.filter(session => {
+      if (selectedGusmester && !session.employeeIds.includes(selectedGusmester)) {
+        return false;
+      }
+      if (selectedGroupType && session.groupTypeId !== selectedGroupType) {
+        return false;
+      }
+      if (selectedPaymentStatus) {
+        const hasMatchingPayment = session.participants.some(p => p.paymentStatus === selectedPaymentStatus);
+        if (!hasMatchingPayment) return false;
+      }
+      return true;
+    });
+  }, [sessions, selectedGusmester, selectedGroupType, selectedPaymentStatus]);
+
+  // Group sessions by date for calendar view
   const sessionsByDate = useMemo(() => {
     const grouped = new Map<string, StaffSession[]>();
     
-    sessions.forEach(session => {
+    filteredSessions.forEach(session => {
       const dateKey = format(parseISO(session.date), 'yyyy-MM-dd');
       if (!grouped.has(dateKey)) {
         grouped.set(dateKey, []);
@@ -325,18 +434,34 @@ export default function PersonalePage() {
       grouped.get(dateKey)!.push(session);
     });
     
-    // Sort sessions within each day by time
     grouped.forEach((daySessions) => {
       daySessions.sort((a, b) => a.time.localeCompare(b.time));
     });
     
     return grouped;
-  }, [sessions]);
+  }, [filteredSessions]);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const totalSessions = filteredSessions.length;
+    const totalBookings = filteredSessions.reduce((sum, s) => sum + s.currentParticipants, 0);
+    const totalRevenue = filteredSessions.reduce((sum, s) => {
+      return sum + s.participants.reduce((pSum, p) => pSum + (p.paymentAmount || 0), 0);
+    }, 0);
+    const averageOccupancy = totalSessions > 0 
+      ? (filteredSessions.reduce((sum, s) => sum + (s.currentParticipants / s.maxParticipants * 100), 0) / totalSessions)
+      : 0;
+    
+    return {
+      totalSessions,
+      totalBookings,
+      totalRevenue,
+      averageOccupancy: Math.round(averageOccupancy)
+    };
+  }, [filteredSessions]);
 
   const filteredClients = useMemo(() => {
-    // Filter out employees - only show actual clients
     const nonEmployeeClients = clients.filter(client => !client.isEmployee);
-    
     const search = clientSearch.toLowerCase();
     if (!search) return nonEmployeeClients;
     
@@ -376,6 +501,20 @@ export default function PersonalePage() {
         return method;
     }
   };
+
+  const groupTypes = useMemo(() => {
+    const types = new Map<string, { id: string; name: string; color: string }>();
+    sessions.forEach(session => {
+      if (!types.has(session.groupTypeId)) {
+        types.set(session.groupTypeId, {
+          id: session.groupTypeId,
+          name: session.groupTypeName,
+          color: session.groupTypeColor
+        });
+      }
+    });
+    return Array.from(types.values());
+  }, [sessions]);
 
   if (isCheckingAuth || loading) {
     return (
@@ -418,17 +557,25 @@ export default function PersonalePage() {
     <>
       <Header />
       <div className="min-h-screen bg-[#faf8f5]">
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-[#502B30] tracking-wide flex items-center">
-              <Users className="h-10 w-10 mr-3" />
+              <BarChart3 className="h-10 w-10 mr-3" />
               Ledelse
             </h1>
             <p className="mt-3 text-lg text-[#4a2329]/80">
               Administrer alle sessioner, bookinger og deltagere
             </p>
           </div>
+
+          {/* Success Message */}
+          {actionSuccess && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-sm p-4 flex items-center">
+              <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
+              <p className="text-green-800">{actionSuccess}</p>
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="mb-6">
@@ -461,280 +608,492 @@ export default function PersonalePage() {
           {/* Sessions Tab */}
           {activeTab === 'sessions' && (
             <>
-          {/* Week Navigation */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <Calendar className="h-5 w-5 text-[#502B30]/60" />
-                <div>
-                  <h2 className="text-lg font-semibold text-[#502B30] capitalize">
-                    {currentMonthYear}
-                  </h2>
-                  <p className="text-sm text-[#502B30]/60">
-                    Uge {weekNumber}
-                  </p>
+              {/* Statistics Dashboard */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-[#502B30]/60 mb-1">Sessioner</p>
+                      <p className="text-3xl font-bold text-[#502B30]">{stats.totalSessions}</p>
+                    </div>
+                    <Calendar className="h-10 w-10 text-[#502B30]/20" />
+                  </div>
+                </div>
+
+                <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-[#502B30]/60 mb-1">Bookinger</p>
+                      <p className="text-3xl font-bold text-[#502B30]">{stats.totalBookings}</p>
+                    </div>
+                    <Users className="h-10 w-10 text-[#502B30]/20" />
+                  </div>
+                </div>
+
+                <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-[#502B30]/60 mb-1">Belægning</p>
+                      <p className="text-3xl font-bold text-[#502B30]">{stats.averageOccupancy}%</p>
+                    </div>
+                    <TrendingUp className="h-10 w-10 text-[#502B30]/20" />
+                  </div>
+                </div>
+
+                <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-[#502B30]/60 mb-1">Omsætning</p>
+                      <p className="text-3xl font-bold text-[#502B30]">{stats.totalRevenue} kr</p>
+                    </div>
+                    <DollarSign className="h-10 w-10 text-[#502B30]/20" />
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={goToPreviousWeek}
-                  className="p-2 rounded-sm border border-[#502B30]/20 hover:bg-[#502B30]/10 transition-colors"
-                  title="Forrige uge"
-                >
-                  <svg className="h-5 w-5 text-[#502B30]/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                
-                <button
-                  onClick={goToToday}
-                  className="px-3 py-2 rounded-sm border border-[#502B30]/20 hover:bg-[#502B30]/10 transition-colors text-sm font-medium text-[#502B30]"
-                >
-                  I dag
-                </button>
-                
-                <button
-                  onClick={goToNextWeek}
-                  className="p-2 rounded-sm border border-[#502B30]/20 hover:bg-[#502B30]/10 transition-colors"
-                  title="Næste uge"
-                >
-                  <svg className="h-5 w-5 text-[#502B30]/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Sessions List */}
-          <div className="space-y-4">
-            {Array.from(sessionsByDate.entries())
-              .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-              .map(([dateKey, daySessions]) => (
-                <div key={dateKey} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 overflow-hidden">
-                  {/* Date Header */}
-                  <div className="bg-[#502B30]/5 px-6 py-4 border-b border-[#502B30]/10">
-                    <h3 className="text-lg font-semibold text-[#502B30] capitalize">
-                      {format(parseISO(dateKey), 'EEEE d. MMMM yyyy', { locale: da })}
-                    </h3>
-                    <p className="text-sm text-[#502B30]/60 mt-1">
-                      {daySessions.length} {daySessions.length === 1 ? 'session' : 'sessioner'}
-                    </p>
+              {/* Filters and View Toggle */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6 mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Filter className="h-5 w-5 text-[#502B30]/60" />
+                    
+                    <select
+                      value={selectedGusmester}
+                      onChange={(e) => setSelectedGusmester(e.target.value)}
+                      className="px-3 py-2 border border-[#502B30]/20 rounded-sm text-sm focus:ring-2 focus:ring-[#502B30]/30"
+                    >
+                      <option value="">Alle gusmesters</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.name}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={selectedGroupType}
+                      onChange={(e) => setSelectedGroupType(e.target.value)}
+                      className="px-3 py-2 border border-[#502B30]/20 rounded-sm text-sm focus:ring-2 focus:ring-[#502B30]/30"
+                    >
+                      <option value="">Alle typer</option>
+                      {groupTypes.map(type => (
+                        <option key={type.id} value={type.id}>{type.name}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={selectedPaymentStatus}
+                      onChange={(e) => setSelectedPaymentStatus(e.target.value)}
+                      className="px-3 py-2 border border-[#502B30]/20 rounded-sm text-sm focus:ring-2 focus:ring-[#502B30]/30"
+                    >
+                      <option value="">Alle betalinger</option>
+                      <option value="paid">Betalt</option>
+                      <option value="pending">Afventer</option>
+                      <option value="failed">Fejlet</option>
+                    </select>
+
+                    {(selectedGusmester || selectedGroupType || selectedPaymentStatus) && (
+                      <button
+                        onClick={() => {
+                          setSelectedGusmester('');
+                          setSelectedGroupType('');
+                          setSelectedPaymentStatus('');
+                        }}
+                        className="px-3 py-2 text-sm text-[#502B30]/60 hover:text-[#502B30] flex items-center gap-1"
+                      >
+                        <XIcon className="h-4 w-4" />
+                        Nulstil
+                      </button>
+                    )}
                   </div>
 
-                  {/* Sessions for this day */}
-                  <div className="divide-y divide-[#502B30]/10">
-                    {daySessions.map(session => {
-                      const isExpanded = expandedSessions.has(session.id);
-                      const [hours, minutes] = session.time.split(':').map(Number);
-                      const endMinutes = hours * 60 + minutes + session.duration;
-                      const endTime = `${Math.floor(endMinutes / 60).toString().padStart(2, '0')}:${(endMinutes % 60).toString().padStart(2, '0')}`;
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setViewMode('calendar')}
+                      className={`p-2 rounded-sm transition-colors ${
+                        viewMode === 'calendar'
+                          ? 'bg-[#502B30] text-white'
+                          : 'bg-white text-[#502B30] border border-[#502B30]/20 hover:bg-[#502B30]/10'
+                      }`}
+                      title="Kalendervisning"
+                    >
+                      <Grid className="h-5 w-5" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 rounded-sm transition-colors ${
+                        viewMode === 'list'
+                          ? 'bg-[#502B30] text-white'
+                          : 'bg-white text-[#502B30] border border-[#502B30]/20 hover:bg-[#502B30]/10'
+                      }`}
+                      title="Listevisning"
+                    >
+                      <List className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Week Navigation */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-6 mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <Calendar className="h-5 w-5 text-[#502B30]/60" />
+                    <div>
+                      <h2 className="text-lg font-semibold text-[#502B30] capitalize">
+                        {currentMonthYear}
+                      </h2>
+                      <p className="text-sm text-[#502B30]/60">
+                        Uge {weekNumber}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={goToPreviousWeek}
+                      className="p-2 rounded-sm border border-[#502B30]/20 hover:bg-[#502B30]/10 transition-colors"
+                      title="Forrige uge"
+                    >
+                      <ChevronLeft className="h-5 w-5 text-[#502B30]/80" />
+                    </button>
+                    
+                    <button
+                      onClick={goToToday}
+                      className="px-3 py-2 rounded-sm border border-[#502B30]/20 hover:bg-[#502B30]/10 transition-colors text-sm font-medium text-[#502B30]"
+                    >
+                      I dag
+                    </button>
+                    
+                    <button
+                      onClick={goToNextWeek}
+                      className="p-2 rounded-sm border border-[#502B30]/20 hover:bg-[#502B30]/10 transition-colors"
+                      title="Næste uge"
+                    >
+                      <ChevronRight className="h-5 w-5 text-[#502B30]/80" />
+                    </button>
+
+                    <button
+                      onClick={loadSessions}
+                      className="p-2 rounded-sm border border-[#502B30]/20 hover:bg-[#502B30]/10 transition-colors ml-2"
+                      title="Genindlæs"
+                    >
+                      <RefreshCw className="h-5 w-5 text-[#502B30]/80" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Calendar Grid View */}
+              {viewMode === 'calendar' && (
+                <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 overflow-hidden">
+                  {/* Calendar Header */}
+                  <div className="grid grid-cols-7 border-b border-[#502B30]/10">
+                    {weekDays.map((day, idx) => {
+                      const isToday = isSameDay(day, new Date());
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-4 text-center border-r border-[#502B30]/10 last:border-r-0 ${
+                            isToday ? 'bg-[#502B30]/5' : ''
+                          }`}
+                        >
+                          <div className="text-xs font-medium text-[#502B30]/60 uppercase">
+                            {format(day, 'EEE', { locale: da })}
+                          </div>
+                          <div className={`text-2xl font-bold mt-1 ${
+                            isToday ? 'text-[#502B30]' : 'text-[#502B30]/80'
+                          }`}>
+                            {format(day, 'd')}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Calendar Body */}
+                  <div className="grid grid-cols-7 min-h-[600px]">
+                    {weekDays.map((day, idx) => {
+                      const dateKey = format(day, 'yyyy-MM-dd');
+                      const daySessions = sessionsByDate.get(dateKey) || [];
+                      const isToday = isSameDay(day, new Date());
 
                       return (
-                        <div key={session.id} className="p-6">
-                          {/* Session Header */}
-                          <button
-                            onClick={() => toggleSessionExpanded(session.id)}
-                            className="w-full text-left"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <div 
-                                    className="h-3 w-3 rounded-full" 
-                                    style={{ backgroundColor: session.groupTypeColor }}
-                                  />
-                                  <h4 className="text-xl font-bold text-[#502B30]">
-                                    {session.name}
-                                  </h4>
-                                  <span className="text-sm px-3 py-1 rounded-sm bg-[#502B30]/10 text-[#502B30] font-medium">
-                                    {session.groupTypeName}
+                        <div
+                          key={idx}
+                          className={`border-r border-[#502B30]/10 last:border-r-0 p-2 ${
+                            isToday ? 'bg-[#502B30]/5' : ''
+                          }`}
+                        >
+                          <div className="space-y-2">
+                            {daySessions.map(session => (
+                              <button
+                                key={session.id}
+                                onClick={() => toggleSessionExpanded(session.id)}
+                                className="w-full text-left p-3 rounded-sm border-l-4 hover:shadow-md transition-all"
+                                style={{ 
+                                  borderLeftColor: session.groupTypeColor,
+                                  backgroundColor: `${session.groupTypeColor}10`
+                                }}
+                              >
+                                <div className="text-xs font-semibold text-[#502B30] mb-1">
+                                  {session.time.substring(0, 5)}
+                                </div>
+                                <div className="text-sm font-bold text-[#502B30] mb-1 line-clamp-1">
+                                  {session.name}
+                                </div>
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-[#502B30]/60">
+                                    {session.currentParticipants}/{session.maxParticipants}
                                   </span>
-                                </div>
-
-                                <div className="flex flex-wrap items-center gap-4 text-sm text-[#4a2329]/70">
-                                  <span className="flex items-center">
-                                    <Clock className="h-4 w-4 mr-1.5" />
-                                    {session.time} - {endTime} ({session.duration} min)
-                                  </span>
-                                  {session.location && (
-                                    <span className="flex items-center">
-                                      <MapPin className="h-4 w-4 mr-1.5" />
-                                      {session.location}
-                                    </span>
-                                  )}
-                                  {session.employeeNames.length > 0 && (
-                                    <span className="flex items-center">
-                                      <User className="h-4 w-4 mr-1.5" />
-                                      {session.employeeNames.join(', ')}
+                                  {session.employeeNames[0] && (
+                                    <span className="text-[#502B30]/60 truncate ml-1">
+                                      {session.employeeNames[0].split(' ')[0]}
                                     </span>
                                   )}
                                 </div>
-
-                                <div className="flex items-center gap-6 mt-3">
-                                  <div className="flex items-center">
-                                    <Users className="h-4 w-4 mr-1.5 text-[#502B30]/60" />
-                                    <span className="text-sm font-semibold text-[#502B30]">
-                                      {session.currentParticipants}/{session.maxParticipants} deltagere
-                                    </span>
-                                  </div>
-                                  {session.availableSpots > 0 ? (
-                                    <span className="text-sm text-green-600 font-medium">
-                                      {session.availableSpots} ledige pladser
-                                    </span>
-                                  ) : (
-                                    <span className="text-sm text-orange-600 font-medium">
-                                      Fuldt booket
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="ml-4">
-                                {isExpanded ? (
-                                  <ChevronUp className="h-6 w-6 text-[#502B30]/60" />
-                                ) : (
-                                  <ChevronDown className="h-6 w-6 text-[#502B30]/60" />
-                                )}
-                              </div>
-                            </div>
-                          </button>
-
-                          {/* Participants List (Expanded) */}
-                          {isExpanded && (
-                            <div className="mt-6 pt-6 border-t border-[#502B30]/10">
-                              {session.participants.length > 0 ? (
-                                <div className="space-y-3">
-                                  <h5 className="font-semibold text-[#502B30] mb-4">
-                                    Deltagerliste ({session.participants.length})
-                                  </h5>
-                                  {session.participants.map((participant, idx) => (
-                                    <div 
-                                      key={idx}
-                                      className="bg-[#faf8f5] rounded-sm p-4 border border-[#502B30]/10"
-                                    >
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                          <div className="flex items-center gap-2 mb-2">
-                                            <User className="h-4 w-4 text-[#502B30]/60" />
-                                            <span className="font-semibold text-[#502B30]">
-                                              {participant.patientName}
-                                            </span>
-                                            {participant.isGuest && (
-                                              <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-sm">
-                                                Gæst
-                                              </span>
-                                            )}
-                                          </div>
-
-                                          <div className="space-y-1 text-sm text-[#4a2329]/70">
-                                            {participant.patientEmail && (
-                                              <div className="flex items-center">
-                                                <Mail className="h-3 w-3 mr-2" />
-                                                {participant.patientEmail}
-                                              </div>
-                                            )}
-                                            {participant.patientPhone && (
-                                              <div className="flex items-center">
-                                                <Phone className="h-3 w-3 mr-2" />
-                                                {participant.patientPhone}
-                                              </div>
-                                            )}
-                                            <div className="flex items-center gap-4 mt-2">
-                                              <span className="flex items-center">
-                                                <Users className="h-3 w-3 mr-1.5" />
-                                                {participant.spots} {participant.spots === 1 ? 'plads' : 'pladser'}
-                                              </span>
-                                              {participant.bookedAt && (
-                                                <span className="flex items-center text-xs">
-                                                  <Clock className="h-3 w-3 mr-1.5" />
-                                                  Booket {format(parseISO(participant.bookedAt), 'd. MMM HH:mm', { locale: da })}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-
-                                        <div className="ml-4 flex items-center gap-4">
-                                          <div className="text-right">
-                                            <div className="flex items-center gap-2 mb-2">
-                                              {getPaymentStatusIcon(participant.paymentStatus)}
-                                              <span className="text-sm font-medium text-[#502B30]">
-                                                {participant.paymentStatus === 'paid' ? 'Betalt' : 
-                                                 participant.paymentStatus === 'pending' ? 'Afventer' : 
-                                                 'Fejl'}
-                                              </span>
-                                            </div>
-                                            <div className="text-xs text-[#4a2329]/70">
-                                              {getPaymentMethodLabel(participant.paymentMethod)}
-                                              {participant.punchCardId && (
-                                                <div className="flex items-center justify-end mt-1">
-                                                  <CreditCard className="h-3 w-3 mr-1" />
-                                                  Klippekort
-                                                </div>
-                                              )}
-                                            </div>
-                                          </div>
-                                          
-                                          {/* Action Buttons */}
-                                          {!participant.isGuest && (
-                                            <div className="flex gap-2">
-                                              <button
-                                                onClick={() => handleMoveBooking(participant, session)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="Flyt booking"
-                                              >
-                                                <Edit2 className="h-4 w-4" />
-                                              </button>
-                                              <button
-                                                onClick={() => handleCancelBooking(participant)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="Aflys booking"
-                                              >
-                                                <Trash2 className="h-4 w-4" />
-                                              </button>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="text-center py-8 text-[#502B30]/60">
-                                  <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                                  <p>Ingen deltagere endnu</p>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              ))}
+              )}
 
-            {sessions.length === 0 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-12 text-center">
-                <Calendar className="h-16 w-16 text-[#502B30]/30 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-[#502B30] mb-2">
-                  Ingen sessioner denne uge
-                </h3>
-                <p className="text-sm text-[#502B30]/60">
-                  Der er ingen planlagte sessioner i den valgte periode
-                </p>
-              </div>
-            )}
-          </div>
-          </>
+              {/* List View */}
+              {viewMode === 'list' && (
+                <div className="space-y-4">
+                  {Array.from(sessionsByDate.entries())
+                    .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+                    .map(([dateKey, daySessions]) => (
+                      <div key={dateKey} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 overflow-hidden">
+                        <div className="bg-[#502B30]/5 px-6 py-4 border-b border-[#502B30]/10">
+                          <h3 className="text-lg font-semibold text-[#502B30] capitalize">
+                            {format(parseISO(dateKey), 'EEEE d. MMMM yyyy', { locale: da })}
+                          </h3>
+                          <p className="text-sm text-[#502B30]/60 mt-1">
+                            {daySessions.length} {daySessions.length === 1 ? 'session' : 'sessioner'}
+                          </p>
+                        </div>
+
+                        <div className="divide-y divide-[#502B30]/10">
+                          {daySessions.map(session => {
+                            const isExpanded = expandedSessions.has(session.id);
+                            const [hours, minutes] = session.time.split(':').map(Number);
+                            const endMinutes = hours * 60 + minutes + session.duration;
+                            const endTime = `${Math.floor(endMinutes / 60).toString().padStart(2, '0')}:${(endMinutes % 60).toString().padStart(2, '0')}`;
+
+                            return (
+                              <div key={session.id} className="p-6">
+                                <button
+                                  onClick={() => toggleSessionExpanded(session.id)}
+                                  className="w-full text-left"
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-3 mb-2">
+                                        <div 
+                                          className="h-3 w-3 rounded-full" 
+                                          style={{ backgroundColor: session.groupTypeColor }}
+                                        />
+                                        <h4 className="text-xl font-bold text-[#502B30]">
+                                          {session.name}
+                                        </h4>
+                                        <span className="text-sm px-3 py-1 rounded-sm bg-[#502B30]/10 text-[#502B30] font-medium">
+                                          {session.groupTypeName}
+                                        </span>
+                                      </div>
+
+                                      <div className="flex flex-wrap items-center gap-4 text-sm text-[#4a2329]/70">
+                                        <span className="flex items-center">
+                                          <Clock className="h-4 w-4 mr-1.5" />
+                                          {session.time} - {endTime} ({session.duration} min)
+                                        </span>
+                                        {session.location && (
+                                          <span className="flex items-center">
+                                            <MapPin className="h-4 w-4 mr-1.5" />
+                                            {session.location}
+                                          </span>
+                                        )}
+                                        {session.employeeNames.length > 0 && (
+                                          <span className="flex items-center">
+                                            <User className="h-4 w-4 mr-1.5" />
+                                            {session.employeeNames.join(', ')}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <div className="flex items-center gap-6 mt-3">
+                                        <div className="flex items-center">
+                                          <Users className="h-4 w-4 mr-1.5 text-[#502B30]/60" />
+                                          <span className="text-sm font-semibold text-[#502B30]">
+                                            {session.currentParticipants}/{session.maxParticipants} deltagere
+                                          </span>
+                                        </div>
+                                        {session.availableSpots > 0 ? (
+                                          <span className="text-sm text-green-600 font-medium">
+                                            {session.availableSpots} ledige pladser
+                                          </span>
+                                        ) : (
+                                          <span className="text-sm text-orange-600 font-medium">
+                                            Fuldt booket
+                                          </span>
+                                        )}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEditSession(session);
+                                          }}
+                                          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                                        >
+                                          <UserCog className="h-4 w-4" />
+                                          Skift gusmester
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="ml-4">
+                                      {isExpanded ? (
+                                        <ChevronUp className="h-6 w-6 text-[#502B30]/60" />
+                                      ) : (
+                                        <ChevronDown className="h-6 w-6 text-[#502B30]/60" />
+                                      )}
+                                    </div>
+                                  </div>
+                                </button>
+
+                                {isExpanded && (
+                                  <div className="mt-6 pt-6 border-t border-[#502B30]/10">
+                                    {session.participants.length > 0 ? (
+                                      <div className="space-y-3">
+                                        <h5 className="font-semibold text-[#502B30] mb-4">
+                                          Deltagerliste ({session.participants.length})
+                                        </h5>
+                                        {session.participants.map((participant, idx) => (
+                                          <div 
+                                            key={idx}
+                                            className="bg-[#faf8f5] rounded-sm p-4 border border-[#502B30]/10"
+                                          >
+                                            <div className="flex items-start justify-between">
+                                              <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                  <User className="h-4 w-4 text-[#502B30]/60" />
+                                                  <span className="font-semibold text-[#502B30]">
+                                                    {participant.patientName}
+                                                  </span>
+                                                  {participant.isGuest && (
+                                                    <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-sm">
+                                                      Gæst
+                                                    </span>
+                                                  )}
+                                                </div>
+
+                                                <div className="space-y-1 text-sm text-[#4a2329]/70">
+                                                  {participant.patientEmail && (
+                                                    <div className="flex items-center">
+                                                      <Mail className="h-3 w-3 mr-2" />
+                                                      {participant.patientEmail}
+                                                    </div>
+                                                  )}
+                                                  {participant.patientPhone && (
+                                                    <div className="flex items-center">
+                                                      <Phone className="h-3 w-3 mr-2" />
+                                                      {participant.patientPhone}
+                                                    </div>
+                                                  )}
+                                                  <div className="flex items-center gap-4 mt-2">
+                                                    <span className="flex items-center">
+                                                      <Users className="h-3 w-3 mr-1.5" />
+                                                      {participant.spots} {participant.spots === 1 ? 'plads' : 'pladser'}
+                                                    </span>
+                                                    {participant.bookedAt && (
+                                                      <span className="flex items-center text-xs">
+                                                        <Clock className="h-3 w-3 mr-1.5" />
+                                                        Booket {format(parseISO(participant.bookedAt), 'd. MMM HH:mm', { locale: da })}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
+
+                                              <div className="ml-4 flex items-center gap-4">
+                                                <div className="text-right">
+                                                  <div className="flex items-center gap-2 mb-2">
+                                                    {getPaymentStatusIcon(participant.paymentStatus)}
+                                                    <span className="text-sm font-medium text-[#502B30]">
+                                                      {participant.paymentStatus === 'paid' ? 'Betalt' : 
+                                                       participant.paymentStatus === 'pending' ? 'Afventer' : 
+                                                       'Fejl'}
+                                                    </span>
+                                                  </div>
+                                                  <div className="text-xs text-[#4a2329]/70">
+                                                    {getPaymentMethodLabel(participant.paymentMethod)}
+                                                    {participant.punchCardId && (
+                                                      <div className="flex items-center justify-end mt-1">
+                                                        <CreditCard className="h-3 w-3 mr-1" />
+                                                        Klippekort
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                                
+                                                {!participant.isGuest && (
+                                                  <div className="flex gap-2">
+                                                    <button
+                                                      onClick={() => handleMoveBooking(participant, session)}
+                                                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                      title="Flyt booking"
+                                                    >
+                                                      <Edit2 className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                      onClick={() => handleCancelBooking(participant)}
+                                                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                      title="Aflys booking"
+                                                    >
+                                                      <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="text-center py-8 text-[#502B30]/60">
+                                        <Users className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                                        <p>Ingen deltagere endnu</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+
+                  {filteredSessions.length === 0 && (
+                    <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 p-12 text-center">
+                      <Calendar className="h-16 w-16 text-[#502B30]/30 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-[#502B30] mb-2">
+                        Ingen sessioner fundet
+                      </h3>
+                      <p className="text-sm text-[#502B30]/60">
+                        Prøv at justere dine filtre eller vælg en anden uge
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           {/* Clients Tab */}
           {activeTab === 'clients' && (
             <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10">
-              {/* Search */}
               <div className="p-6 border-b border-[#502B30]/10">
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#502B30]/40 h-5 w-5" />
@@ -748,7 +1107,6 @@ export default function PersonalePage() {
                 </div>
               </div>
 
-              {/* Clients Table */}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-[#502B30]/5 border-b border-[#502B30]/10">
@@ -769,34 +1127,34 @@ export default function PersonalePage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-[#502B30]/10">
                     {filteredClients.map((client) => (
-                        <tr key={client.id} className="hover:bg-[#502B30]/5">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-[#502B30]">
-                              {client.first_name} {client.last_name}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center text-sm text-[#4a2329]/80">
-                              <Mail className="h-4 w-4 mr-2 text-[#502B30]/40" />
-                              {client.email}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center text-sm text-[#4a2329]/80">
-                              <Phone className="h-4 w-4 mr-2 text-[#502B30]/40" />
-                              {client.phone || '-'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-[#4a2329]/80">
-                            {format(parseISO(client.member_since), 'dd MMM yyyy', { locale: da })}
-                          </td>
-                        </tr>
-                      ))}
+                      <tr key={client.id} className="hover:bg-[#502B30]/5">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-[#502B30]">
+                            {client.first_name} {client.last_name}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm text-[#4a2329]/80">
+                            <Mail className="h-4 w-4 mr-2 text-[#502B30]/40" />
+                            {client.email}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center text-sm text-[#4a2329]/80">
+                            <Phone className="h-4 w-4 mr-2 text-[#502B30]/40" />
+                            {client.phone || '-'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#4a2329]/80">
+                          {format(parseISO(client.member_since), 'dd MMM yyyy', { locale: da })}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
 
-              {clients.length === 0 && (
+              {filteredClients.length === 0 && (
                 <div className="p-12 text-center">
                   <Users className="h-16 w-16 text-[#502B30]/30 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-[#502B30] mb-2">
@@ -807,6 +1165,79 @@ export default function PersonalePage() {
             </div>
           )}
         </main>
+
+        {/* Edit Session Modal */}
+        {showEditSessionModal && selectedSession && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-[#502B30]">Skift Gusmester</h2>
+                  <button
+                    onClick={() => setShowEditSessionModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XIcon className="h-6 w-6" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  {selectedSession.name} - {format(parseISO(selectedSession.date), 'd. MMM yyyy', { locale: da })}
+                </p>
+              </div>
+
+              <div className="p-6">
+                {actionError && (
+                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                    {actionError}
+                  </div>
+                )}
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Vælg ny gusmester
+                  </label>
+                  <select
+                    value={newGusmesterId}
+                    onChange={(e) => setNewGusmesterId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  >
+                    <option value="">Vælg gusmester...</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowEditSessionModal(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    disabled={actionLoading}
+                  >
+                    Annuller
+                  </button>
+                  <button
+                    onClick={handleSaveSessionChanges}
+                    disabled={!newGusmesterId || actionLoading}
+                    className="flex-1 px-4 py-2 bg-[#502B30] text-white rounded-lg hover:bg-[#3d2024] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {actionLoading ? (
+                      <>
+                        <LoaderIcon className="h-4 w-4 animate-spin" />
+                        Gemmer...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Gem ændringer
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Move Booking Modal */}
         {showMoveModal && (
@@ -995,4 +1426,3 @@ export default function PersonalePage() {
     </>
   );
 }
-
