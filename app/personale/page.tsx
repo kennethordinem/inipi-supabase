@@ -282,6 +282,7 @@ export default function PersonalePage() {
     setActionReason('');
     setTargetSessionId('');
     
+    // Load available sessions first
     try {
       const { sessions: allSessions } = await members.getStaffSessions({
         startDate: format(new Date(), 'yyyy-MM-dd'),
@@ -289,6 +290,9 @@ export default function PersonalePage() {
       });
       
       setAvailableSessions(allSessions.filter(s => s.id !== currentSession.id));
+      
+      // Close session details modal and open move modal
+      setShowSessionDetailsModal(false);
       setShowMoveModal(true);
     } catch (err: any) {
       setActionError('Kunne ikke indlæse tilgængelige sessioner');
@@ -300,6 +304,9 @@ export default function PersonalePage() {
     setActionError(null);
     setActionSuccess(null);
     setActionReason('');
+    
+    // Close session details modal and open cancel modal
+    setShowSessionDetailsModal(false);
     setShowCancelModal(true);
   };
 
@@ -1325,20 +1332,14 @@ export default function PersonalePage() {
                             {!participant.isGuest && (
                               <div className="flex gap-2">
                                 <button
-                                  onClick={() => {
-                                    setShowSessionDetailsModal(false);
-                                    handleMoveBooking(participant, selectedSession);
-                                  }}
+                                  onClick={() => handleMoveBooking(participant, selectedSession)}
                                   className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                   title="Flyt booking"
                                 >
                                   <Edit2 className="h-4 w-4" />
                                 </button>
                                 <button
-                                  onClick={() => {
-                                    setShowSessionDetailsModal(false);
-                                    handleCancelBooking(participant);
-                                  }}
+                                  onClick={() => handleCancelBooking(participant)}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                   title="Aflys booking"
                                 >

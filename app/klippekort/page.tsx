@@ -321,13 +321,17 @@ export default function KlippekortPage() {
                                 </div>
                               );
                             } else {
-                              // Manual adjustment entry
-                              const isAddition = log.adjustmentType === 'add';
+                              // Adjustment entry (refund, compensation, etc.)
+                              const adjustmentType = log.adjustment_type || log.adjustmentType;
+                              const isRefund = adjustmentType === 'refund';
+                              const isAddition = adjustmentType === 'add' || adjustmentType === 'refund';
                               return (
                                 <div
                                   key={log.id}
                                   className={`rounded-sm p-4 border ${
-                                    isAddition
+                                    isRefund
+                                      ? 'bg-blue-50 border-blue-200'
+                                      : isAddition
                                       ? 'bg-green-50 border-green-200'
                                       : 'bg-orange-50 border-orange-200'
                                   }`}
@@ -335,31 +339,28 @@ export default function KlippekortPage() {
                                   <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                       <h5 className="font-semibold text-[#502B30] mb-2">
-                                        {isAddition ? '✓ Klip tilføjet' : '− Klip trukket'}
+                                        {isRefund ? '↩️ Klip returneret' : isAddition ? '✓ Klip tilføjet' : '− Klip trukket'}
                                       </h5>
                                       <div className="space-y-1 text-sm text-[#4a2329]/70">
                                         <div className="flex items-center">
                                           <Calendar className="h-3 w-3 mr-2" />
-                                          {format(parseISO(log.adjustedAt), 'd. MMMM yyyy HH:mm', { locale: da })}
+                                          {format(parseISO(log.adjusted_at || log.adjustedAt), 'd. MMMM yyyy HH:mm', { locale: da })}
                                         </div>
                                         <div className="flex items-center">
                                           <Ticket className="h-3 w-3 mr-2" />
-                                          {isAddition ? 'Tilføjet' : 'Trukket'}: {log.amount} klip
+                                          {isRefund ? 'Returneret' : isAddition ? 'Tilføjet' : 'Trukket'}: {log.amount} klip
                                         </div>
-                                        {log.adjustedTypeName && (
-                                          <div className="flex items-center text-xs">
-                                            Type: {log.adjustedTypeName}
+                                        {log.reason && (
+                                          <div className="mt-2 text-xs italic bg-white p-2 rounded border border-[#502B30]/10">
+                                            <strong>Årsag:</strong> {log.reason}
                                           </div>
                                         )}
-                                        <div className="mt-2 text-xs italic bg-white p-2 rounded border border-[#502B30]/10">
-                                          <strong>Begrundelse:</strong> {log.reason}
-                                        </div>
                                       </div>
                                     </div>
                                     <div className="text-right ml-4">
                                       <p className="text-xs text-[#502B30]/70 mb-1">Tilbage efter</p>
                                       <p className="text-lg font-bold text-[#502B30]">
-                                        {log.newRemaining}
+                                        {log.new_remaining || log.newRemaining}
                                       </p>
                                     </div>
                                   </div>

@@ -818,14 +818,28 @@ async function getPunchCardHistory(): Promise<{ punchCards: any[] }> {
 
   console.log('[getPunchCardHistory] Found punch cards:', punchCardsData?.length || 0);
 
-  // Get usage history for each punch card
+  // Get usage history AND adjustments for each punch card
   const punchCardsWithHistory = await Promise.all(
     (punchCardsData || []).map(async (card: any) => {
+      // Fetch usage history
       const { data: usageData } = await supabase
         .from('punch_card_usage')
         .select('*')
         .eq('punch_card_id', card.id)
         .order('used_at', { ascending: false });
+
+      // Fetch adjustment history (refunds, compensations, etc.)
+      const { data: adjustmentData } = await supabase
+        .from('punch_card_adjustments')
+        .select('*')
+        .eq('punch_card_id', card.id)
+        .order('adjusted_at', { ascending: false});
+
+      // Combine and sort both histories by timestamp
+      const combinedHistory = [
+        ...(usageData || []).map(u => ({ ...u, type: 'usage', timestamp: u.used_at })),
+        ...(adjustmentData || []).map(a => ({ ...a, type: 'adjustment', timestamp: a.adjusted_at }))
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       return {
         id: card.id,
@@ -837,7 +851,7 @@ async function getPunchCardHistory(): Promise<{ punchCards: any[] }> {
         status: card.status,
         purchaseDate: card.created_at,
         price: card.price || 0,
-        usageHistory: usageData || [],
+        usageHistory: combinedHistory,
       };
     })
   );
