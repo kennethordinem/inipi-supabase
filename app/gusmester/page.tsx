@@ -395,8 +395,8 @@ export default function GusmesterPage() {
 
           {/* Tabs Navigation */}
           <div className="mb-8 bg-white/80 backdrop-blur-sm rounded-sm shadow-lg border border-[#502B30]/10 overflow-hidden">
-            {/* Week Navigation - Only show for non-overview tabs */}
-            {activeTab !== 'overview' && (
+            {/* Week Navigation - Only show for non-settings tabs */}
+            {activeTab !== 'settings' && (
               <div className="flex items-center justify-between px-6 py-3 bg-amber-50 border-b border-[#502B30]/10">
                 <button
                   onClick={() => setCurrentWeekOffset(currentWeekOffset - 1)}
