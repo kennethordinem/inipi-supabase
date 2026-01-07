@@ -625,6 +625,7 @@ async function cancelBooking(bookingId: string): Promise<{
     await supabase.rpc('restore_punch_card', {
       card_id: booking.punch_card_id,
       spots_to_restore: booking.spots,
+      booking_id: bookingId,
     });
     punchCardRestored = true;
     compensationMessage = `Dine ${booking.spots} klip er blevet returneret til dit klippekort`;
@@ -2099,15 +2100,29 @@ async function adminCancelBooking(bookingId: string, reason: string, issueCompen
 
     if (cancelError) throw cancelError;
 
-    // Issue compensation punch card if payment was not by punch card
-    if (issueCompensation && booking.payment_method !== 'punch_card' && booking.payment_method !== 'punchCard') {
+    // Restore session participants
+    await supabase.rpc('decrement_session_participants', {
+      session_id: booking.session_id,
+      decrement_by: booking.spots,
+    });
+
+    // Handle compensation based on payment method
+    if (booking.punch_card_id) {
+      // If paid with punch card, always restore the clips
+      await supabase.rpc('restore_punch_card', {
+        card_id: booking.punch_card_id,
+        spots_to_restore: booking.spots,
+        booking_id: bookingId,
+      });
+    } else if (issueCompensation && (booking.payment_method === 'stripe' || booking.payment_method === 'card' || booking.payment_method === 'manual')) {
+      // If paid with card/stripe/manual and compensation is requested, create compensation punch card
       const { error: punchCardError } = await supabase
         .from('punch_cards')
         .insert({
           user_id: booking.user_id,
           name: 'Kompensation - Aflyst booking',
-          total_punches: 1,
-          remaining_punches: 1,
+          total_punches: booking.spots,
+          remaining_punches: booking.spots,
           price: 0,
           status: 'active',
           reason: `Kompensation for aflyst booking. Årsag: ${reason}`,
@@ -2122,7 +2137,9 @@ async function adminCancelBooking(bookingId: string, reason: string, issueCompen
 
     return {
       success: true,
-      message: issueCompensation ? 'Booking aflyst og kompensation udstedt' : 'Booking aflyst'
+      message: booking.punch_card_id 
+        ? `Booking aflyst og ${booking.spots} klip returneret` 
+        : (issueCompensation ? 'Booking aflyst og kompensation udstedt' : 'Booking aflyst')
     };
   } catch (error: any) {
     console.error('[adminCancelBooking] Error:', error);
