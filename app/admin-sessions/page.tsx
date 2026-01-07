@@ -732,6 +732,7 @@ export default function AdminSessionsPage() {
                   dateFrom: format(new Date(), 'yyyy-MM-dd'),
                   dateTo: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
                   groupTypeId: '',
+                  employeeId: '',
                   status: 'all',
                   searchText: '',
                 });
