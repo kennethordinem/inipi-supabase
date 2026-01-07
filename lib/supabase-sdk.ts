@@ -1394,28 +1394,28 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
   }
 
   // Update guest spot status FIRST (this will fail if someone else just booked it)
-  const { error: spotUpdateError } = await supabase
+  const { data: updateResult, error: spotUpdateError, count } = await supabase
     .from('guest_spots')
     .update({ status: 'booked_by_gusmester' })
     .eq('session_id', sessionId)
     .eq('spot_type', 'gusmester_spot') // Target the gusmester spot specifically
-    .eq('status', 'released_to_public'); // Only update if still released_to_public
+    .eq('status', 'released_to_public') // Only update if still released_to_public
+    .select();
+
+  console.log('[bookGusmesterSpot] Update result:', { updateResult, spotUpdateError, count });
 
   if (spotUpdateError) {
+    console.error('[bookGusmesterSpot] Update error:', spotUpdateError);
     throw new Error('Failed to claim spot: ' + spotUpdateError.message);
   }
 
-  // Verify the update actually happened (spot was available)
-  const { data: updatedSpot } = await supabase
-    .from('guest_spots')
-    .select('status')
-    .eq('session_id', sessionId)
-    .eq('spot_type', 'gusmester_spot')
-    .single();
-
-  if (!updatedSpot || updatedSpot.status !== 'booked_by_gusmester') {
-    throw new Error('Spot was claimed by another gusmester');
+  // Check if any rows were actually updated
+  if (!updateResult || updateResult.length === 0) {
+    console.error('[bookGusmesterSpot] No rows updated - spot may already be booked');
+    throw new Error('Spot was claimed by another gusmester or is no longer available');
   }
+
+  console.log('[bookGusmesterSpot] Successfully claimed spot:', updateResult[0]);
 
   // Create gusmester booking
   const { error: bookingError } = await supabase
