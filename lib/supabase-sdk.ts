@@ -448,7 +448,7 @@ async function bookSession(params: {
   // Get session and theme details for pricing
   const { data: sessionData } = await supabase
     .from('sessions')
-    .select('name, price')
+    .select('name, price, date, time')
     .eq('id', params.sessionId)
     .single();
 
@@ -518,8 +518,21 @@ async function bookSession(params: {
   // Create invoice for this booking
   const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
   
+  // Format session date and time for invoice
+  let sessionDateTime = '';
+  if (sessionData?.date && sessionData?.time) {
+    const sessionDate = new Date(sessionData.date);
+    const formattedDate = sessionDate.toLocaleDateString('da-DK', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    const formattedTime = sessionData.time.substring(0, 5); // HH:MM format
+    sessionDateTime = ` - ${formattedDate} kl. ${formattedTime}`;
+  }
+  
   // Build description with theme info if applicable
-  let invoiceDescription = `${sessionData?.name || 'Saunagus'} - ${params.spots} plads${params.spots > 1 ? 'er' : ''}`;
+  let invoiceDescription = `${sessionData?.name || 'Saunagus'}${sessionDateTime} - ${params.spots} plads${params.spots > 1 ? 'er' : ''}`;
   if (themeName) {
     invoiceDescription += ` (${themeName} - ${pricePerSeat} kr/plads)`;
   }
