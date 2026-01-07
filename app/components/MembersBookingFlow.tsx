@@ -262,12 +262,12 @@ export function MembersBookingFlow({
     }
   }, [isAuthenticated, selectedSpots]);
 
-  // Check payment requirement when punch cards change
+  // Check payment requirement when punch cards or total price changes
   useEffect(() => {
     if (isAuthenticated) {
       checkPaymentRequirement();
     }
-  }, [availablePunchCards, selectedPunchCard, isAuthenticated]);
+  }, [availablePunchCards, selectedPunchCard, totalPrice, isAuthenticated]);
 
   const loadPunchCards = async () => {
     try {
