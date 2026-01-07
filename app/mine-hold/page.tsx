@@ -58,12 +58,39 @@ export default function MineHoldPage() {
   const loadBookings = async () => {
     try {
       setLoading(true);
-      const result = await cachedMembers.getMyBookings(false); // Only upcoming
-      console.log('[Mine Hold] Raw booking data:', result.upcoming);
+      
+      // Load both regular bookings and gusmester bookings
+      const [regularResult, gusmesterResult] = await Promise.all([
+        cachedMembers.getMyBookings(false),
+        cachedMembers.getMyGusmesterBookings().catch(() => ({ bookings: [] }))
+      ]);
+      
+      console.log('[Mine Hold] Regular bookings:', regularResult.upcoming);
+      console.log('[Mine Hold] Gusmester bookings:', gusmesterResult.bookings);
+      
+      // Convert gusmester bookings to the same format as regular bookings
+      const gusmesterBookingsFormatted = (gusmesterResult.bookings || []).map((gb: any) => ({
+        id: gb.id,
+        date: gb.date,
+        time: gb.time,
+        duration: gb.duration,
+        type: gb.name,
+        status: 'active',
+        paymentStatus: 'paid',
+        paymentMethod: 'points',
+        price: 150, // Cost in points
+        spots: 1,
+        location: gb.location,
+        employeeName: gb.hostName,
+        color: '#f59e0b', // Amber color for gusmester bookings
+      }));
+      
+      // Combine both types of bookings
+      const allBookings = [...(regularResult.upcoming || []), ...gusmesterBookingsFormatted];
       
       // Separate active and cancelled bookings
-      const active = (result.upcoming || []).filter((b: Booking) => b.status !== 'cancelled');
-      const cancelled = (result.upcoming || []).filter((b: Booking) => b.status === 'cancelled');
+      const active = allBookings.filter((b: Booking) => b.status !== 'cancelled');
+      const cancelled = allBookings.filter((b: Booking) => b.status === 'cancelled');
       
       setUpcomingBookings(active);
       setCancelledBookings(cancelled);

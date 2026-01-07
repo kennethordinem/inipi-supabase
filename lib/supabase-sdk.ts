@@ -297,7 +297,18 @@ async function getClasses(filters?: {
       (spot: any) => spot.status === 'released_to_public'
     ).length;
     
-    return formatSession(dbSession, employees, dbSession.group_types, releasedGuestSpots);
+    // Count booked gusmester spots (these are occupied but not in current_participants)
+    const bookedGusmesterSpots = (dbSession.guest_spots || []).filter(
+      (spot: any) => spot.status === 'booked_by_gusmester'
+    ).length;
+    
+    // Adjust current participants to include gusmester bookings
+    const adjustedSession = {
+      ...dbSession,
+      current_participants: dbSession.current_participants + bookedGusmesterSpots
+    };
+    
+    return formatSession(adjustedSession, employees, dbSession.group_types, releasedGuestSpots);
   });
 
   // Filter by date range based on session type
@@ -356,6 +367,17 @@ async function getSessionDetails(sessionId: string): Promise<any> {
     (spot: any) => spot.status === 'released_to_public'
   ).length;
   
+  // Count booked gusmester spots (these are occupied but not in current_participants)
+  const bookedGusmesterSpots = (data.guest_spots || []).filter(
+    (spot: any) => spot.status === 'booked_by_gusmester'
+  ).length;
+  
+  // Adjust current participants to include gusmester bookings
+  const adjustedData = {
+    ...data,
+    current_participants: data.current_participants + bookedGusmesterSpots
+  };
+  
   // For private events, load all active themes for client selection
   let themes: any[] = [];
   if (data.group_types?.is_private) {
@@ -374,7 +396,7 @@ async function getSessionDetails(sessionId: string): Promise<any> {
   }
 
   return {
-    session: formatSession(data, employees, data.group_types, releasedGuestSpots),
+    session: formatSession(adjustedData, employees, data.group_types, releasedGuestSpots),
     employees,
     groupType: data.group_types,
     themes,
