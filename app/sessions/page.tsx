@@ -457,73 +457,30 @@ function SessionCard({ session, onClick }: { session: Session; onClick: () => vo
       <div className="h-1" style={{ backgroundColor: session.groupTypeColor }} />
       
       <div className="p-3 space-y-2">
-        {/* Time - without seconds */}
-        <div className="flex items-center text-sm font-semibold text-[#502B30]">
-          <svg className="h-3 w-3 mr-1.5 text-[#502B30]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          {formatTime(session.time)} - {formatTime(endTime)}
+        {/* Time and Seats on same line - no icons */}
+        <div className="flex items-center justify-between text-sm font-semibold text-[#502B30]">
+          <span>{formatTime(session.time)} - {formatTime(endTime)}</span>
+          <span className={`text-xs ${
+            hasStarted ? 'text-gray-600' :
+            isFull ? 'text-orange-600' :
+            session.availableSpots <= 3 ? 'text-orange-600' : 'text-green-600'
+          }`}>
+            {hasStarted ? 'Startet' :
+             isFull ? 'Fuldt' :
+             `${session.currentParticipants}/${session.maxParticipants}`}
+          </span>
         </div>
         
         <div className="font-bold text-[#4a2329] uppercase text-sm leading-tight">
           {session.name}
         </div>
         
-        {/* Instructors */}
+        {/* Instructors - no icon */}
         {session.employeeNames && session.employeeNames.length > 0 && (
-          <div className="flex items-start text-xs text-[#502B30]/70">
-            <svg className="h-3 w-3 mr-1 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span className="line-clamp-2">{session.employeeNames.join(', ')}</span>
+          <div className="text-xs text-[#502B30]/70">
+            {session.employeeNames.join(', ')}
           </div>
         )}
-        
-        {/* Seats and Price on same line */}
-        <div className="flex items-center justify-between pt-2 border-t border-[#502B30]/10">
-          <div>
-            {hasStarted ? (
-              <div className="text-xs font-semibold text-gray-600">
-                <svg className="h-3 w-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Startet
-              </div>
-            ) : isFull ? (
-              <div className="text-xs font-semibold text-orange-600">
-                Fuldt booket
-              </div>
-            ) : session.availableSpots <= 3 ? (
-              <div className="text-xs font-semibold text-orange-600">
-                <svg className="h-3 w-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                {session.availableSpots}/{session.maxParticipants}
-              </div>
-            ) : (
-              <div className="text-xs font-semibold text-green-600">
-                <svg className="h-3 w-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                {session.currentParticipants}/{session.maxParticipants}
-              </div>
-            )}
-          </div>
-          
-          <div className="text-right">
-            {session.isPrivate ? (
-              <div>
-                <div className="text-sm font-bold text-[#502B30]">Vælg tema</div>
-                <div className="text-xs text-[#502B30]/60">ved booking</div>
-              </div>
-            ) : (
-              <div>
-                <div className="text-sm font-bold text-[#502B30]">{session.price} kr</div>
-                <div className="text-xs text-[#502B30]/60">pr. plads</div>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </button>
   );
