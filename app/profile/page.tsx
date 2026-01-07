@@ -86,7 +86,18 @@ export default function ProfilePage() {
       }
     });
 
-    return () => unsubscribe();
+    // Listen for auth events (like email confirmation)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'USER_UPDATED' || event === 'SIGNED_IN') {
+        // Reload profile when user data is updated (e.g., email confirmed)
+        loadProfileData();
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      authListener?.subscription.unsubscribe();
+    };
   }, []);
 
   const loadProfileData = async () => {
@@ -268,12 +279,33 @@ export default function ProfilePage() {
       setIsChangingEmail(true);
       setEmailError('');
 
+      // Check if email is already in use by another user
+      const { data: existingUsers, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', newEmail);
+
+      if (checkError) {
+        throw new Error('Kunne ikke validere email');
+      }
+
+      if (existingUsers && existingUsers.length > 0) {
+        // Email is already in use
+        setEmailError('Denne email adresse er allerede i brug af en anden bruger');
+        setIsChangingEmail(false);
+        return;
+      }
+
       // Update email in Supabase Auth
       const { error: updateError } = await supabase.auth.updateUser({
         email: newEmail,
       });
 
       if (updateError) {
+        // Handle specific Supabase Auth errors
+        if (updateError.message.includes('already registered') || updateError.message.includes('already exists')) {
+          throw new Error('Denne email adresse er allerede registreret');
+        }
         throw updateError;
       }
 
@@ -283,7 +315,11 @@ export default function ProfilePage() {
       setShowEmailSection(false);
       setSuccessMessage('Bekræftelses email sendt til ' + newEmail + '. Tjek din indbakke og bekræft din nye email.');
 
-      setTimeout(() => setSuccessMessage(''), 10000);
+      // Reload profile data to show the new email (it will update after confirmation)
+      setTimeout(async () => {
+        await loadProfileData();
+        setSuccessMessage('');
+      }, 10000);
 
     } catch (err: any) {
       console.error('[Profile] Error changing email:', err);
