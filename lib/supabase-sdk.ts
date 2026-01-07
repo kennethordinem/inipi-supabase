@@ -96,9 +96,13 @@ async function getCurrentAuthUser(): Promise<User | null> {
 /**
  * Format session data from database
  */
-function formatSession(dbSession: any, employees: any[] = [], groupType: any = null): Session {
+function formatSession(dbSession: any, employees: any[] = [], groupType: any = null, releasedGuestSpots: number = 0): Session {
   const employeeNames = employees.map(e => e.name);
   const employeeIds = employees.map(e => e.id);
+  
+  // Calculate available spots including released guest spots
+  const baseAvailableSpots = dbSession.max_participants - dbSession.current_participants;
+  const totalAvailableSpots = baseAvailableSpots + releasedGuestSpots;
   
   return {
     id: dbSession.id,
@@ -110,7 +114,7 @@ function formatSession(dbSession: any, employees: any[] = [], groupType: any = n
     maxParticipants: dbSession.max_participants,
     minimumParticipants: dbSession.minimum_participants || 1,
     currentParticipants: dbSession.current_participants,
-    availableSpots: dbSession.max_participants - dbSession.current_participants,
+    availableSpots: totalAvailableSpots,
     groupTypeId: dbSession.group_type_id,
     groupTypeName: groupType?.name || '',
     groupTypeColor: groupType?.color || '#6366f1',
@@ -268,7 +272,8 @@ async function getClasses(filters?: {
       group_types!inner(id, name, color, is_private, minimum_seats),
       session_employees(
         employees(id, name)
-      )
+      ),
+      guest_spots(id, status)
     `)
     .eq('status', 'active')
     .gte('date', todayStr)
@@ -286,7 +291,13 @@ async function getClasses(filters?: {
   // Format sessions
   let sessions = (data || []).map((dbSession: any) => {
     const employees = dbSession.session_employees?.map((se: any) => se.employees) || [];
-    return formatSession(dbSession, employees, dbSession.group_types);
+    
+    // Count released guest spots (these are now available for booking)
+    const releasedGuestSpots = (dbSession.guest_spots || []).filter(
+      (spot: any) => spot.status === 'released_to_public'
+    ).length;
+    
+    return formatSession(dbSession, employees, dbSession.group_types, releasedGuestSpots);
   });
 
   // Filter by date range based on session type
@@ -325,7 +336,8 @@ async function getSessionDetails(sessionId: string): Promise<any> {
       group_types(id, name, description, color, is_private, minimum_seats),
       session_employees(
         employees(id, name, title, public_profile)
-      )
+      ),
+      guest_spots(id, status)
     `)
     .eq('id', sessionId)
     .single();
@@ -333,6 +345,11 @@ async function getSessionDetails(sessionId: string): Promise<any> {
   if (error) throw new Error(error.message);
 
   const employees = data.session_employees?.map((se: any) => se.employees) || [];
+  
+  // Count released guest spots
+  const releasedGuestSpots = (data.guest_spots || []).filter(
+    (spot: any) => spot.status === 'released_to_public'
+  ).length;
   
   // For private events, load all active themes for client selection
   let themes: any[] = [];
@@ -352,7 +369,7 @@ async function getSessionDetails(sessionId: string): Promise<any> {
   }
 
   return {
-    session: formatSession(data, employees, data.group_types),
+    session: formatSession(data, employees, data.group_types, releasedGuestSpots),
     employees,
     groupType: data.group_types,
     themes,
@@ -879,20 +896,28 @@ async function getEmployeeStats(): Promise<{
 
   const { data: employee, error } = await supabase
     .from('employees')
-    .select(`
-      *,
-      employee_points_history(*)
-    `)
+    .select('id, name, points, auto_release_guest_spot')
     .eq('user_id', user.id)
     .single();
 
   if (error) throw new Error(error.message);
 
+  // Get points history separately with proper ordering
+  const { data: pointsHistory, error: historyError } = await supabase
+    .from('employee_points_history')
+    .select('*')
+    .eq('employee_id', employee.id)
+    .order('created_at', { ascending: false });
+
+  if (historyError) {
+    console.error('[getEmployeeStats] Error loading points history:', historyError);
+  }
+
   return {
     employeeId: employee.id,
     employeeName: employee.name,
     points: employee.points,
-    pointsHistory: employee.employee_points_history || [],
+    pointsHistory: pointsHistory || [],
     autoReleasePreference: employee.auto_release_guest_spot || '3_hours',
   };
 }

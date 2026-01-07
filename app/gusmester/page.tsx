@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Clock, User, Star, AlertCircle, CheckCircle, TrendingUp, MapPin, FileText } from 'lucide-react';
 import { members } from '@/lib/supabase-sdk';
+import { cachedMembers } from '@/lib/cachedMembers';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
 import { format } from 'date-fns';
@@ -196,6 +197,9 @@ export default function GusmesterPage() {
       setError('');
 
       const result = await members.releaseGuestSpot(selectedHosting.id);
+
+      // Invalidate caches to refresh session availability
+      cachedMembers.invalidateAfterBooking();
 
       if (result.earnedPoints) {
         setSuccess('Gæsteplads frigivet! +150 points tilføjet.');
