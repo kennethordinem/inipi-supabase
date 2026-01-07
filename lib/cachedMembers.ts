@@ -31,8 +31,10 @@ export const cachedMembers = {
    */
   async getClasses(filters?: { typeFilter?: string; startDate?: string; endDate?: string }) {
     // Create cache key based on filters
+    // CACHE_VERSION: increment this when schema changes (e.g., added is_private field)
+    const CACHE_VERSION = 'v2';
     const filterKey = filters ? JSON.stringify(filters) : 'all';
-    const cacheKey = `sessions_${filterKey}`;
+    const cacheKey = `sessions_${CACHE_VERSION}_${filterKey}`;
     const cached = cache.get<{ sessions: Session[] }>(cacheKey);
     
     if (cached) {
