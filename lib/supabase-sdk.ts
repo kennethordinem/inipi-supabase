@@ -310,8 +310,13 @@ async function getClasses(filters?: {
     const sessionDate = new Date(session.date);
     const isPrivate = session.isPrivate || session.groupTypeName?.toLowerCase().includes('privat');
     
+    // Hide private events that already have participants (already booked)
+    if (isPrivate && session.currentParticipants > 0) {
+      return false;
+    }
+    
     if (isPrivate) {
-      // Private events: show up to 1 year ahead
+      // Private events: show up to 1 year ahead (only if not booked)
       return sessionDate <= oneYearFromNow;
     } else {
       // Fyraftensgus: show only 30 days ahead
