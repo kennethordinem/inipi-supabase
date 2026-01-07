@@ -1511,12 +1511,12 @@ async function cancelGusmesterBooking(bookingId: string): Promise<{ success: boo
   if (bookingError || !booking) throw new Error('Booking not found');
   if (booking.employees.user_id !== user.id) throw new Error('Not your booking');
 
-  // Check if can cancel (>24h before)
+  // Check if can cancel (>3h before)
   const sessionDate = new Date(`${booking.sessions.date}T${booking.sessions.time}`);
   const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
   
-  if (hoursUntil <= 24) {
-    throw new Error('Cannot cancel less than 24 hours before session');
+  if (hoursUntil <= 3) {
+    throw new Error('Du kan ikke aflyse mindre end 3 timer før sessionen');
   }
 
   // Cancel booking
@@ -1542,11 +1542,12 @@ async function cancelGusmesterBooking(bookingId: string): Promise<{ success: boo
     related_booking_id: bookingId,
   });
 
-  // Release guest spot back to public
+  // Release gusmester spot back to public
   await supabase
     .from('guest_spots')
     .update({ status: 'released_to_public' })
-    .eq('session_id', booking.session_id);
+    .eq('session_id', booking.session_id)
+    .eq('spot_type', 'gusmester_spot');
 
   return { success: true, newPoints };
 }

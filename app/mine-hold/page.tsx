@@ -25,6 +25,7 @@ interface Booking {
   employeeName?: string;
   color?: string;
   punchCardId?: string;
+  isGusmesterBooking?: boolean;
 }
 
 export default function MineHoldPage() {
@@ -83,6 +84,7 @@ export default function MineHoldPage() {
         location: gb.location,
         employeeName: gb.hostName,
         color: '#f59e0b', // Amber color for gusmester bookings
+        isGusmesterBooking: true, // Flag to identify gusmester bookings
       }));
       
       // Combine both types of bookings
@@ -145,22 +147,31 @@ export default function MineHoldPage() {
       setCancellingId(selectedBooking.id);
       setCancelError('');
 
-      const result = await members.cancelBooking(selectedBooking.id);
-
-      if (result.success) {
-        setCancelSuccess(result.message || 'Booking aflyst');
-        
-        // Clear cache and reload bookings
-        cachedMembers.invalidateAfterBooking();
-        await loadBookings();
-
-        // Close modal after showing success
-        setTimeout(() => {
-          setShowCancelModal(false);
-          setSelectedBooking(null);
-          setCancelSuccess('');
-        }, 2000);
+      // Check if this is a gusmester booking
+      if (selectedBooking.isGusmesterBooking) {
+        // Cancel gusmester booking (refund points)
+        const result = await cachedMembers.cancelGusmesterBooking(selectedBooking.id);
+        if (result.success) {
+          setCancelSuccess('Gusmester booking aflyst - 150 points refunderet');
+        }
+      } else {
+        // Cancel regular booking
+        const result = await members.cancelBooking(selectedBooking.id);
+        if (result.success) {
+          setCancelSuccess(result.message || 'Booking aflyst');
+        }
       }
+      
+      // Clear cache and reload bookings
+      cachedMembers.invalidateAfterBooking();
+      await loadBookings();
+
+      // Close modal after showing success
+      setTimeout(() => {
+        setShowCancelModal(false);
+        setSelectedBooking(null);
+        setCancelSuccess('');
+      }, 2000);
     } catch (err: any) {
       console.error('[Mine Hold] Cancel error:', err);
       setCancelError(err.message || 'Kunne ikke aflyse booking');
@@ -312,7 +323,9 @@ export default function MineHoldPage() {
                           <div className="mt-4 pt-4 border-t border-[#502B30]/10">
                             <div className="flex items-center text-sm">
                               <span className="text-[#502B30]/60 mr-2">Betalt:</span>
-                              {booking.paymentMethod === 'punch_card' ? (
+                              {booking.isGusmesterBooking ? (
+                                <span className="text-amber-600 font-medium">150 points</span>
+                              ) : booking.paymentMethod === 'punch_card' ? (
                                 <span className="text-green-600 font-medium">Klippekort</span>
                               ) : (
                                 <span className="text-[#502B30] font-medium">
