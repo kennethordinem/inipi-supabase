@@ -129,6 +129,8 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
     const fetchSessionDetails = async () => {
       try {
         const details = await members.getSessionDetails(session.id) as unknown as SessionDetails;
+        console.log('[SessionDetailsModal] Fetched session details:', details);
+        console.log('[SessionDetailsModal] GroupType from API:', details.groupType);
         setEmployees(details.employees);
         setGroupType(details.groupType);
         setThemes(details.themes);
