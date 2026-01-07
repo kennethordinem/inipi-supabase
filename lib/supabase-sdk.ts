@@ -821,10 +821,25 @@ async function getPunchCardHistory(): Promise<{ punchCards: any[] }> {
   // Get usage history AND adjustments for each punch card
   const punchCardsWithHistory = await Promise.all(
     (punchCardsData || []).map(async (card: any) => {
-      // Fetch usage history
+      // Fetch usage history with session details
       const { data: usageData } = await supabase
         .from('punch_card_usage')
-        .select('*')
+        .select(`
+          id,
+          booking_id,
+          spots_used,
+          remaining_after,
+          used_at,
+          bookings!inner(
+            session_id,
+            sessions!inner(
+              id,
+              name,
+              date,
+              time
+            )
+          )
+        `)
         .eq('punch_card_id', card.id)
         .order('used_at', { ascending: false });
 
@@ -835,9 +850,22 @@ async function getPunchCardHistory(): Promise<{ punchCards: any[] }> {
         .eq('punch_card_id', card.id)
         .order('adjusted_at', { ascending: false});
 
+      // Format usage data with session info
+      const formattedUsage = (usageData || []).map(u => ({
+        id: u.id,
+        type: 'usage',
+        timestamp: u.used_at,
+        spotsUsed: u.spots_used,
+        remainingAfter: u.remaining_after,
+        sessionName: u.bookings?.sessions?.name || 'Session',
+        sessionDate: u.bookings?.sessions?.date,
+        sessionTime: u.bookings?.sessions?.time,
+        usedAt: u.used_at
+      }));
+
       // Combine and sort both histories by timestamp
       const combinedHistory = [
-        ...(usageData || []).map(u => ({ ...u, type: 'usage', timestamp: u.used_at })),
+        ...formattedUsage,
         ...(adjustmentData || []).map(a => ({ ...a, type: 'adjustment', timestamp: a.adjusted_at }))
       ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 

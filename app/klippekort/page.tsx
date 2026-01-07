@@ -283,28 +283,32 @@ export default function KlippekortPage() {
                           Forbrugshistorik
                         </h4>
                         <div className="space-y-3">
-                          {card.usageHistory.map((log) => {
+                          {card.usageHistory.map((log, idx) => {
                             if (log.type === 'usage') {
                               // Session usage entry
                               return (
                                 <div
-                                  key={log.id}
+                                  key={log.id || `usage-${idx}`}
                                   className="bg-white rounded-sm p-4 border border-[#502B30]/10 hover:border-[#502B30]/30 transition-colors"
                                 >
                                   <div className="flex items-start justify-between">
                                     <div className="flex-1">
                                       <h5 className="font-semibold text-[#502B30] mb-2">
-                                        {log.sessionName}
+                                        {log.sessionName || 'Session'}
                                       </h5>
                                       <div className="space-y-1 text-sm text-[#4a2329]/70">
-                                        <div className="flex items-center">
-                                          <Calendar className="h-3 w-3 mr-2" />
-                                          {format(parseISO(log.sessionDate), 'd. MMMM yyyy', { locale: da })}
-                                        </div>
-                                        <div className="flex items-center">
-                                          <Clock className="h-3 w-3 mr-2" />
-                                          {log.sessionTime}
-                                        </div>
+                                        {log.sessionDate && (
+                                          <div className="flex items-center">
+                                            <Calendar className="h-3 w-3 mr-2" />
+                                            {format(parseISO(log.sessionDate), 'd. MMMM yyyy', { locale: da })}
+                                          </div>
+                                        )}
+                                        {log.sessionTime && (
+                                          <div className="flex items-center">
+                                            <Clock className="h-3 w-3 mr-2" />
+                                            {log.sessionTime.substring(0, 5)}
+                                          </div>
+                                        )}
                                         <div className="flex items-center">
                                           <Ticket className="h-3 w-3 mr-2" />
                                           Brugt: {log.spotsUsed} klip
@@ -314,7 +318,7 @@ export default function KlippekortPage() {
                                     <div className="text-right ml-4">
                                       <p className="text-xs text-[#502B30]/70 mb-1">Tilbage efter</p>
                                       <p className="text-lg font-bold text-[#502B30]">
-                                        {log.remainingPunchesAfter}
+                                        {log.remainingAfter}
                                       </p>
                                     </div>
                                   </div>
