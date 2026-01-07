@@ -1476,7 +1476,8 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
     throw new Error('No gusmester spot exists for this session');
   }
 
-  if (guestSpot.status !== 'released_to_public') {
+  // Gusmester spots can be booked if they are reserved_for_host OR released_to_public
+  if (guestSpot.status !== 'reserved_for_host' && guestSpot.status !== 'released_to_public') {
     throw new Error('This spot is not available (already booked or reserved)');
   }
 
@@ -1494,12 +1495,13 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
   }
 
   // Update guest spot status FIRST (this will fail if someone else just booked it)
+  // Match either reserved_for_host OR released_to_public
   const { data: updateResult, error: spotUpdateError, count } = await supabase
     .from('guest_spots')
     .update({ status: 'booked_by_gusmester' })
     .eq('session_id', sessionId)
     .eq('spot_type', 'gusmester_spot') // Target the gusmester spot specifically
-    .eq('status', 'released_to_public') // Only update if still released_to_public
+    .in('status', ['reserved_for_host', 'released_to_public']) // Allow booking from either status
     .select();
 
   console.log('[bookGusmesterSpot] Update result:', { updateResult, spotUpdateError, count });
@@ -1528,11 +1530,13 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
     });
 
   if (bookingError) {
-    // Rollback: Release the spot back
+    // Rollback: Release the spot back to its original status
+    // Set it back to reserved_for_host (the default for gusmester spots)
     await supabase
       .from('guest_spots')
-      .update({ status: 'released_to_public' })
-      .eq('session_id', sessionId);
+      .update({ status: 'reserved_for_host' })
+      .eq('session_id', sessionId)
+      .eq('spot_type', 'gusmester_spot');
     throw new Error(bookingError.message);
   }
 
@@ -1544,7 +1548,7 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
     .eq('id', employee.id);
 
   if (updateError) {
-    // Rollback: Cancel booking and release spot
+    // Rollback: Cancel booking and release spot back to reserved_for_host
     await supabase
       .from('gusmester_bookings')
       .update({ status: 'cancelled' })
@@ -1552,8 +1556,9 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
       .eq('session_id', sessionId);
     await supabase
       .from('guest_spots')
-      .update({ status: 'released_to_public' })
-      .eq('session_id', sessionId);
+      .update({ status: 'reserved_for_host' })
+      .eq('session_id', sessionId)
+      .eq('spot_type', 'gusmester_spot');
     throw new Error(updateError.message);
   }
 
