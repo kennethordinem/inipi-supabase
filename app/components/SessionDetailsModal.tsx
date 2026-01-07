@@ -95,6 +95,8 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
   const hasParticipants = session.currentParticipants > 0;
   const isPrivateAndBooked = isPrivateSession && hasParticipants;
   
+  console.log('[SessionDetailsModal] isPrivateSession:', isPrivateSession, 'groupType:', groupType?.name, 'isPrivate:', groupType?.isPrivate);
+  
   // Set minimum spots based on session minimum_participants
   const minimumSpots = session.minimumParticipants || 1;
   
@@ -153,6 +155,8 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
   const cheapestThemePrice = themes.length > 0 
     ? Math.min(...themes.map(t => t.pricePerSeat || 0))
     : null;
+  
+  console.log('[SessionDetailsModal] Themes loaded:', themes.length, 'cheapest:', cheapestThemePrice, 'themes:', themes.map(t => `${t.name}: ${t.pricePerSeat} kr`));
 
   // Log when theme is selected for debugging
   useEffect(() => {
@@ -161,10 +165,15 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
 
   // Calculate the price per seat based on session type and theme selection
   const pricePerSeat = React.useMemo(() => {
-    const price = (isPrivateSession && selectedTheme?.pricePerSeat) 
-      ? selectedTheme.pricePerSeat 
-      : (session.price || 0);
-    console.log('[SessionDetailsModal] Calculating pricePerSeat:', price, 'isPrivate:', isPrivateSession, 'theme:', selectedTheme?.name);
+    // For private sessions, ALWAYS use theme price (ignore session.price)
+    if (isPrivateSession) {
+      const price = selectedTheme?.pricePerSeat || 0;
+      console.log('[SessionDetailsModal] Private session - pricePerSeat:', price, 'theme:', selectedTheme?.name);
+      return price;
+    }
+    // For regular sessions, use session price
+    const price = session.price || 0;
+    console.log('[SessionDetailsModal] Regular session - pricePerSeat:', price);
     return price;
   }, [isPrivateSession, selectedTheme, session.price]);
 

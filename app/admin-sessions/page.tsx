@@ -1079,20 +1079,26 @@ export default function AdminSessionsPage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Pris (DKK) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="1"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
-                  />
-                </div>
+                {/* Only show price for non-private events */}
+                {!(() => {
+                  const selectedGroupType = groupTypes.find(gt => gt.id === formData.group_type_id);
+                  return selectedGroupType?.name?.toLowerCase().includes('privat');
+                })() && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pris (DKK) *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step="1"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Min and Max Participants */}
@@ -1176,6 +1182,7 @@ export default function AdminSessionsPage() {
                       minimum_participants: isPrivate ? 10 : 1,
                       max_participants: isPrivate ? 20 : 18,
                       max_seats_per_booking: isPrivate ? 20 : 6,
+                      price: isPrivate ? 0 : formData.price, // Set price to 0 for private events
                     });
                   }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
