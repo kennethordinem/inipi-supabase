@@ -967,7 +967,7 @@ export default function GusmesterPage() {
                   Gæstens Email (valgfrit)
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   value={guestDetails.email}
                   onChange={(e) => setGuestDetails({ ...guestDetails, email: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
