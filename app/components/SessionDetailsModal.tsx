@@ -585,6 +585,7 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
             session={session}
             selectedSpots={selectedSpots}
             selectedThemeId={selectedTheme?.id}
+            isPrivateEvent={isPrivateSession}
             onComplete={(result) => {
               console.log('[SessionDetailsModal] Booking complete:', result);
               setShowBookingFlow(false);

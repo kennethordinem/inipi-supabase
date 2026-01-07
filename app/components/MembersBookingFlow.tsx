@@ -128,6 +128,7 @@ interface MembersBookingFlowProps {
   session: Session;
   selectedSpots: number;
   selectedThemeId?: string;
+  isPrivateEvent?: boolean;
   onComplete: (result: { appointmentId: string }) => void;
   onCancel: () => void;
 }
@@ -147,6 +148,7 @@ export function MembersBookingFlow({
   session,
   selectedSpots,
   selectedThemeId,
+  isPrivateEvent = false,
   onComplete,
   onCancel
 }: MembersBookingFlowProps) {
@@ -538,7 +540,7 @@ export function MembersBookingFlow({
                       <span>Indlæser klippekort...</span>
                     </div>
                   </div>
-                ) : availablePunchCards.length > 0 && !selectedPunchCard ? (
+                ) : availablePunchCards.length > 0 && !selectedPunchCard && !isPrivateEvent ? (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-[#502B30] mb-4">
                       <div className="flex items-center gap-2">
@@ -571,7 +573,7 @@ export function MembersBookingFlow({
                       ))}
                     </div>
                   </div>
-                ) : selectedPunchCard ? (
+                ) : selectedPunchCard && !isPrivateEvent ? (
                   <div className="bg-green-50 border border-green-200 rounded-xl p-6">
                     <div className="flex items-center justify-between">
                       <div>
