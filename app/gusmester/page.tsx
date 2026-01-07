@@ -1003,7 +1003,7 @@ export default function GusmesterPage() {
               </button>
               <button
                 onClick={handleBookGuestForSession}
-                disabled={isSubmitting || !guestDetails.name || !guestDetails.email}
+                disabled={isSubmitting || !guestDetails.name}
                 className="flex-1 px-4 py-2 bg-[#502B30] text-amber-100 rounded-sm hover:bg-[#5e3023] transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? 'Booker...' : 'Book Gæst'}
