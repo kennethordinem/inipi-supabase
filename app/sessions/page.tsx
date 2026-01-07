@@ -146,6 +146,23 @@ function SessionsPageContent() {
     return grouped;
   }, [filteredSessions, weekDays]);
 
+  // Get all unique time slots across the week (for grid layout)
+  const timeSlots = useMemo(() => {
+    const times = new Set<string>();
+    filteredSessions.forEach(session => {
+      const sessionDate = parseISO(session.date);
+      const dayKey = format(sessionDate, 'yyyy-MM-dd');
+      const now = new Date();
+      const today = format(now, 'yyyy-MM-dd');
+      
+      // Only include times from today onwards
+      if (dayKey >= today && weekDays.some(day => format(day, 'yyyy-MM-dd') === dayKey)) {
+        times.add(session.time);
+      }
+    });
+    return Array.from(times).sort();
+  }, [filteredSessions, weekDays]);
+
   const goToPreviousWeek = () => {
     setCurrentWeekStart(prev => subWeeks(prev, 1));
   };
@@ -311,16 +328,14 @@ function SessionsPageContent() {
             </div>
           </div>
 
-          {/* Desktop: 7-column grid */}
-          <div className="hidden lg:grid lg:grid-cols-7 gap-3 xl:gap-4">
-            {weekDays.map(day => {
-              const dayKey = format(day, 'yyyy-MM-dd');
-              const daySessions = sessionsByDay.get(dayKey) || [];
-              const isCurrentDay = isToday(day);
-              
-              return (
-                <div key={dayKey} className="min-h-[200px]">
-                  <div className={`text-center mb-3 pb-3 border-b-2 ${
+          {/* Desktop: Time-slot based grid */}
+          <div className="hidden lg:block">
+            {/* Day headers */}
+            <div className="grid grid-cols-7 gap-3 xl:gap-4 mb-4">
+              {weekDays.map(day => {
+                const isCurrentDay = isToday(day);
+                return (
+                  <div key={format(day, 'yyyy-MM-dd')} className={`text-center pb-3 border-b-2 ${
                     isCurrentDay ? 'border-[#502B30]' : 'border-[#502B30]/20'
                   }`}>
                     <div className={`text-xs uppercase font-semibold ${
@@ -334,19 +349,39 @@ function SessionsPageContent() {
                       {format(day, 'd MMM', { locale: da })}
                     </div>
                   </div>
-                  
-                  <div className="space-y-3">
-                    {daySessions.length > 0 ? (
-                      daySessions.map(session => <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} />)
-                    ) : (
-                      <div className="text-center py-8 text-sm text-[#502B30]/40">
-                        Ingen saunagus
+                );
+              })}
+            </div>
+
+            {/* Time slots grid */}
+            <div className="space-y-3">
+              {timeSlots.map(timeSlot => (
+                <div key={timeSlot} className="grid grid-cols-7 gap-3 xl:gap-4">
+                  {weekDays.map(day => {
+                    const dayKey = format(day, 'yyyy-MM-dd');
+                    const daySessions = sessionsByDay.get(dayKey) || [];
+                    const sessionAtThisTime = daySessions.find(s => s.time === timeSlot);
+                    
+                    return (
+                      <div key={`${dayKey}-${timeSlot}`}>
+                        {sessionAtThisTime ? (
+                          <SessionCard session={sessionAtThisTime} onClick={() => handleSessionClick(sessionAtThisTime)} />
+                        ) : (
+                          <div className="h-full" /> // Empty cell
+                        )}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Empty state for no sessions */}
+            {timeSlots.length === 0 && (
+              <div className="text-center py-8 text-sm text-[#502B30]/40">
+                Ingen saunagus denne uge
+              </div>
+            )}
           </div>
 
           {/* Mobile: Vertical stack */}
