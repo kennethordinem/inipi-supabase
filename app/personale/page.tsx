@@ -119,6 +119,7 @@ export default function PersonalePage() {
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showEditSessionModal, setShowEditSessionModal] = useState(false);
+  const [showSessionDetailsModal, setShowSessionDetailsModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState<StaffSession | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [availableSessions, setAvailableSessions] = useState<StaffSession[]>([]);
@@ -230,6 +231,11 @@ export default function PersonalePage() {
       loadClients();
     }
   }, [activeTab, isEmployee]);
+
+  const handleViewSessionDetails = (session: StaffSession) => {
+    setSelectedSession(session);
+    setShowSessionDetailsModal(true);
+  };
 
   const handleEditSession = (session: StaffSession) => {
     setSelectedSession(session);
@@ -827,7 +833,7 @@ export default function PersonalePage() {
                             {daySessions.map(session => (
                               <button
                                 key={session.id}
-                                onClick={() => toggleSessionExpanded(session.id)}
+                                onClick={() => handleViewSessionDetails(session)}
                                 className="w-full text-left p-3 rounded-sm border-l-4 hover:shadow-md transition-all"
                                 style={{ 
                                   borderLeftColor: session.groupTypeColor,
@@ -1165,6 +1171,205 @@ export default function PersonalePage() {
             </div>
           )}
         </main>
+
+        {/* Session Details Modal */}
+        {showSessionDetailsModal && selectedSession && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="h-4 w-4 rounded-full" 
+                      style={{ backgroundColor: selectedSession.groupTypeColor }}
+                    />
+                    <h2 className="text-2xl font-bold text-[#502B30]">{selectedSession.name}</h2>
+                    <span className="text-sm px-3 py-1 rounded-sm bg-[#502B30]/10 text-[#502B30] font-medium">
+                      {selectedSession.groupTypeName}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowSessionDetailsModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XIcon className="h-6 w-6" />
+                  </button>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-4 text-sm text-[#4a2329]/70 mt-4">
+                  <span className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-1.5" />
+                    {format(parseISO(selectedSession.date), 'EEEE d. MMMM yyyy', { locale: da })}
+                  </span>
+                  <span className="flex items-center">
+                    <Clock className="h-4 w-4 mr-1.5" />
+                    {selectedSession.time} ({selectedSession.duration} min)
+                  </span>
+                  {selectedSession.location && (
+                    <span className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-1.5" />
+                      {selectedSession.location}
+                    </span>
+                  )}
+                  {selectedSession.employeeNames.length > 0 && (
+                    <span className="flex items-center">
+                      <User className="h-4 w-4 mr-1.5" />
+                      {selectedSession.employeeNames.join(', ')}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-6 mt-4">
+                  <div className="flex items-center">
+                    <Users className="h-4 w-4 mr-1.5 text-[#502B30]/60" />
+                    <span className="text-sm font-semibold text-[#502B30]">
+                      {selectedSession.currentParticipants}/{selectedSession.maxParticipants} deltagere
+                    </span>
+                  </div>
+                  {selectedSession.availableSpots > 0 ? (
+                    <span className="text-sm text-green-600 font-medium">
+                      {selectedSession.availableSpots} ledige pladser
+                    </span>
+                  ) : (
+                    <span className="text-sm text-orange-600 font-medium">
+                      Fuldt booket
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      setShowSessionDetailsModal(false);
+                      handleEditSession(selectedSession);
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <UserCog className="h-4 w-4" />
+                    Skift gusmester
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {selectedSession.participants.length > 0 ? (
+                  <div className="space-y-3">
+                    <h5 className="font-semibold text-[#502B30] mb-4">
+                      Deltagerliste ({selectedSession.participants.length})
+                    </h5>
+                    {selectedSession.participants.map((participant, idx) => (
+                      <div 
+                        key={idx}
+                        className="bg-[#faf8f5] rounded-sm p-4 border border-[#502B30]/10"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <User className="h-4 w-4 text-[#502B30]/60" />
+                              <span className="font-semibold text-[#502B30]">
+                                {participant.patientName}
+                              </span>
+                              {participant.isGuest && (
+                                <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-800 rounded-sm">
+                                  Gæst
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="space-y-1 text-sm text-[#4a2329]/70">
+                              {participant.patientEmail && (
+                                <div className="flex items-center">
+                                  <Mail className="h-3 w-3 mr-2" />
+                                  {participant.patientEmail}
+                                </div>
+                              )}
+                              {participant.patientPhone && (
+                                <div className="flex items-center">
+                                  <Phone className="h-3 w-3 mr-2" />
+                                  {participant.patientPhone}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-4 mt-2">
+                                <span className="flex items-center">
+                                  <Users className="h-3 w-3 mr-1.5" />
+                                  {participant.spots} {participant.spots === 1 ? 'plads' : 'pladser'}
+                                </span>
+                                {participant.bookedAt && (
+                                  <span className="flex items-center text-xs">
+                                    <Clock className="h-3 w-3 mr-1.5" />
+                                    Booket {format(parseISO(participant.bookedAt), 'd. MMM HH:mm', { locale: da })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="ml-4 flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="flex items-center gap-2 mb-2">
+                                {getPaymentStatusIcon(participant.paymentStatus)}
+                                <span className="text-sm font-medium text-[#502B30]">
+                                  {participant.paymentStatus === 'paid' ? 'Betalt' : 
+                                   participant.paymentStatus === 'pending' ? 'Afventer' : 
+                                   'Fejl'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-[#4a2329]/70">
+                                {getPaymentMethodLabel(participant.paymentMethod)}
+                                {participant.punchCardId && (
+                                  <div className="flex items-center justify-end mt-1">
+                                    <CreditCard className="h-3 w-3 mr-1" />
+                                    Klippekort
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {!participant.isGuest && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setShowSessionDetailsModal(false);
+                                    handleMoveBooking(participant, selectedSession);
+                                  }}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Flyt booking"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setShowSessionDetailsModal(false);
+                                    handleCancelBooking(participant);
+                                  }}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Aflys booking"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-[#502B30]/60">
+                    <Users className="h-16 w-16 mx-auto mb-3 opacity-30" />
+                    <p className="text-lg">Ingen deltagere endnu</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => setShowSessionDetailsModal(false)}
+                  className="w-full px-4 py-2 bg-[#502B30] text-white rounded-lg hover:bg-[#3d2024] transition-colors"
+                >
+                  Luk
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Edit Session Modal */}
         {showEditSessionModal && selectedSession && (
