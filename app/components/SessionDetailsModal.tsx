@@ -520,9 +520,10 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
                       <p className="text-2xl font-bold text-[#502B30]">
                         {totalPrice} kr
                       </p>
-                      {isPrivateSession && selectedSpots === minimumSpots && selectedTheme && (
+                      {isPrivateSession && selectedTheme && (
                         <p className="text-xs text-[#502B30]/70 mt-1">
-                          Minimumspris ({minimumSpots} pladser × {pricePerSeat} kr)
+                          {selectedSpots} {selectedSpots === 1 ? 'plads' : 'pladser'} × {pricePerSeat} kr
+                          {selectedSpots === minimumSpots && ' (Minimumspris)'}
                         </p>
                       )}
                     </>
