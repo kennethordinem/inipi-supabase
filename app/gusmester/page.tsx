@@ -122,17 +122,32 @@ export default function GusmesterPage() {
       setEmployeeStats(stats);
       setAutoReleasePreference(stats.autoReleasePreference || '3_hours');
 
-      // Load available spots
+      // Load available spots and sort by date/time
       const spotsData = await members.getAvailableGusmesterSpots();
-      setAvailableSpots(spotsData.spots);
+      const sortedSpots = spotsData.spots.sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.time}`);
+        const dateB = new Date(`${b.date}T${b.time}`);
+        return dateA.getTime() - dateB.getTime();
+      });
+      setAvailableSpots(sortedSpots);
 
-      // Load my bookings
+      // Load my bookings and sort by date/time
       const bookingsData = await members.getMyGusmesterBookings();
-      setMyBookings(bookingsData.bookings);
+      const sortedBookings = bookingsData.bookings.sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.time}`);
+        const dateB = new Date(`${b.date}T${b.time}`);
+        return dateA.getTime() - dateB.getTime();
+      });
+      setMyBookings(sortedBookings);
 
-      // Load hosting sessions
+      // Load hosting sessions and sort by date/time
       const hostingData = await members.getMyHostingSessions();
-      setHostingSessions(hostingData.sessions);
+      const sortedHosting = hostingData.sessions.sort((a, b) => {
+        const dateA = new Date(`${a.date}T${a.time}`);
+        const dateB = new Date(`${b.date}T${b.time}`);
+        return dateA.getTime() - dateB.getTime();
+      });
+      setHostingSessions(sortedHosting);
 
     } catch (err: any) {
       console.error('[Gusmester] Error loading data:', err);
