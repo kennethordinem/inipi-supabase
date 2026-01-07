@@ -79,8 +79,8 @@ export default function GusmesterPage() {
   const [showPointsHistory, setShowPointsHistory] = useState(false);
   const [autoReleasePreference, setAutoReleasePreference] = useState<string>('3_hours');
   
-  // Tab state
-  const [activeTab, setActiveTab] = useState<'overview' | 'hosting' | 'available' | 'bookings'>('overview');
+  // Tab state - default to 'hosting'
+  const [activeTab, setActiveTab] = useState<'hosting' | 'available' | 'bookings' | 'settings'>('hosting');
   
   // Week filter state
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0); // 0 = this week, 1 = next week, -1 = last week
@@ -422,19 +422,6 @@ export default function GusmesterPage() {
             )}
             <div className="flex border-b border-[#502B30]/10">
               <button
-                onClick={() => setActiveTab('overview')}
-                className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
-                  activeTab === 'overview'
-                    ? 'bg-[#502B30] text-amber-100'
-                    : 'text-[#502B30] hover:bg-[#502B30]/5'
-                }`}
-              >
-                <div className="flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 mr-2" />
-                  Oversigt
-                </div>
-              </button>
-              <button
                 onClick={() => setActiveTab('hosting')}
                 className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
                   activeTab === 'hosting'
@@ -444,7 +431,7 @@ export default function GusmesterPage() {
               >
                 <div className="flex items-center justify-center">
                   <User className="h-5 w-5 mr-2" />
-                  Mine Hosting Sessioner ({filterByWeek(hostingSessions).length})
+                  Mine Gusmester Sessioner ({filterByWeek(hostingSessions).length})
                 </div>
               </button>
               <button
@@ -473,11 +460,24 @@ export default function GusmesterPage() {
                   Mine Bookinger ({filterByWeek(myBookings).length})
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+                  activeTab === 'settings'
+                    ? 'bg-[#502B30] text-amber-100'
+                    : 'text-[#502B30] hover:bg-[#502B30]/5'
+                }`}
+              >
+                <div className="flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 mr-2" />
+                  Indstillinger
+                </div>
+              </button>
             </div>
           </div>
 
-          {/* Overview Tab */}
-          {activeTab === 'overview' && employeeStats && (
+          {/* Settings Tab */}
+          {activeTab === 'settings' && employeeStats && (
             <div className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 mb-8 border border-[#502B30]/10">
               <div className="flex items-center justify-between mb-4">
                 <div>
