@@ -706,17 +706,49 @@ async function getPunchCardHistory(): Promise<{ punchCards: any[] }> {
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
 
-  const { data, error } = await supabase
+  console.log('[getPunchCardHistory] Loading punch cards for user:', user.id);
+
+  // Get punch cards without joining (to avoid FK issues)
+  const { data: punchCardsData, error: punchCardsError } = await supabase
     .from('punch_cards')
-    .select(`
-      *,
-      punch_card_usage(*)
-    `)
-    .eq('user_id', user.id);
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
 
-  if (error) throw new Error(error.message);
+  if (punchCardsError) {
+    console.error('[getPunchCardHistory] Error:', punchCardsError);
+    throw new Error(punchCardsError.message);
+  }
 
-  return { punchCards: data || [] };
+  console.log('[getPunchCardHistory] Found punch cards:', punchCardsData?.length || 0);
+
+  // Get usage history for each punch card
+  const punchCardsWithHistory = await Promise.all(
+    (punchCardsData || []).map(async (card: any) => {
+      const { data: usageData } = await supabase
+        .from('punch_card_usage')
+        .select('*')
+        .eq('punch_card_id', card.id)
+        .order('used_at', { ascending: false });
+
+      return {
+        id: card.id,
+        name: card.name,
+        totalPunches: card.total_punches,
+        remainingPunches: card.remaining_punches,
+        validForGroupTypes: card.valid_for_group_types || [],
+        expiryDate: card.expiry_date,
+        status: card.status,
+        purchaseDate: card.created_at,
+        price: card.price || 0,
+        usageHistory: usageData || [],
+      };
+    })
+  );
+
+  console.log('[getPunchCardHistory] Returning formatted cards:', punchCardsWithHistory.length);
+
+  return { punchCards: punchCardsWithHistory };
 }
 
 // ============================================
