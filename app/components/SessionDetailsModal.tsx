@@ -156,10 +156,21 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
 
   // Log when theme is selected for debugging
   useEffect(() => {
-    if (selectedTheme) {
-      console.log('[SessionDetailsModal] Theme selected:', selectedTheme.name, 'Price:', selectedTheme.pricePerSeat);
-    }
+    console.log('[SessionDetailsModal] selectedTheme changed:', selectedTheme?.name, 'Price:', selectedTheme?.pricePerSeat);
   }, [selectedTheme]);
+
+  // Calculate the price per seat based on session type and theme selection
+  const pricePerSeat = React.useMemo(() => {
+    if (isPrivateSession && selectedTheme?.pricePerSeat) {
+      return selectedTheme.pricePerSeat;
+    }
+    return session.price || 0;
+  }, [isPrivateSession, selectedTheme, session.price]);
+
+  // Calculate total price
+  const totalPrice = React.useMemo(() => {
+    return selectedSpots * pricePerSeat;
+  }, [selectedSpots, pricePerSeat]);
 
   const handleBookClick = () => {
     // Validate theme selection if themes are available
@@ -481,16 +492,11 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
                   ) : (
                     <>
                       <p className="text-2xl font-bold text-[#502B30]">
-                        {(() => {
-                          const pricePerSeat = (isPrivateSession && selectedTheme?.pricePerSeat) 
-                            ? selectedTheme.pricePerSeat 
-                            : session.price!;
-                          return selectedSpots * pricePerSeat;
-                        })()} kr
+                        {totalPrice} kr
                       </p>
                       {isPrivateSession && selectedSpots === minimumSpots && selectedTheme && (
                         <p className="text-xs text-[#502B30]/70 mt-1">
-                          Minimumspris ({minimumSpots} pladser × {selectedTheme.pricePerSeat} kr)
+                          Minimumspris ({minimumSpots} pladser × {pricePerSeat} kr)
                         </p>
                       )}
                     </>
@@ -532,7 +538,11 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
           theme={viewingTheme}
           isSelected={selectedTheme?.id === viewingTheme.id}
           onClose={() => setViewingTheme(null)}
-          onSelect={() => setSelectedTheme(viewingTheme)}
+          onSelect={() => {
+            console.log('[SessionDetailsModal] Selecting theme:', viewingTheme.name, viewingTheme);
+            setSelectedTheme(viewingTheme);
+            setViewingTheme(null);
+          }}
         />
       )}
       
