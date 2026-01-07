@@ -1014,10 +1014,18 @@ async function getEmployeeStats(): Promise<{
 
   if (error) throw new Error(error.message);
 
-  // Get points history separately with proper ordering
+  // Get points history separately with proper ordering and session details
   const { data: pointsHistory, error: historyError } = await supabase
     .from('employee_points_history')
-    .select('*')
+    .select(`
+      *,
+      session:sessions(
+        id,
+        name,
+        date,
+        time
+      )
+    `)
     .eq('employee_id', employee.id)
     .order('timestamp', { ascending: false });
 
@@ -1025,11 +1033,24 @@ async function getEmployeeStats(): Promise<{
     console.error('[getEmployeeStats] Error loading points history:', historyError);
   }
 
+  // Format points history with session info
+  const formattedHistory = (pointsHistory || []).map((item: any) => ({
+    id: item.id,
+    amount: item.amount,
+    reason: item.reason,
+    timestamp: item.timestamp,
+    related_session_id: item.related_session_id,
+    related_booking_id: item.related_booking_id,
+    sessionName: item.session?.name,
+    sessionDate: item.session?.date,
+    sessionTime: item.session?.time,
+  }));
+
   return {
     employeeId: employee.id,
     employeeName: employee.name,
     points: employee.points,
-    pointsHistory: pointsHistory || [],
+    pointsHistory: formattedHistory,
     autoReleasePreference: employee.auto_release_guest_spot || '3_hours',
   };
 }

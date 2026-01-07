@@ -6,7 +6,7 @@ import { members } from '@/lib/supabase-sdk';
 import { cachedMembers } from '@/lib/cachedMembers';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { da } from 'date-fns/locale';
 
 interface AvailableSpot {
@@ -67,6 +67,9 @@ interface PointsHistoryItem {
   timestamp: string;
   related_session_id?: string;
   related_booking_id?: string;
+  sessionName?: string;
+  sessionDate?: string;
+  sessionTime?: string;
 }
 
 export default function GusmesterPage() {
@@ -526,6 +529,17 @@ export default function GusmesterPage() {
                                   {item.amount > 0 ? '+' : ''}{item.amount} points
                                 </p>
                                 <p className="text-sm text-[#502B30]/70 mt-1">{item.reason}</p>
+                                {item.sessionName && (
+                                  <div className="mt-2 pt-2 border-t border-[#502B30]/10">
+                                    <p className="text-sm font-medium text-[#502B30]">{item.sessionName}</p>
+                                    {item.sessionDate && (
+                                      <p className="text-xs text-[#502B30]/60 mt-1">
+                                        {format(parseISO(item.sessionDate), 'd. MMMM yyyy', { locale: da })}
+                                        {item.sessionTime && ` kl. ${item.sessionTime.substring(0, 5)}`}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                               <div className="text-right">
                                 <p className="text-xs text-[#502B30]/60">
