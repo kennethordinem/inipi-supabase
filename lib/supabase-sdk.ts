@@ -51,11 +51,13 @@ export interface Booking {
   type: string;
   status: string;
   paymentStatus: string;
+  paymentMethod?: string;
   price: number;
   spots?: number;
   location?: string;
   employeeName?: string;
   color?: string;
+  punchCardId?: string;
 }
 
 export interface PunchCard {
