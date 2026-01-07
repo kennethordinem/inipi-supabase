@@ -1398,6 +1398,7 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
     .from('guest_spots')
     .update({ status: 'booked_by_gusmester' })
     .eq('session_id', sessionId)
+    .eq('spot_type', 'gusmester_spot') // Target the gusmester spot specifically
     .eq('status', 'released_to_public'); // Only update if still released_to_public
 
   if (spotUpdateError) {
@@ -1409,6 +1410,7 @@ async function bookGusmesterSpot(sessionId: string): Promise<{ success: boolean;
     .from('guest_spots')
     .select('status')
     .eq('session_id', sessionId)
+    .eq('spot_type', 'gusmester_spot')
     .single();
 
   if (!updatedSpot || updatedSpot.status !== 'booked_by_gusmester') {
