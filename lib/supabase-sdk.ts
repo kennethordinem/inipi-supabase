@@ -1460,7 +1460,7 @@ async function getMyGusmesterBookings(): Promise<{ bookings: any[] }> {
         duration: session.duration,
         location: session.location,
         hostName: hostEmployee?.name || 'Unknown',
-        canCancel: hoursUntil > 24,
+        canCancel: hoursUntil > 3,
       };
     })
     .filter(b => b !== null);

@@ -196,7 +196,7 @@ export default function GusmesterPage() {
       setIsSubmitting(true);
       setError('');
 
-      await members.bookGusmesterSpot(selectedSpot.id);
+      await cachedMembers.bookGusmesterSpot(selectedSpot.id);
 
       setSuccess('Spot booket! 150 points trukket fra din saldo.');
       setShowBookModal(false);
@@ -221,7 +221,7 @@ export default function GusmesterPage() {
       setIsSubmitting(true);
       setError('');
 
-      await members.cancelGusmesterBooking(selectedBooking.id);
+      await cachedMembers.cancelGusmesterBooking(selectedBooking.id);
 
       setSuccess('Booking annulleret. 150 points returneret.');
       setShowCancelModal(false);
