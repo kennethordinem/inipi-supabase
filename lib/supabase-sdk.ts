@@ -624,7 +624,8 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
     .from('bookings')
     .select(`
       *,
-      sessions(name, date, time, duration, location, group_types(name, color))
+      sessions(name, date, time, duration, location, price, group_types(name, color)),
+      invoices(amount)
     `)
     .eq('user_id', user.id)
     .eq('status', 'confirmed')
@@ -641,6 +642,14 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
   (data || []).forEach((booking: any) => {
     const session = booking.sessions;
     const bookingDate = session.date;
+    
+    // Calculate price from invoice if available, otherwise from session price × spots
+    let price = 0;
+    if (booking.invoices && booking.invoices.length > 0) {
+      price = parseFloat(booking.invoices[0].amount || 0);
+    } else if (session.price && booking.spots) {
+      price = parseFloat(session.price) * booking.spots;
+    }
 
     const formattedBooking: Booking = {
       id: booking.id,
@@ -650,10 +659,12 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
       type: session.group_types?.name || 'Session',
       status: booking.status,
       paymentStatus: booking.payment_status,
-      price: parseFloat(booking.payment_amount || 0),
+      paymentMethod: booking.payment_method,
+      price: price,
       spots: booking.spots,
       location: session.location,
       color: session.group_types?.color || '#6366f1',
+      punchCardId: booking.punch_card_id,
     };
 
     if (bookingDate >= today) {

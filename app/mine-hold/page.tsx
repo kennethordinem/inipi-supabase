@@ -284,12 +284,12 @@ export default function MineHoldPage() {
                           {/* Payment Info */}
                           <div className="mt-4 pt-4 border-t border-[#502B30]/10">
                             <div className="flex items-center text-sm">
-                              <span className="text-[#502B30]/60 mr-2">Betaling:</span>
+                              <span className="text-[#502B30]/60 mr-2">Betalt:</span>
                               {booking.paymentMethod === 'punch_card' ? (
                                 <span className="text-green-600 font-medium">Klippekort</span>
                               ) : (
                                 <span className="text-[#502B30] font-medium">
-                                  {booking.price} kr ({booking.paymentMethod === 'stripe' || booking.paymentMethod === 'card' ? 'Kort' : 'MobilePay'})
+                                  {booking.price.toFixed(0)} kr (Kort)
                                 </span>
                               )}
                             </div>
@@ -394,12 +394,12 @@ export default function MineHoldPage() {
                             {/* Payment Info */}
                             <div className="mt-4 pt-4 border-t border-gray-300">
                               <div className="flex items-center text-sm">
-                                <span className="text-gray-600 mr-2">Betaling:</span>
+                                <span className="text-gray-600 mr-2">Betalt:</span>
                                 {booking.paymentMethod === 'punch_card' ? (
                                   <span className="text-green-600 font-medium">Klippekort</span>
                                 ) : (
                                   <span className="text-gray-700 font-medium">
-                                    {booking.price} kr ({booking.paymentMethod === 'stripe' || booking.paymentMethod === 'card' ? 'Kort' : 'MobilePay'})
+                                    {booking.price.toFixed(0)} kr (Kort)
                                   </span>
                                 )}
                               </div>
