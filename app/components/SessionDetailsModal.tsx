@@ -117,6 +117,13 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
   
   const [selectedSpots, setSelectedSpots] = useState(minimumSpots);
   
+  // Ensure selectedSpots never goes below minimumSpots
+  useEffect(() => {
+    if (selectedSpots < minimumSpots) {
+      setSelectedSpots(minimumSpots);
+    }
+  }, [minimumSpots, selectedSpots]);
+  
   const isFull = isPrivateAndBooked || availableSpots === 0;
   const cannotBook = isFull || hasStarted;
   
