@@ -404,7 +404,11 @@ async function getSessionDetails(sessionId: string): Promise<any> {
     
     if (!themesError && themesData) {
       themes = themesData.map((theme: any) => ({
-        ...theme,
+        id: theme.id,
+        name: theme.name,
+        description: theme.description,
+        imageUrl: theme.image_url,
+        color: theme.color,
         pricePerSeat: theme.price_per_seat,
       }));
     }
