@@ -34,10 +34,23 @@ function SessionsPageContent() {
   });
   const [filter, setFilter] = useState<FilterType>('all');
   const [selectedGroupTypeId, setSelectedGroupTypeId] = useState<string | null>(null);
+  const [userBookedSessionIds, setUserBookedSessionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadSessions();
+    loadUserBookings();
   }, []);
+  
+  const loadUserBookings = async () => {
+    try {
+      const { upcoming } = await cachedMembers.getMyBookings();
+      const bookedIds = new Set(upcoming.map(booking => booking.sessionId));
+      setUserBookedSessionIds(bookedIds);
+    } catch (err) {
+      console.error('[Sessions] Error loading user bookings:', err);
+      // Don't show error, just continue without highlighting
+    }
+  };
 
   // Apply filter from URL parameters
   useEffect(() => {
@@ -337,7 +350,7 @@ function SessionsPageContent() {
                   
                   <div className="space-y-3">
                     {daySessions.length > 0 ? (
-                      daySessions.map(session => <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} />)
+                      daySessions.map(session => <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} isBooked={userBookedSessionIds.has(session.id)} />)
                     ) : (
                       <div className="text-center py-8 text-sm text-[#502B30]/40">
                         Ingen saunagus
@@ -376,7 +389,7 @@ function SessionsPageContent() {
                   </div>
                   
                   <div className="p-4 space-y-3">
-                    {daySessions.map(session => <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} />)}
+                    {daySessions.map(session => <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} isBooked={userBookedSessionIds.has(session.id)} />)}
                   </div>
                 </div>
               );
@@ -428,7 +441,7 @@ function SessionsPageContent() {
   );
 }
 
-function SessionCard({ session, onClick }: { session: Session; onClick: () => void }) {
+function SessionCard({ session, onClick, isBooked }: { session: Session; onClick: () => void; isBooked?: boolean }) {
   // Format time without seconds (HH:MM only)
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
@@ -452,7 +465,11 @@ function SessionCard({ session, onClick }: { session: Session; onClick: () => vo
   return (
     <button
       onClick={onClick}
-      className="w-full text-left border rounded-sm overflow-hidden transition-all hover:shadow-lg hover:border-[#502B30] border-[#502B30]/20 bg-white/80 backdrop-blur-sm"
+      className={`w-full text-left border rounded-sm overflow-hidden transition-all hover:shadow-lg hover:border-[#502B30] border-[#502B30]/20 ${
+        isBooked 
+          ? 'bg-green-50/80 border-green-500/40' 
+          : 'bg-white/80'
+      } backdrop-blur-sm`}
     >
       <div className="h-1" style={{ backgroundColor: session.groupTypeColor }} />
       
@@ -471,8 +488,15 @@ function SessionCard({ session, onClick }: { session: Session; onClick: () => vo
           </span>
         </div>
         
-        <div className="font-bold text-[#4a2329] uppercase text-sm leading-tight">
-          {session.name}
+        <div className="flex items-center justify-between">
+          <div className="font-bold text-[#4a2329] uppercase text-sm leading-tight">
+            {session.name}
+          </div>
+          {isBooked && (
+            <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-sm">
+              ✓ Booket
+            </span>
+          )}
         </div>
         
         {/* Instructors - no icon */}

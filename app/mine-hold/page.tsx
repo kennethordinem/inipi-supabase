@@ -12,6 +12,7 @@ import { da } from 'date-fns/locale';
 
 interface Booking {
   id: string;
+  sessionId?: string;
   date: string;
   time: string;
   duration: number;
@@ -139,6 +140,7 @@ export default function MineHoldPage() {
     setCancelError('');
     setCancelSuccess('');
   };
+  
 
   const handleConfirmCancel = async () => {
     if (!selectedBooking) return;
@@ -179,6 +181,7 @@ export default function MineHoldPage() {
       setCancellingId(null);
     }
   };
+  
 
   if (loading) {
     return (
@@ -337,7 +340,17 @@ export default function MineHoldPage() {
                         </div>
 
                         {/* Cancel Button */}
-                        <div className="ml-6">
+                        <div className="ml-6 flex gap-3">
+                          {/* Add Seats Button - Only for regular bookings with sessionId */}
+                          {!booking.isGusmesterBooking && booking.sessionId && (
+                            <a
+                              href={`/sessions`}
+                              className="px-6 py-2 bg-[#502B30] hover:bg-[#5e3023] text-white rounded-sm font-medium transition-colors shadow-md"
+                            >
+                              Tilføj pladser
+                            </a>
+                          )}
+                          
                           {cancelStatus.canCancel ? (
                             <button
                               onClick={() => handleCancelClick(booking)}

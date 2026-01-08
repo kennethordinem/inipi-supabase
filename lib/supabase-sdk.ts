@@ -445,12 +445,34 @@ async function bookSession(params: {
   // Generate confirmation number
   const confirmationNumber = `INIPI-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
-  // Get session and theme details for pricing
+  // Get session details including max_seats_per_booking
   const { data: sessionData } = await supabase
     .from('sessions')
-    .select('name, price, date, time')
+    .select('name, price, date, time, max_seats_per_booking')
     .eq('id', params.sessionId)
     .single();
+  
+  // Check user's existing bookings for this session
+  const { data: existingBookings } = await supabase
+    .from('bookings')
+    .select('spots')
+    .eq('session_id', params.sessionId)
+    .eq('user_id', user.id)
+    .eq('status', 'confirmed');
+  
+  // Calculate total spots already booked by this user
+  const totalBookedSpots = (existingBookings || []).reduce((sum, booking) => sum + booking.spots, 0);
+  const maxSeatsPerBooking = sessionData?.max_seats_per_booking || 6;
+  
+  // Check if adding these spots would exceed the limit
+  if (totalBookedSpots + params.spots > maxSeatsPerBooking) {
+    const remainingAllowed = maxSeatsPerBooking - totalBookedSpots;
+    throw new Error(
+      `Du har allerede booket ${totalBookedSpots} plads${totalBookedSpots !== 1 ? 'er' : ''} til denne session. ` +
+      `Max ${maxSeatsPerBooking} pladser pr. bruger. ` +
+      `Du kan kun booke ${remainingAllowed} plads${remainingAllowed !== 1 ? 'er' : ''} mere.`
+    );
+  }
 
   // If theme is selected, get theme price and name; otherwise use session price
   let pricePerSeat = sessionData?.price || 0;
