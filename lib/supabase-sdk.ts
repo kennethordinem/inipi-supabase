@@ -508,7 +508,7 @@ async function bookSession(params: {
       spots: params.spots,
       selected_theme_id: params.themeId, // Save selected theme
       payment_method: params.paymentMethod,
-      payment_status: params.paymentMethod === 'stripe' ? 'paid' : 'pending',
+      payment_status: (params.paymentMethod === 'stripe' || params.paymentMethod === 'punch_card') ? 'paid' : 'pending',
       punch_card_id: params.punchCardId,
       stripe_payment_intent_id: params.paymentIntentId,
       confirmation_number: confirmationNumber,
