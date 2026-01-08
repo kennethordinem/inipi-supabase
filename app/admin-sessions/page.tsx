@@ -452,6 +452,14 @@ export default function AdminSessionsPage() {
     try {
       setSubmitting(true);
       setError(null);
+      
+      // Validate: Fyraftensgus requires a gusmester
+      const selectedGroupType = groupTypes.find(gt => gt.id === formData.group_type_id);
+      if (selectedGroupType?.name === 'Fyraftensgus' && !formData.employee_id) {
+        setError('Fyraftensgus kræver en gusmester. Vælg venligst en gusmester.');
+        setSubmitting(false);
+        return;
+      }
 
       if (editingSession) {
         // Update existing session
@@ -1197,12 +1205,19 @@ export default function AdminSessionsPage() {
               {/* Employee (Single Gusmester) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Gusmester
+                  Gusmester {(() => {
+                    const selectedGroupType = groupTypes.find(gt => gt.id === formData.group_type_id);
+                    return selectedGroupType?.name === 'Fyraftensgus' ? <span className="text-red-600">*</span> : null;
+                  })()}
                 </label>
                 <select
                   value={formData.employee_id}
                   onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#502B30] focus:border-transparent"
+                  required={(() => {
+                    const selectedGroupType = groupTypes.find(gt => gt.id === formData.group_type_id);
+                    return selectedGroupType?.name === 'Fyraftensgus';
+                  })()}
                 >
                   <option value="">Ingen gusmester</option>
                   {employees.map(emp => (
@@ -1211,6 +1226,17 @@ export default function AdminSessionsPage() {
                     </option>
                   ))}
                 </select>
+                {(() => {
+                  const selectedGroupType = groupTypes.find(gt => gt.id === formData.group_type_id);
+                  if (selectedGroupType?.name === 'Fyraftensgus' && !formData.employee_id) {
+                    return (
+                      <p className="text-xs text-red-600 mt-1">
+                        ⚠️ Fyraftensgus kræver en gusmester (reserverer 2 pladser)
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
                 {formData.employee_id && (
                   <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3">
                     <p className="text-xs text-amber-800">
