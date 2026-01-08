@@ -407,6 +407,31 @@ export function Header() {
 
             {/* Mobile Menu Content */}
             <div className="p-4">
+              {/* Punch Card Balance & Gusmester Points - Top of Menu */}
+              {isAuthenticated && (
+                <div className="flex items-center justify-center gap-6 mb-4 pb-4 border-b border-[#502B30]/20">
+                  <Link
+                    href="/klippekort"
+                    onClick={() => setShowMobileMenu(false)}
+                    className="flex items-center text-sm font-medium text-[#502B30]/80 hover:text-[#502B30] transition-colors"
+                  >
+                    <Ticket className="h-5 w-5 mr-2" />
+                    <span className="font-semibold">{totalPunchCardClips} Klip</span>
+                  </Link>
+                  
+                  {isEmployee && (
+                    <Link
+                      href="/gusmester"
+                      onClick={() => setShowMobileMenu(false)}
+                      className="flex items-center text-sm font-medium text-[#502B30]/80 hover:text-[#502B30] transition-colors"
+                    >
+                      <Star className="h-5 w-5 mr-2" />
+                      <span className="font-semibold">{gusmesterPoints} GMP</span>
+                    </Link>
+                  )}
+                </div>
+              )}
+              
               {/* Navigation Links */}
               <nav className="space-y-1 mb-4">
                 {navigationBefore.map((item) => {
@@ -480,29 +505,6 @@ export function Header() {
               {/* User Section */}
               {isAuthenticated ? (
                 <>
-                  {/* Punch Card Balance & Gusmester Points */}
-                  <div className="flex items-center justify-center gap-6 mb-4">
-                    <Link
-                      href="/klippekort"
-                      onClick={() => setShowMobileMenu(false)}
-                      className="flex items-center text-sm font-medium text-[#502B30]/80 hover:text-[#502B30] transition-colors"
-                    >
-                      <Ticket className="h-5 w-5 mr-2" />
-                      <span className="font-semibold">{totalPunchCardClips} Klip</span>
-                    </Link>
-                    
-                    {isEmployee && (
-                      <Link
-                        href="/gusmester"
-                        onClick={() => setShowMobileMenu(false)}
-                        className="flex items-center text-sm font-medium text-[#502B30]/80 hover:text-[#502B30] transition-colors"
-                      >
-                        <Star className="h-5 w-5 mr-2" />
-                        <span className="font-semibold">{gusmesterPoints} GMP</span>
-                      </Link>
-                    )}
-                  </div>
-                  
                   <div className="border-t border-[#502B30]/20 pt-4 mb-4">
                     <div className="px-4 py-2 mb-2">
                       <p className="text-xs text-[#502B30]/60 uppercase tracking-wider">
