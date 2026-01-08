@@ -27,11 +27,11 @@ export default function AboutPage() {
               </h2>
               <p className="text-lg text-[#4a2329]/90 mb-4 leading-relaxed">
                 INIPI er dit sted for autentiske saunagus oplevelser. Vi kombinerer traditioner 
-                med moderne komfort for at skabe en unik og helbredende oplevelse.
+                med moderne komfort for at skabe en unik og fordybende oplevelse.
               </p>
               <p className="text-lg text-[#4a2329]/90 leading-relaxed">
                 Vores erfarne gusmestre guider dig gennem hver session med omhu og omsorg, 
-                hvor varme, damp, dufte og ritualer skaber en dyb afslapning af krop og sind.
+                hvor varme, damp, dufte og ritualer skaber en dyb afslapning af krop og sind i smukke omgivelser.
               </p>
             </div>
 
@@ -42,7 +42,8 @@ export default function AboutPage() {
               <p className="text-lg text-[#4a2329]/90 mb-4 leading-relaxed">
                 INIPI startede med en vision om at bringe den autentiske saunagus oplevelse 
                 til Danmark. Inspireret af gamle traditioner har vi skabt et moderne wellness-center 
-                hvor du kan opleve kraften i varmen og fællesskabet.
+                hvor du kan opleve kraften i varmen og fællesskabet, inspireret af sortfords indianernes 
+                brug af sauna - Inipi betyder svedhytte på sortfod-indiansk.
               </p>
             </div>
 
@@ -57,7 +58,7 @@ export default function AboutPage() {
                     Autenticitet
                   </h3>
                   <p className="text-[#4a2329]/80">
-                    Vi holder fast i traditionerne og skaber ægte oplevelser
+                    Vi holder fast i traditionerne og skaber ægte oplevelser inspireret af Sortfods-indianerne.
                   </p>
                 </div>
                 <div>
@@ -75,7 +76,9 @@ export default function AboutPage() {
                     Velvære
                   </h3>
                   <p className="text-[#4a2329]/80">
-                    Dit helbred og trivsel er vores højeste prioritet
+                    Vi arbejder for at styrke trivsel og velvære - Kom som du er og gå hjem som dig selv, 
+                    er vores motto som beskriver vores intention om at give en pause for et ofte hektisk 
+                    moderne liv med guidet fordybelse og afstressning
                   </p>
                 </div>
               </div>
