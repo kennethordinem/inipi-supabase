@@ -113,6 +113,7 @@ export default function PersonalePage() {
   const [selectedGusmester, setSelectedGusmester] = useState<string>('');
   const [selectedGroupType, setSelectedGroupType] = useState<string>('');
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState<string>('');
+  const [showOnlyBookedPrivate, setShowOnlyBookedPrivate] = useState<boolean>(false);
   
   // Booking management state
   const [showMoveModal, setShowMoveModal] = useState(false);
@@ -430,9 +431,15 @@ export default function PersonalePage() {
         const hasMatchingPayment = session.participants.some(p => p.paymentStatus === selectedPaymentStatus);
         if (!hasMatchingPayment) return false;
       }
+      // Filter: Only show booked private events
+      if (showOnlyBookedPrivate) {
+        const isPrivate = session.groupTypeName.toLowerCase().includes('privat');
+        const hasBookings = session.currentParticipants > 0;
+        if (!isPrivate || !hasBookings) return false;
+      }
       return true;
     });
-  }, [sessions, selectedGusmester, selectedGroupType, selectedPaymentStatus]);
+  }, [sessions, selectedGusmester, selectedGroupType, selectedPaymentStatus, showOnlyBookedPrivate]);
 
   // Group sessions by date for calendar view
   const sessionsByDate = useMemo(() => {
@@ -705,12 +712,23 @@ export default function PersonalePage() {
                       <option value="failed">Fejlet</option>
                     </select>
 
-                    {(selectedGusmester || selectedGroupType || selectedPaymentStatus) && (
+                    <label className="flex items-center gap-2 px-3 py-2 border border-[#502B30]/20 rounded-sm text-sm cursor-pointer hover:bg-[#502B30]/5 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={showOnlyBookedPrivate}
+                        onChange={(e) => setShowOnlyBookedPrivate(e.target.checked)}
+                        className="w-4 h-4 text-[#502B30] border-[#502B30]/30 rounded focus:ring-[#502B30] focus:ring-2"
+                      />
+                      <span className="text-[#502B30]">Kun bookede private events</span>
+                    </label>
+
+                    {(selectedGusmester || selectedGroupType || selectedPaymentStatus || showOnlyBookedPrivate) && (
                       <button
                         onClick={() => {
                           setSelectedGusmester('');
                           setSelectedGroupType('');
                           setSelectedPaymentStatus('');
+                          setShowOnlyBookedPrivate(false);
                         }}
                         className="px-3 py-2 text-sm text-[#502B30]/60 hover:text-[#502B30] flex items-center gap-1"
                       >
