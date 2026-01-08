@@ -137,7 +137,7 @@ export function Header() {
   const gusTiderDropdownItems = [
     { name: 'Alle Gus Tider', href: '/sessions' },
     { name: 'Fyraftensgus', href: '/sessions?type=Fyraftensgus' },
-    { name: 'Privat Event', href: '/sessions?type=Privat/Firma Gus' },
+    { name: 'Privat/Firma Gus', href: '/sessions?type=Privat/Firma Gus' },
   ];
 
   // Build profile dropdown with conditional employee items
