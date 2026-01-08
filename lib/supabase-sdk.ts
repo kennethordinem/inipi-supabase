@@ -45,6 +45,7 @@ export interface Session {
 
 export interface Booking {
   id: string;
+  sessionId?: string;
   date: string;
   time: string;
   duration: number;
@@ -765,6 +766,7 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
 
     const formattedBooking: Booking = {
       id: booking.id,
+      sessionId: booking.session_id,
       date: session.date,
       time: session.time,
       duration: session.duration,
