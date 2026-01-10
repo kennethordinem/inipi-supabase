@@ -164,7 +164,7 @@ export default function GusmesterPage() {
       setAvailableSpots(sortedSpots);
 
       // Load my bookings and sort by date/time
-      const bookingsData = await members.getMyGusmesterBookings();
+      const bookingsData = await cachedMembers.getMyGusmesterBookings();
       const sortedBookings = bookingsData.bookings.sort((a, b) => {
         const dateA = new Date(`${a.date}T${a.time}`);
         const dateB = new Date(`${b.date}T${b.time}`);
