@@ -246,8 +246,8 @@ export const cachedMembers = {
     cachedMembers.invalidateAfterBooking();
     return result;
   },
-  cancelBooking: async (bookingId: string) => {
-    const result = await members.cancelBooking(bookingId);
+  cancelBooking: async (bookingId: string, refundToCard: boolean = false) => {
+    const result = await members.cancelBooking(bookingId, refundToCard);
     cachedMembers.invalidateAfterBooking();
     return result;
   },
