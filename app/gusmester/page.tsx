@@ -973,11 +973,11 @@ export default function GusmesterPage() {
 
             {selectedHosting.guestSpot?.willEarnPoints ? (
               <p className="text-sm text-green-600 mb-6">
-                Du vil tjene <strong>150 points</strong> ved at frigive gæstepladsen mindst 3 timer før sessionen.
+                Du får <strong>150 points</strong> for denne frigivelse.
               </p>
             ) : (
               <p className="text-sm text-amber-600 mb-6">
-                Gæstepladsen vil blive frigivet, men du vil ikke tjene points da der er mindre end 3 timer til sessionen.
+                Gæstepladsen vil blive frigivet, men du vil ikke få points da der er mindre end 3 timer til sessionen.
               </p>
             )}
 
