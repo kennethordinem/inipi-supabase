@@ -39,6 +39,7 @@ export default function MineHoldPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [cancelSuccess, setCancelSuccess] = useState<string>('');
   const [cancelError, setCancelError] = useState<string>('');
+  const [refundChoice, setRefundChoice] = useState<'card' | 'punchcard'>('punchcard');
 
   useEffect(() => {
     // Subscribe to auth state changes
@@ -139,6 +140,7 @@ export default function MineHoldPage() {
     setShowCancelModal(true);
     setCancelError('');
     setCancelSuccess('');
+    setRefundChoice('punchcard'); // Default to punch card
   };
   
 
@@ -158,7 +160,8 @@ export default function MineHoldPage() {
         }
       } else {
         // Cancel regular booking
-        const result = await members.cancelBooking(selectedBooking.id);
+        const refundToCard = refundChoice === 'card';
+        const result = await members.cancelBooking(selectedBooking.id, refundToCard);
         if (result.success) {
           setCancelSuccess(result.message || 'Booking aflyst');
         }
@@ -497,6 +500,49 @@ export default function MineHoldPage() {
                         Dine klip vil blive returneret til dit klippekort
                       </p>
                     </div>
+                  ) : (selectedBooking.paymentMethod === 'stripe' || selectedBooking.paymentMethod === 'card') && cancelInfo.willGetCompensation ? (
+                    <>
+                      <div className="mb-6">
+                        <p className="text-sm font-semibold text-[#502B30] mb-3">Vælg refunderingsmetode:</p>
+                        <div className="space-y-3">
+                          <label className="flex items-start p-3 border-2 rounded-sm cursor-pointer hover:bg-gray-50 transition-colors"
+                            style={{ borderColor: refundChoice === 'card' ? '#502B30' : '#e5e7eb' }}>
+                            <input
+                              type="radio"
+                              name="refundChoice"
+                              value="card"
+                              checked={refundChoice === 'card'}
+                              onChange={(e) => setRefundChoice(e.target.value as 'card' | 'punchcard')}
+                              className="mt-1 mr-3"
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium text-[#502B30]">Refunder til kort</p>
+                              <p className="text-xs text-[#4a2329]/70 mt-1">
+                                Pengene refunderes til dit kort/MobilePay inden for 5-10 hverdage
+                              </p>
+                            </div>
+                          </label>
+                          
+                          <label className="flex items-start p-3 border-2 rounded-sm cursor-pointer hover:bg-gray-50 transition-colors"
+                            style={{ borderColor: refundChoice === 'punchcard' ? '#502B30' : '#e5e7eb' }}>
+                            <input
+                              type="radio"
+                              name="refundChoice"
+                              value="punchcard"
+                              checked={refundChoice === 'punchcard'}
+                              onChange={(e) => setRefundChoice(e.target.value as 'card' | 'punchcard')}
+                              className="mt-1 mr-3"
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium text-[#502B30]">Få klippekort</p>
+                              <p className="text-xs text-[#4a2329]/70 mt-1">
+                                Få et nyt klippekort med {selectedBooking.spots || 1} klip til samme holdtype (tilgængeligt med det samme)
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </>
                   ) : cancelInfo.willGetCompensation ? (
                     <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-sm">
                       <p className="text-sm text-blue-800">
@@ -510,7 +556,7 @@ export default function MineHoldPage() {
                         ⚠️ Aflysning mindre end 24 timer før giver ikke kompensation
                       </p>
                       <p className="text-xs text-amber-700 mt-1">
-                        Da du aflyser mindre end 24 timer før sessionens start, får du ikke et kompensations-klippekort.
+                        Da du aflyser mindre end 24 timer før sessionens start, får du ikke refundering eller kompensations-klippekort.
                       </p>
                     </div>
                   )}

@@ -152,6 +152,40 @@ export async function createPaymentIntent(params: {
 }
 
 /**
+ * Create a refund for a payment intent
+ */
+export async function createRefund(params: {
+  paymentIntentId: string;
+  amount?: number; // Optional: partial refund in øre (DKK cents). If not provided, full refund.
+  reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer';
+}): Promise<Stripe.Refund | null> {
+  try {
+    const stripe = await getStripeInstance();
+    if (!stripe) {
+      throw new Error('Stripe is not configured');
+    }
+
+    const refundParams: Stripe.RefundCreateParams = {
+      payment_intent: params.paymentIntentId,
+      reason: params.reason || 'requested_by_customer',
+    };
+
+    // Add amount only if partial refund
+    if (params.amount) {
+      refundParams.amount = params.amount;
+    }
+
+    const refund = await stripe.refunds.create(refundParams);
+
+    console.log('Refund created:', refund.id);
+    return refund;
+  } catch (err) {
+    console.error('Error creating refund:', err);
+    return null;
+  }
+}
+
+/**
  * Verify webhook signature
  */
 export function verifyWebhookSignature(

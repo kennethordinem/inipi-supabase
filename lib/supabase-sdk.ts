@@ -610,9 +610,10 @@ async function bookSession(params: {
 /**
  * Cancel a booking
  */
-async function cancelBooking(bookingId: string): Promise<{
+async function cancelBooking(bookingId: string, refundToCard: boolean = false): Promise<{
   success: boolean;
   punchCardRestored?: boolean;
+  refundIssued?: boolean;
   message?: string;
 }> {
   const user = await getCurrentAuthUser();
@@ -663,6 +664,7 @@ async function cancelBooking(bookingId: string): Promise<{
 
   // Restore punch card if used, or create compensation punch card if paid AND >24 hours
   let punchCardRestored = false;
+  let refundIssued = false;
   let compensationMessage = '';
   
   if (booking.punch_card_id) {
@@ -674,8 +676,63 @@ async function cancelBooking(bookingId: string): Promise<{
     });
     punchCardRestored = true;
     compensationMessage = `Dine ${booking.spots} klip er blevet returneret til dit klippekort`;
-  } else if ((booking.payment_method === 'stripe' || booking.payment_method === 'card' || booking.payment_method === 'manual') && eligibleForCompensation) {
-    // Create compensation punch card ONLY if paid AND cancelled >24 hours before
+  } else if ((booking.payment_method === 'stripe' || booking.payment_method === 'card') && eligibleForCompensation) {
+    // User paid with Stripe and cancelled >24 hours before
+    
+    if (refundToCard && booking.stripe_payment_intent_id) {
+      // OPTION 1: Refund to card via Stripe
+      try {
+        const refundResponse = await fetch('/api/stripe/refund', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            paymentIntentId: booking.stripe_payment_intent_id,
+            bookingId: bookingId
+          }),
+        });
+
+        if (refundResponse.ok) {
+          refundIssued = true;
+          compensationMessage = 'Booking aflyst. Refundering er blevet behandlet og vil være på din konto inden for 5-10 hverdage';
+        } else {
+          throw new Error('Refund failed');
+        }
+      } catch (error) {
+        console.error('Error issuing Stripe refund:', error);
+        compensationMessage = 'Booking aflyst, men der opstod en fejl med refunderingen. Kontakt support.';
+      }
+    } else {
+      // OPTION 2: Give compensation punch card
+      const { data: session } = await supabase
+        .from('sessions')
+        .select('group_type_id, price')
+        .eq('id', booking.session_id)
+        .single();
+
+      const { error: punchCardError } = await supabase
+        .from('punch_cards')
+        .insert({
+          user_id: user.id,
+          name: `Kompensation - Aflyst booking`,
+          total_punches: booking.spots,
+          remaining_punches: booking.spots,
+          price: 0,
+          valid_for_group_types: session?.group_type_id ? [session.group_type_id] : [],
+          status: 'active',
+          reason: cancelReason,
+          related_booking_id: bookingId
+        });
+
+      if (punchCardError) {
+        console.error('Error creating compensation punch card:', punchCardError);
+        compensationMessage = 'Booking aflyst';
+      } else {
+        punchCardRestored = true;
+        compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip som kompensation`;
+      }
+    }
+  } else if (booking.payment_method === 'manual' && eligibleForCompensation) {
+    // Manual payment - only punch card compensation
     const { data: session } = await supabase
       .from('sessions')
       .select('group_type_id, price')
@@ -696,11 +753,11 @@ async function cancelBooking(bookingId: string): Promise<{
         related_booking_id: bookingId
       });
 
-    if (punchCardError) {
-      console.error('Error creating compensation punch card:', punchCardError);
-      compensationMessage = 'Booking aflyst';
-    } else {
+    if (!punchCardError) {
+      punchCardRestored = true;
       compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip som kompensation`;
+    } else {
+      compensationMessage = 'Booking aflyst';
     }
   } else if (!eligibleForCompensation && !booking.punch_card_id) {
     // Cancelled less than 24 hours before - no compensation
@@ -723,6 +780,7 @@ async function cancelBooking(bookingId: string): Promise<{
   return {
     success: true,
     punchCardRestored,
+    refundIssued,
     message: compensationMessage,
   };
 }

@@ -78,6 +78,16 @@ export async function POST(request: NextRequest) {
         await handlePaymentFailed(failedPayment);
         break;
 
+      case 'payment_intent.processing':
+        const processingPayment = event.data.object as Stripe.PaymentIntent;
+        await handlePaymentProcessing(processingPayment);
+        break;
+
+      case 'payment_intent.canceled':
+        const canceledPayment = event.data.object as Stripe.PaymentIntent;
+        await handlePaymentCanceled(canceledPayment);
+        break;
+
       case 'charge.refunded':
         const refund = event.data.object as Stripe.Charge;
         await handleRefund(refund);
@@ -245,6 +255,66 @@ async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
 
   } catch (error) {
     console.error('Error handling payment failure:', error);
+  }
+}
+
+/**
+ * Handle payment processing (MobilePay can take longer)
+ */
+async function handlePaymentProcessing(paymentIntent: Stripe.PaymentIntent) {
+  try {
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .single();
+
+    if (booking) {
+      await supabase
+        .from('bookings')
+        .update({
+          payment_status: 'processing',
+        })
+        .eq('id', booking.id);
+
+      console.log('Payment processing for booking:', booking.id);
+    }
+  } catch (error) {
+    console.error('Error handling payment processing:', error);
+  }
+}
+
+/**
+ * Handle payment canceled (user abandoned payment)
+ */
+async function handlePaymentCanceled(paymentIntent: Stripe.PaymentIntent) {
+  try {
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('id, session_id, spots')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .single();
+
+    if (booking) {
+      // Cancel the booking
+      await supabase
+        .from('bookings')
+        .update({
+          payment_status: 'canceled',
+          status: 'cancelled',
+        })
+        .eq('id', booking.id);
+
+      // Release spots back to session
+      await supabase.rpc('decrement_session_participants', {
+        session_id: booking.session_id,
+        decrement_by: booking.spots,
+      });
+
+      console.log('Payment canceled for booking:', booking.id);
+    }
+  } catch (error) {
+    console.error('Error handling payment cancellation:', error);
   }
 }
 
