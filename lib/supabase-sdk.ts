@@ -305,7 +305,7 @@ async function getClasses(filters?: {
     
     // Count reserved gusmester spots (not yet released or booked)
     const reservedGusmesterSpots = (dbSession.guest_spots || []).filter(
-      (spot: any) => spot.status === 'reserved_for_host' || spot.status === 'booked_as_self'
+      (spot: any) => spot.status === 'reserved_for_host' || spot.status === 'booked_by_host'
     ).length;
     
     // Adjust current participants to include:
@@ -382,7 +382,7 @@ async function getSessionDetails(sessionId: string): Promise<any> {
   
   // Count reserved gusmester spots (not yet released or booked)
   const reservedGusmesterSpots = (data.guest_spots || []).filter(
-    (spot: any) => spot.status === 'reserved_for_host' || spot.status === 'booked_as_self'
+    (spot: any) => spot.status === 'reserved_for_host' || spot.status === 'booked_by_host'
   ).length;
   
   // Adjust current participants to include:
