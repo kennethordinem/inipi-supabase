@@ -195,10 +195,96 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ============================================
+    // PART 3: Award points to gusmesters who HOSTED completed sessions
+    // ============================================
+    const awardedPoints: any[] = [];
+
+    // Find sessions that have just started (within the last hour) that have a gusmester assigned
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+    const { data: completedSessions, error: completedError } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        name,
+        start_time,
+        session_employees!inner(
+          employee_id,
+          employees!inner(
+            id,
+            name,
+            points
+          )
+        )
+      `)
+      .lte('start_time', now.toISOString()) // Session has started
+      .gte('start_time', oneHourAgo.toISOString()); // Started within last hour
+
+    if (completedError) {
+      console.error('[Award-Points] Error fetching completed sessions:', completedError);
+    } else if (completedSessions && completedSessions.length > 0) {
+      for (const session of completedSessions) {
+        const sessionEmployees = Array.isArray(session.session_employees) ? session.session_employees : [session.session_employees];
+        
+        for (const se of sessionEmployees) {
+          const employee = Array.isArray(se.employees) ? se.employees[0] : se.employees;
+          if (!employee) continue;
+
+          // Check if we already awarded points for this session
+          const { data: existingAward } = await supabase
+            .from('employee_points_history')
+            .select('id')
+            .eq('employee_id', employee.id)
+            .eq('related_session_id', session.id)
+            .eq('reason', 'Hosted session')
+            .single();
+
+          if (existingAward) {
+            // Already awarded, skip
+            continue;
+          }
+
+          // Award 150 points for hosting
+          const { error: pointsError } = await supabase.rpc('increment_employee_points', {
+            employee_id: employee.id,
+            points_to_add: 150,
+          });
+
+          if (pointsError) {
+            console.error(`[Award-Points] Error awarding points to ${employee.id}:`, pointsError);
+            continue;
+          }
+
+          // Log points history
+          await supabase
+            .from('employee_points_history')
+            .insert({
+              employee_id: employee.id,
+              amount: 150,
+              reason: 'Hosted session',
+              related_session_id: session.id,
+            });
+
+          awardedPoints.push({
+            sessionId: session.id,
+            sessionName: session.name,
+            employeeId: employee.id,
+            employeeName: employee.name,
+            pointsAwarded: 150,
+          });
+
+          console.log(`[Award-Points] Awarded 150 points to ${employee.name} for hosting ${session.name}`);
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       releasedCount: releasedSpots.length,
       released: releasedSpots,
+      pointsAwardedCount: awardedPoints.length,
+      pointsAwarded: awardedPoints,
       timestamp: now.toISOString(),
     });
 
