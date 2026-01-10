@@ -586,7 +586,7 @@ async function bookSession(params: {
 
   // Send booking confirmation email (async, don't wait)
   // Send appropriate confirmation email based on booking type
-  if (params.selectedThemeId) {
+  if (params.themeId) {
     // Private event confirmation for theme bookings
     fetch('/api/email/private-event-confirmation', {
       method: 'POST',
