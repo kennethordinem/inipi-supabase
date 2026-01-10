@@ -619,10 +619,14 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
   const user = await getCurrentAuthUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Get booking details
+  // Get booking details including theme information
   const { data: booking, error: fetchError } = await supabase
     .from('bookings')
-    .select('*, sessions(*)')
+    .select(`
+      *,
+      sessions(*),
+      themes:selected_theme_id(id, name, price_per_seat)
+    `)
     .eq('id', bookingId)
     .eq('user_id', user.id)
     .single();
@@ -709,14 +713,28 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
         .eq('id', booking.session_id)
         .single();
 
+      // Calculate the actual price paid (theme price or session price)
+      let pricePerSeat = session?.price || 0;
+      let themeName = '';
+      
+      if (booking.selected_theme_id && booking.themes) {
+        const theme = Array.isArray(booking.themes) ? booking.themes[0] : booking.themes;
+        if (theme) {
+          pricePerSeat = theme.price_per_seat || pricePerSeat;
+          themeName = theme.name ? ` (${theme.name})` : '';
+        }
+      }
+      
+      const totalPrice = pricePerSeat * booking.spots;
+
       const { error: punchCardError } = await supabase
         .from('punch_cards')
         .insert({
           user_id: user.id,
-          name: `Kompensation - Aflyst booking`,
+          name: `Kompensation - Aflyst booking${themeName}`,
           total_punches: booking.spots,
           remaining_punches: booking.spots,
-          price: 0,
+          price: totalPrice,
           valid_for_group_types: session?.group_type_id ? [session.group_type_id] : [],
           status: 'active',
           reason: cancelReason,
@@ -728,7 +746,7 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
         compensationMessage = 'Booking aflyst';
       } else {
         punchCardRestored = true;
-        compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip som kompensation`;
+        compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip (værdi: ${totalPrice} kr) som kompensation`;
       }
     }
   } else if (booking.payment_method === 'manual' && eligibleForCompensation) {
@@ -739,14 +757,28 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
       .eq('id', booking.session_id)
       .single();
 
+    // Calculate the actual price paid (theme price or session price)
+    let pricePerSeat = session?.price || 0;
+    let themeName = '';
+    
+    if (booking.selected_theme_id && booking.themes) {
+      const theme = Array.isArray(booking.themes) ? booking.themes[0] : booking.themes;
+      if (theme) {
+        pricePerSeat = theme.price_per_seat || pricePerSeat;
+        themeName = theme.name ? ` (${theme.name})` : '';
+      }
+    }
+    
+    const totalPrice = pricePerSeat * booking.spots;
+
     const { error: punchCardError } = await supabase
       .from('punch_cards')
       .insert({
         user_id: user.id,
-        name: `Kompensation - Aflyst booking`,
+        name: `Kompensation - Aflyst booking${themeName}`,
         total_punches: booking.spots,
         remaining_punches: booking.spots,
-        price: 0,
+        price: totalPrice,
         valid_for_group_types: session?.group_type_id ? [session.group_type_id] : [],
         status: 'active',
         reason: cancelReason,
@@ -755,7 +787,7 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
 
     if (!punchCardError) {
       punchCardRestored = true;
-      compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip som kompensation`;
+      compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip (værdi: ${totalPrice} kr) som kompensation`;
     } else {
       compensationMessage = 'Booking aflyst';
     }
