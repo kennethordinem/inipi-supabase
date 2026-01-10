@@ -45,13 +45,12 @@ export async function GET(request: NextRequest) {
         sessions!inner(
           id,
           name,
-          start_time
+          date,
+          time
         )
       `)
       .eq('status', 'reserved_for_host')
-      .eq('spot_type', 'gusmester_spot')
-      .lte('sessions.start_time', gusmesterThreshold.toISOString())
-      .gte('sessions.start_time', now.toISOString());
+      .eq('spot_type', 'gusmester_spot');
 
     if (gusmesterError) {
       console.error('[Auto-Release] Error fetching gusmester spots:', gusmesterError);
@@ -60,26 +59,32 @@ export async function GET(request: NextRequest) {
         const session = Array.isArray(spot.sessions) ? spot.sessions[0] : spot.sessions;
         if (!session) continue;
 
-        // Release gusmester spot (no points awarded - this is automatic)
-        const { error: updateError } = await supabase
-          .from('guest_spots')
-          .update({ status: 'released_to_public' })
-          .eq('id', spot.id);
+        // Combine date and time to get session start timestamp
+        const sessionStart = new Date(`${session.date}T${session.time}`);
+        
+        // Check if session is within 3-hour window (between now and 3 hours from now)
+        if (sessionStart <= gusmesterThreshold && sessionStart > now) {
+          // Release gusmester spot (no points awarded - this is automatic)
+          const { error: updateError } = await supabase
+            .from('guest_spots')
+            .update({ status: 'released_to_public' })
+            .eq('id', spot.id);
 
-        if (updateError) {
-          console.error(`[Auto-Release] Error releasing gusmester spot ${spot.id}:`, updateError);
-          continue;
+          if (updateError) {
+            console.error(`[Auto-Release] Error releasing gusmester spot ${spot.id}:`, updateError);
+            continue;
+          }
+
+          releasedSpots.push({
+            sessionId: session.id,
+            sessionName: session.name,
+            spotType: 'gusmester_spot',
+            pointsAwarded: 0,
+            reason: 'Automatic 3-hour release',
+          });
+
+          console.log(`[Auto-Release] Released gusmester spot for ${session.name} (no points)`);
         }
-
-        releasedSpots.push({
-          sessionId: session.id,
-          sessionName: session.name,
-          spotType: 'gusmester_spot',
-          pointsAwarded: 0,
-          reason: 'Automatic 3-hour release',
-        });
-
-        console.log(`[Auto-Release] Released gusmester spot for ${session.name} (no points)`);
       }
     }
 
@@ -111,7 +116,8 @@ export async function GET(request: NextRequest) {
           sessions!inner(
             id,
             name,
-            start_time
+            date,
+            time
           ),
           employees!guest_spots_host_employee_id_fkey(
             id,
@@ -122,9 +128,7 @@ export async function GET(request: NextRequest) {
         `)
         .eq('status', 'reserved_for_host')
         .eq('spot_type', 'guest_spot')
-        .eq('employees.auto_release_guest_spot', preference)
-        .lte('sessions.start_time', thresholdTime.toISOString())
-        .gte('sessions.start_time', now.toISOString()); // Only future sessions
+        .eq('employees.auto_release_guest_spot', preference);
 
       if (spotsError) {
         console.error(`[Auto-Release] Error fetching guest spots for ${preference}:`, spotsError);
@@ -143,8 +147,17 @@ export async function GET(request: NextRequest) {
         
         if (!session || !employee) continue;
 
+        // Combine date and time to get session start timestamp
+        const sessionStart = new Date(`${session.date}T${session.time}`);
+        
+        // Check if session is within the threshold window
+        if (sessionStart > thresholdTime || sessionStart <= now) {
+          // Session is either too far away or already started, skip
+          continue;
+        }
+
         // Calculate if they should earn points (3+ hours before session)
-        const hoursUntilSession = (new Date(session.start_time).getTime() - now.getTime()) / (1000 * 60 * 60);
+        const hoursUntilSession = (sessionStart.getTime() - now.getTime()) / (1000 * 60 * 60);
         const earnPoints = hoursUntilSession >= 3;
         const pointsToAdd = earnPoints ? 150 : 0;
 
@@ -208,7 +221,8 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         name,
-        start_time,
+        date,
+        time,
         session_employees!inner(
           employee_id,
           employees!inner(
@@ -217,14 +231,20 @@ export async function GET(request: NextRequest) {
             points
           )
         )
-      `)
-      .lte('start_time', now.toISOString()) // Session has started
-      .gte('start_time', oneHourAgo.toISOString()); // Started within last hour
+      `);
 
     if (completedError) {
       console.error('[Award-Points] Error fetching completed sessions:', completedError);
     } else if (completedSessions && completedSessions.length > 0) {
       for (const session of completedSessions) {
+        // Combine date and time to get session start timestamp
+        const sessionStart = new Date(`${session.date}T${session.time}`);
+        
+        // Check if session started within the last hour
+        if (sessionStart > now || sessionStart < oneHourAgo) {
+          continue;
+        }
+        
         const sessionEmployees = Array.isArray(session.session_employees) ? session.session_employees : [session.session_employees];
         
         for (const se of sessionEmployees) {
