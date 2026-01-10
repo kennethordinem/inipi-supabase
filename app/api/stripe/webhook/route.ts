@@ -251,6 +251,13 @@ async function handlePaymentFailed(paymentIntent: Stripe.PaymentIntent) {
         .eq('id', booking.id);
 
       console.log('Payment failed for booking:', booking.id);
+
+      // Send payment failed email
+      fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/payment-failed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingId: booking.id }),
+      }).catch(err => console.error('Error sending payment failed email:', err));
     }
 
   } catch (error) {

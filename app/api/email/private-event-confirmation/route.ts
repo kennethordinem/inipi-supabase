@@ -1,0 +1,123 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { sendPrivateEventConfirmation } from '@/lib/email';
+import { createClient } from '@supabase/supabase-js';
+
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { bookingId } = await request.json();
+
+    if (!bookingId) {
+      return NextResponse.json({ error: 'Booking ID is required' }, { status: 400 });
+    }
+
+    const supabase = getSupabaseClient();
+
+    // Get booking details with session and theme info
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        sessions(name, date, time, location, price, selected_theme_id),
+        themes(name, price_per_seat)
+      `)
+      .eq('id', bookingId)
+      .single();
+
+    if (bookingError || !booking) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    const session = booking.sessions;
+
+    // Get theme details if this is a theme booking
+    let themeName = session.name;
+    let totalPrice = session.price * booking.spots;
+
+    if (booking.selected_theme_id) {
+      const { data: theme } = await supabase
+        .from('themes')
+        .select('name, price_per_seat')
+        .eq('id', booking.selected_theme_id)
+        .single();
+
+      if (theme) {
+        themeName = theme.name;
+        totalPrice = theme.price_per_seat * booking.spots;
+      }
+    }
+
+    // Get user info - check both profiles and employees tables
+    let userEmail: string | null = null;
+    let userName: string | null = null;
+
+    // Try profiles table first
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, first_name, last_name')
+      .eq('id', booking.user_id)
+      .single();
+
+    if (profile && profile.email) {
+      userEmail = profile.email;
+      userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    } else {
+      // Try employees table
+      const { data: employee } = await supabase
+        .from('employees')
+        .select('email, name')
+        .eq('id', booking.user_id)
+        .single();
+
+      if (employee && employee.email) {
+        userEmail = employee.email;
+        userName = employee.name;
+      }
+    }
+
+    if (!userEmail) {
+      console.error('No email found for user:', booking.user_id);
+      return NextResponse.json({ error: 'User email not found' }, { status: 404 });
+    }
+
+    // Format date
+    const date = new Date(session.date);
+    const formattedDate = date.toLocaleDateString('da-DK', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Send email
+    await sendPrivateEventConfirmation({
+      to: userEmail,
+      userName: userName || 'Medlem',
+      themeName,
+      sessionDate: formattedDate,
+      sessionTime: session.time,
+      location: session.location,
+      spots: booking.spots,
+      totalPrice,
+      bookingId: booking.confirmation_number || booking.id,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error sending private event confirmation email:', error);
+    return NextResponse.json(
+      { error: error.message || 'Failed to send email' },
+      { status: 500 }
+    );
+  }
+}

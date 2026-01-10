@@ -275,6 +275,18 @@ export async function GET(request: NextRequest) {
           });
 
           console.log(`[Award-Points] Awarded 150 points to ${employee.name} for hosting ${session.name}`);
+
+          // Send points earned email
+          fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/gusmester-points-earned`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employeeId: employee.id,
+              pointsEarned: 150,
+              sessionId: session.id,
+              reason: 'Hosted session',
+            }),
+          }).catch(err => console.error('Error sending points earned email:', err));
         }
       }
     }

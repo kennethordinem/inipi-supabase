@@ -78,6 +78,49 @@ export interface EmployeeWelcomeEmail {
   };
 }
 
+export interface SessionReminderEmail {
+  to: string;
+  userName: string;
+  sessionName: string;
+  sessionDate: string;
+  sessionTime: string;
+  location: string;
+  spots: number;
+  bookingId: string;
+}
+
+export interface PaymentFailedEmail {
+  to: string;
+  userName: string;
+  sessionName: string;
+  sessionDate: string;
+  sessionTime: string;
+  amount: number;
+  bookingId: string;
+}
+
+export interface GusmesterPointsEarnedEmail {
+  to: string;
+  employeeName: string;
+  pointsEarned: number;
+  totalPoints: number;
+  sessionName: string;
+  sessionDate: string;
+  reason: string;
+}
+
+export interface PrivateEventConfirmationEmail {
+  to: string;
+  userName: string;
+  themeName: string;
+  sessionDate: string;
+  sessionTime: string;
+  location: string;
+  spots: number;
+  totalPrice: number;
+  bookingId: string;
+}
+
 // Send booking confirmation
 export async function sendBookingConfirmation(data: BookingConfirmationEmail) {
   const client = getPostmarkClient();

@@ -585,11 +585,22 @@ async function bookSession(params: {
   }
 
   // Send booking confirmation email (async, don't wait)
-  fetch('/api/email/booking-confirmation', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ bookingId: booking.id }),
-  }).catch(err => console.error('Error sending booking confirmation email:', err));
+  // Send appropriate confirmation email based on booking type
+  if (params.selectedThemeId) {
+    // Private event confirmation for theme bookings
+    fetch('/api/email/private-event-confirmation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: booking.id }),
+    }).catch(err => console.error('Error sending private event confirmation email:', err));
+  } else {
+    // Regular booking confirmation
+    fetch('/api/email/booking-confirmation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: booking.id }),
+    }).catch(err => console.error('Error sending booking confirmation email:', err));
+  }
 
   // If using punch card, send punch card used email
   if (params.punchCardId) {
