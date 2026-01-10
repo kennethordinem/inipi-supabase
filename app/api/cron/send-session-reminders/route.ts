@@ -71,6 +71,14 @@ export async function GET(request: NextRequest) {
 
     for (const booking of bookings) {
       try {
+        // TypeScript fix: sessions is a single object, not an array
+        const session = Array.isArray(booking.sessions) ? booking.sessions[0] : booking.sessions;
+        
+        if (!session) {
+          console.error(`[Session-Reminders] No session found for booking ${booking.id}`);
+          continue;
+        }
+
         // Check if we already sent a reminder for this booking
         // We can use a simple flag or check if email was sent in last 25 hours
         const { data: existingReminder } = await supabase
@@ -109,11 +117,11 @@ export async function GET(request: NextRequest) {
 
         remindersSent.push({
           bookingId: booking.id,
-          sessionName: booking.sessions.name,
-          sessionTime: booking.sessions.start_time,
+          sessionName: session.name,
+          sessionTime: session.start_time,
         });
 
-        console.log(`[Session-Reminders] Sent reminder for booking ${booking.id} - ${booking.sessions.name}`);
+        console.log(`[Session-Reminders] Sent reminder for booking ${booking.id} - ${session.name}`);
       } catch (error: any) {
         console.error(`[Session-Reminders] Error sending reminder for booking ${booking.id}:`, error);
         errors.push({
