@@ -474,6 +474,14 @@ function SessionCard({ session, onClick, isBooked }: { session: Session; onClick
       <div className="h-1" style={{ backgroundColor: session.groupTypeColor }} />
       
       <div className="p-3 space-y-2">
+        {/* Booked indicator at top if booked */}
+        {isBooked && (
+          <div className="flex items-center gap-1 text-xs font-semibold text-green-700">
+            <span className="text-sm">✓</span>
+            <span>Booket</span>
+          </div>
+        )}
+        
         {/* Time and Seats on same line - no icons */}
         <div className="flex items-center justify-between text-sm font-semibold text-[#502B30]">
           <span>{formatTime(session.time)} - {formatTime(endTime)}</span>
@@ -488,15 +496,9 @@ function SessionCard({ session, onClick, isBooked }: { session: Session; onClick
           </span>
         </div>
         
-        <div className="flex items-center justify-between">
-          <div className="font-bold text-[#4a2329] uppercase text-sm leading-tight">
-            {session.name}
-          </div>
-          {isBooked && (
-            <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-sm">
-              ✓ Booket
-            </span>
-          )}
+        {/* Session name */}
+        <div className="font-bold text-[#4a2329] uppercase text-sm leading-tight">
+          {session.name}
         </div>
         
         {/* Instructors - no icon */}
