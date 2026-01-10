@@ -122,7 +122,19 @@ VALUES (
 
 See `supabase-setup/STRIPE_SETUP_GUIDE.md` for detailed instructions.
 
-### 7. Run Development Server
+### 7. Set Up Cron Job (Required for Auto-Release)
+
+The system needs a cron job to automatically release gusmester and guest spots before sessions.
+
+**See `CRON_SETUP.md` for detailed instructions.**
+
+Quick setup:
+1. Generate a secret: `openssl rand -base64 32`
+2. Add to environment: `CRON_SECRET=your-secret`
+3. Set up EasyCron or cron-job.org to hit `/api/cron/auto-release-guest-spots` every hour
+4. Add `Authorization: Bearer YOUR_CRON_SECRET` header
+
+### 8. Run Development Server
 
 ```bash
 npm run dev
@@ -250,6 +262,7 @@ git push origin main
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+CRON_SECRET=your-cron-secret-for-auto-release
 ```
 
 ## 📚 Documentation
