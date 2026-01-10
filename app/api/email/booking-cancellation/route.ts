@@ -23,13 +23,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseClient();
 
-    // Get booking details with session and user info
+    // Get booking details with session info
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(`
         *,
-        sessions(name, date, time),
-        profiles(email, first_name, last_name)
+        sessions(name, date, time)
       `)
       .eq('id', bookingId)
       .single();
@@ -39,7 +38,39 @@ export async function POST(request: NextRequest) {
     }
 
     const session = booking.sessions;
-    const profile = booking.profiles;
+
+    // Get user info - check both profiles and employees tables
+    let userEmail: string | null = null;
+    let userName: string | null = null;
+
+    // Try profiles table first
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, first_name, last_name')
+      .eq('id', booking.user_id)
+      .single();
+
+    if (profile && profile.email) {
+      userEmail = profile.email;
+      userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    } else {
+      // Try employees table
+      const { data: employee } = await supabase
+        .from('employees')
+        .select('email, name')
+        .eq('id', booking.user_id)
+        .single();
+
+      if (employee && employee.email) {
+        userEmail = employee.email;
+        userName = employee.name;
+      }
+    }
+
+    if (!userEmail) {
+      console.error('No email found for user:', booking.user_id);
+      return NextResponse.json({ error: 'User email not found' }, { status: 404 });
+    }
 
     // Format date
     const date = new Date(session.date);
@@ -52,8 +83,8 @@ export async function POST(request: NextRequest) {
 
     // Send email
     await sendBookingCancellation({
-      to: profile.email,
-      userName: `${profile.first_name} ${profile.last_name}`,
+      to: userEmail,
+      userName: userName || 'Medlem',
       sessionName: session.name,
       sessionDate: formattedDate,
       sessionTime: session.time,

@@ -23,13 +23,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = getSupabaseClient();
 
-    // Get punch card details with user info
+    // Get punch card details
     const { data: punchCard, error: punchCardError } = await supabase
       .from('punch_cards')
-      .select(`
-        *,
-        profiles(email, first_name, last_name)
-      `)
+      .select('*')
       .eq('id', punchCardId)
       .single();
 
@@ -37,12 +34,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Punch card not found' }, { status: 404 });
     }
 
-    const profile = punchCard.profiles;
+    // Get user info - check both profiles and employees tables
+    let userEmail: string | null = null;
+    let userName: string | null = null;
+
+    // Try profiles table first
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, first_name, last_name')
+      .eq('id', punchCard.user_id)
+      .single();
+
+    if (profile && profile.email) {
+      userEmail = profile.email;
+      userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    } else {
+      // Try employees table
+      const { data: employee } = await supabase
+        .from('employees')
+        .select('email, name')
+        .eq('id', punchCard.user_id)
+        .single();
+
+      if (employee && employee.email) {
+        userEmail = employee.email;
+        userName = employee.name;
+      }
+    }
+
+    if (!userEmail) {
+      console.error('No email found for user:', punchCard.user_id);
+      return NextResponse.json({ error: 'User email not found' }, { status: 404 });
+    }
 
     // Send email
     await sendPunchCardAdded({
-      to: profile.email,
-      userName: `${profile.first_name} ${profile.last_name}`,
+      to: userEmail,
+      userName: userName || 'Medlem',
       punchCardName: punchCard.name,
       clips: punchCard.total_punches,
       reason: reason || 'Administrativt tilføjet',
