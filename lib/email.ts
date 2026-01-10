@@ -14,6 +14,29 @@ function getPostmarkClient(): ServerClient {
   return postmarkClient;
 }
 
+// Premium email style template (matching Employee Welcome design)
+const PREMIUM_EMAIL_STYLES = `
+  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+  .container { max-width: 600px; margin: 0 auto; padding: 20px; background: #faf8f5; }
+  .header { background: linear-gradient(135deg, #502B30 0%, #5e3023 100%); color: #FFF5E1; padding: 40px 20px; text-align: center; border-radius: 10px 10px 0 0; }
+  .header h1 { margin: 0; font-size: 32px; font-weight: bold; }
+  .header p { margin: 10px 0 0 0; color: #f59e0b; font-style: italic; }
+  .content { background: #fff; padding: 40px 30px; border-radius: 0 0 10px 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+  .highlight-box { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
+  .details { background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border: 2px solid #502B30; }
+  .details strong { color: #502B30; display: block; margin-bottom: 5px; }
+  .detail-item { background: white; padding: 12px; margin: 10px 0; border-radius: 5px; border: 1px solid #e5e7eb; }
+  .info-box { background: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6; }
+  .success-box { background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #10b981; }
+  .warning-box { background: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
+  .error-box { background: #fee2e2; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc2626; }
+  .button { display: inline-block; padding: 15px 30px; background: linear-gradient(135deg, #502B30 0%, #5e3023 100%); color: white; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; box-shadow: 0 4px 6px rgba(80, 43, 48, 0.3); }
+  .button:hover { background: linear-gradient(135deg, #5e3023 0%, #502B30 100%); }
+  .footer { text-align: center; padding: 30px 20px; color: #6b7280; font-size: 14px; }
+  .footer strong { color: #502B30; }
+  .divider { height: 2px; background: linear-gradient(90deg, transparent 0%, #f59e0b 50%, transparent 100%); margin: 30px 0; }
+`;
+
 // Email types
 export interface BookingConfirmationEmail {
   to: string;
@@ -129,47 +152,70 @@ export async function sendBookingConfirmation(data: BookingConfirmationEmail) {
     <!DOCTYPE html>
     <html>
     <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
-        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .button { display: inline-block; padding: 12px 24px; background: #502B30; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
-        .details strong { color: #502B30; }
-      </style>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🔥 INIPI Saunagus</h1>
+          <h1>🔥 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
         </div>
         <div class="content">
-          <h2>Booking Bekræftet!</h2>
-          <p>Hej ${data.userName},</p>
-          <p>Din booking er bekræftet. Vi glæder os til at se dig!</p>
-          
-          <div class="details">
-            <strong>Session:</strong> ${data.sessionName}<br>
-            <strong>Dato:</strong> ${data.sessionDate}<br>
-            <strong>Tid:</strong> ${data.sessionTime}<br>
-            <strong>Lokation:</strong> ${data.location}<br>
-            <strong>Antal pladser:</strong> ${data.spots}<br>
-            <strong>Betaling:</strong> ${data.paymentMethod === 'punch_card' ? 'Klippekort' : data.price + ' DKK'}
+          <div class="success-box">
+            <h2 style="margin-top: 0; color: #502B30;">Booking Bekræftet! ✅</h2>
+            <p style="margin-bottom: 0; color: #065f46;">Hej ${data.userName}, vi glæder os til at se dig!</p>
           </div>
           
-          <p><strong>Booking ID:</strong> ${data.bookingId}</p>
+          <p>Din booking er bekræftet og klar. Se detaljer nedenfor:</p>
           
-          <p>Husk at møde op i god tid og medbringe håndklæde.</p>
+          <div class="details">
+            <div class="detail-item">
+              <strong>Session</strong>
+              ${data.sessionName}
+            </div>
+            <div class="detail-item">
+              <strong>Dato</strong>
+              ${data.sessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Tid</strong>
+              ${data.sessionTime}
+            </div>
+            <div class="detail-item">
+              <strong>Lokation</strong>
+              ${data.location}
+            </div>
+            <div class="detail-item">
+              <strong>Antal pladser</strong>
+              ${data.spots}
+            </div>
+            <div class="detail-item">
+              <strong>Betaling</strong>
+              ${data.paymentMethod === 'punch_card' ? 'Klippekort' : data.price + ' DKK'}
+            </div>
+          </div>
+          
+          <div class="info-box">
+            <strong>Booking ID:</strong> ${data.bookingId}
+          </div>
+          
+          <div class="divider"></div>
+          
+          <h3 style="color: #502B30;">Husk at medbringe:</h3>
+          <ul style="color: #4b5563;">
+            <li>Håndklæde</li>
+            <li>Vand (vi har også drikkevarer til salg)</li>
+            <li>Godt humør! 😊</li>
+          </ul>
           
           <p>Hvis du har spørgsmål, er du velkommen til at kontakte os.</p>
           
-          <p>Vi ses til gus! 🧖‍♂️</p>
+          <p style="text-align: center; font-size: 18px; color: #502B30; font-weight: bold;">Vi ses til gus! 🧖‍♂️🔥</p>
         </div>
         <div class="footer">
-          <p>INIPI Saunagus<br>
-          Havkajakvej, Amagerstrand</p>
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
         </div>
       </div>
     </body>
@@ -194,40 +240,49 @@ export async function sendBookingCancellation(data: BookingCancellationEmail) {
     <!DOCTYPE html>
     <html>
     <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
-        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
-        .details strong { color: #502B30; }
-      </style>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🔥 INIPI Saunagus</h1>
+          <h1>🔥 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
         </div>
         <div class="content">
-          <h2>Booking Aflyst</h2>
-          <p>Hej ${data.userName},</p>
-          <p>Din booking er blevet aflyst.</p>
-          
-          <div class="details">
-            <strong>Session:</strong> ${data.sessionName}<br>
-            <strong>Dato:</strong> ${data.sessionDate}<br>
-            <strong>Tid:</strong> ${data.sessionTime}<br>
-            <strong>Refusion:</strong> ${data.refundInfo}
+          <div class="warning-box">
+            <h2 style="margin-top: 0; color: #502B30;">Booking Aflyst</h2>
+            <p style="margin-bottom: 0; color: #78350f;">Hej ${data.userName}, din booking er blevet aflyst.</p>
           </div>
           
-          ${data.punchCardAdded ? '<p><strong>✅ Et klip er blevet tilføjet til dit klippekort som kompensation.</strong></p>' : ''}
+          <div class="details">
+            <div class="detail-item">
+              <strong>Session</strong>
+              ${data.sessionName}
+            </div>
+            <div class="detail-item">
+              <strong>Dato</strong>
+              ${data.sessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Tid</strong>
+              ${data.sessionTime}
+            </div>
+            <div class="detail-item">
+              <strong>Refusion</strong>
+              ${data.refundInfo}
+            </div>
+          </div>
           
-          <p>Vi håber at se dig til en anden session!</p>
+          ${data.punchCardAdded ? '<div class="success-box"><p style="margin: 0;"><strong>✅ Et klip er blevet tilføjet til dit klippekort som kompensation.</strong></p></div>' : ''}
+          
+          <div class="divider"></div>
+          
+          <p style="text-align: center;">Vi håber at se dig til en anden session! 🔥</p>
         </div>
         <div class="footer">
-          <p>INIPI Saunagus<br>
-          Havkajakvej, Amagerstrand</p>
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
         </div>
       </div>
     </body>
@@ -252,39 +307,56 @@ export async function sendPunchCardPurchase(data: PunchCardPurchaseEmail) {
     <!DOCTYPE html>
     <html>
     <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
-        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
-        .details strong { color: #502B30; }
-      </style>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎫 INIPI Klippekort</h1>
+          <h1>🎫 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
         </div>
         <div class="content">
-          <h2>Klippekort Købt!</h2>
-          <p>Hej ${data.userName},</p>
-          <p>Tak for dit køb! Dit klippekort er nu aktivt og klar til brug.</p>
-          
-          <div class="details">
-            <strong>Klippekort:</strong> ${data.punchCardName}<br>
-            <strong>Antal klip:</strong> ${data.clips}<br>
-            <strong>Pris:</strong> ${data.price} DKK<br>
-            <strong>Købsdato:</strong> ${data.purchaseDate}
+          <div class="success-box">
+            <h2 style="margin-top: 0; color: #502B30;">Klippekort Købt! 🎉</h2>
+            <p style="margin-bottom: 0; color: #065f46;">Hej ${data.userName}, tak for dit køb!</p>
           </div>
           
-          <p>Du kan nu bruge dit klippekort til at booke sessioner.</p>
-          <p>Se dine klippekort i din profil under "Klippekort".</p>
+          <p>Dit klippekort er nu aktivt og klar til brug.</p>
+          
+          <div class="details">
+            <div class="detail-item">
+              <strong>Klippekort</strong>
+              ${data.punchCardName}
+            </div>
+            <div class="detail-item">
+              <strong>Antal klip</strong>
+              ${data.clips} klip
+            </div>
+            <div class="detail-item">
+              <strong>Pris</strong>
+              ${data.price} DKK
+            </div>
+            <div class="detail-item">
+              <strong>Købsdato</strong>
+              ${data.purchaseDate}
+            </div>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <h3 style="color: #502B30;">Næste skridt:</h3>
+          <ul style="color: #4b5563;">
+            <li>Gå til "Klippekort" i din profil</li>
+            <li>Se dine tilgængelige klip</li>
+            <li>Book sessioner med dit klippekort</li>
+          </ul>
+          
+          <p style="text-align: center; font-size: 18px; color: #502B30; font-weight: bold;">God gus! 🔥</p>
         </div>
         <div class="footer">
-          <p>INIPI Saunagus<br>
-          Havkajakvej, Amagerstrand</p>
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
         </div>
       </div>
     </body>
@@ -309,43 +381,50 @@ export async function sendPunchCardUsed(data: PunchCardUsedEmail) {
     <!DOCTYPE html>
     <html>
     <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
-        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
-        .details strong { color: #502B30; }
-        .clips-remaining { font-size: 24px; color: #502B30; font-weight: bold; text-align: center; margin: 20px 0; }
-      </style>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎫 INIPI Klippekort</h1>
+          <h1>🎫 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
         </div>
         <div class="content">
-          <h2>Klip Brugt</h2>
-          <p>Hej ${data.userName},</p>
-          <p>Et klip er blevet brugt fra dit klippekort.</p>
+          <div class="info-box">
+            <h2 style="margin-top: 0; color: #502B30;">Klip Brugt</h2>
+            <p style="margin-bottom: 0; color: #1e40af;">Hej ${data.userName}, et klip er blevet brugt fra dit klippekort.</p>
+          </div>
           
           <div class="details">
-            <strong>Session:</strong> ${data.sessionName}<br>
-            <strong>Dato:</strong> ${data.sessionDate}<br>
-            <strong>Tid:</strong> ${data.sessionTime}<br>
-            <strong>Klippekort:</strong> ${data.punchCardName}
+            <div class="detail-item">
+              <strong>Session</strong>
+              ${data.sessionName}
+            </div>
+            <div class="detail-item">
+              <strong>Dato</strong>
+              ${data.sessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Tid</strong>
+              ${data.sessionTime}
+            </div>
+            <div class="detail-item">
+              <strong>Klippekort</strong>
+              ${data.punchCardName}
+            </div>
           </div>
           
-          <div class="clips-remaining">
-            ${data.clipsRemaining} klip tilbage
+          <div class="highlight-box" style="text-align: center;">
+            <div style="font-size: 48px; color: #502B30; font-weight: bold; margin-bottom: 10px;">${data.clipsRemaining}</div>
+            <p style="margin: 0; color: #78350f; font-size: 18px;">klip tilbage</p>
           </div>
           
-          ${data.clipsRemaining === 0 ? '<p><strong>⚠️ Dit klippekort er nu brugt op. Køb et nyt for at fortsætte med at booke sessioner.</strong></p>' : ''}
+          ${data.clipsRemaining === 0 ? '<div class="warning-box"><p style="margin: 0;"><strong>⚠️ Dit klippekort er nu brugt op.</strong> Køb et nyt for at fortsætte med at booke sessioner.</p></div>' : ''}
         </div>
         <div class="footer">
-          <p>INIPI Saunagus<br>
-          Havkajakvej, Amagerstrand</p>
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
         </div>
       </div>
     </body>
@@ -370,37 +449,45 @@ export async function sendPunchCardAdded(data: PunchCardAddedEmail) {
     <!DOCTYPE html>
     <html>
     <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
-        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
-        .details strong { color: #502B30; }
-      </style>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎫 INIPI Klippekort</h1>
+          <h1>🎫 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
         </div>
         <div class="content">
-          <h2>Nyt Klippekort Tilføjet!</h2>
-          <p>Hej ${data.userName},</p>
-          <p>Et nyt klippekort er blevet tilføjet til din konto.</p>
-          
-          <div class="details">
-            <strong>Klippekort:</strong> ${data.punchCardName}<br>
-            <strong>Antal klip:</strong> ${data.clips}<br>
-            <strong>Årsag:</strong> ${data.reason}
+          <div class="success-box">
+            <h2 style="margin-top: 0; color: #502B30;">Nyt Klippekort Tilføjet! 🎁</h2>
+            <p style="margin-bottom: 0; color: #065f46;">Hej ${data.userName}, du har modtaget et nyt klippekort!</p>
           </div>
           
-          <p>Du kan nu bruge dit klippekort til at booke sessioner.</p>
+          <div class="details">
+            <div class="detail-item">
+              <strong>Klippekort</strong>
+              ${data.punchCardName}
+            </div>
+            <div class="detail-item">
+              <strong>Antal klip</strong>
+              ${data.clips} klip
+            </div>
+            <div class="detail-item">
+              <strong>Årsag</strong>
+              ${data.reason}
+            </div>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <p>Dit klippekort er nu aktivt og klar til brug. Du kan bruge det til at booke sessioner.</p>
+          
+          <p style="text-align: center; font-size: 18px; color: #502B30; font-weight: bold;">God gus! 🔥</p>
         </div>
         <div class="footer">
-          <p>INIPI Saunagus<br>
-          Havkajakvej, Amagerstrand</p>
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
         </div>
       </div>
     </body>
@@ -540,56 +627,68 @@ export async function sendSessionReminder(data: SessionReminderEmail) {
     <!DOCTYPE html>
     <html>
     <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
-        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .reminder-box { background: #fef3c7; padding: 20px; border-left: 4px solid #f59e0b; margin: 20px 0; }
-        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
-        .details strong { color: #502B30; }
-      </style>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🔥 INIPI Saunagus</h1>
+          <h1>🔥 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
         </div>
         <div class="content">
-          <h2>Påmindelse: Din Session Er I Morgen!</h2>
-          <p>Hej ${data.userName},</p>
-          
-          <div class="reminder-box">
-            <p style="margin: 0; font-size: 18px; color: #78350f;"><strong>⏰ Din session starter om ca. 24 timer!</strong></p>
+          <div class="warning-box">
+            <h2 style="margin-top: 0; color: #502B30;">Påmindelse: Din Session Er I Morgen! ⏰</h2>
+            <p style="margin-bottom: 0; color: #78350f; font-size: 18px;"><strong>Din session starter om ca. 24 timer!</strong></p>
           </div>
           
-          <p>Vi glæder os til at se dig!</p>
+          <p>Hej ${data.userName}, vi glæder os til at se dig!</p>
           
           <div class="details">
-            <strong>Session:</strong> ${data.sessionName}<br>
-            <strong>Dato:</strong> ${data.sessionDate}<br>
-            <strong>Tid:</strong> ${data.sessionTime}<br>
-            <strong>Lokation:</strong> ${data.location}<br>
-            <strong>Antal pladser:</strong> ${data.spots}
+            <div class="detail-item">
+              <strong>Session</strong>
+              ${data.sessionName}
+            </div>
+            <div class="detail-item">
+              <strong>Dato</strong>
+              ${data.sessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Tid</strong>
+              ${data.sessionTime}
+            </div>
+            <div class="detail-item">
+              <strong>Lokation</strong>
+              ${data.location}
+            </div>
+            <div class="detail-item">
+              <strong>Antal pladser</strong>
+              ${data.spots}
+            </div>
           </div>
           
-          <p><strong>Booking ID:</strong> ${data.bookingId}</p>
+          <div class="info-box">
+            <strong>Booking ID:</strong> ${data.bookingId}
+          </div>
           
-          <h3>Husk at medbringe:</h3>
-          <ul>
+          <div class="divider"></div>
+          
+          <h3 style="color: #502B30;">Husk at medbringe:</h3>
+          <ul style="color: #4b5563;">
             <li>Håndklæde</li>
             <li>Vand (vi har også drikkevarer til salg)</li>
             <li>Godt humør! 😊</li>
           </ul>
           
-          <p><strong>Vigtigt:</strong> Hvis du ikke kan deltage, bedes du aflyse din booking så snart som muligt, så andre kan få pladsen.</p>
+          <div class="info-box">
+            <strong>💡 Vigtigt:</strong> Hvis du ikke kan deltage, bedes du aflyse din booking så snart som muligt, så andre kan få pladsen.
+          </div>
           
-          <p>Vi ses til gus! 🧖‍♂️</p>
+          <p style="text-align: center; font-size: 18px; color: #502B30; font-weight: bold;">Vi ses til gus! 🧖‍♂️🔥</p>
         </div>
         <div class="footer">
-          <p>INIPI Saunagus<br>
-          Havkajakvej, Amagerstrand</p>
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
         </div>
       </div>
     </body>
@@ -614,60 +713,69 @@ export async function sendPaymentFailed(data: PaymentFailedEmail) {
     <!DOCTYPE html>
     <html>
     <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
-        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .error-box { background: #fee2e2; padding: 20px; border-left: 4px solid #dc2626; margin: 20px 0; }
-        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
-        .details strong { color: #502B30; }
-        .button { display: inline-block; padding: 12px 24px; background: #502B30; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-      </style>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🔥 INIPI Saunagus</h1>
+          <h1>🔥 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
         </div>
         <div class="content">
-          <h2>Betaling Mislykkedes</h2>
-          <p>Hej ${data.userName},</p>
-          
           <div class="error-box">
-            <p style="margin: 0; color: #991b1b;"><strong>⚠️ Din betaling kunne ikke gennemføres.</strong></p>
+            <h2 style="margin-top: 0; color: #991b1b;">Betaling Mislykkedes ⚠️</h2>
+            <p style="margin-bottom: 0; color: #991b1b;"><strong>Din betaling kunne ikke gennemføres.</strong></p>
           </div>
           
-          <p>Desværre kunne vi ikke behandle din betaling for følgende booking:</p>
+          <p>Hej ${data.userName}, desværre kunne vi ikke behandle din betaling for følgende booking:</p>
           
           <div class="details">
-            <strong>Session:</strong> ${data.sessionName}<br>
-            <strong>Dato:</strong> ${data.sessionDate}<br>
-            <strong>Tid:</strong> ${data.sessionTime}<br>
-            <strong>Beløb:</strong> ${data.amount} DKK<br>
-            <strong>Booking ID:</strong> ${data.bookingId}
+            <div class="detail-item">
+              <strong>Session</strong>
+              ${data.sessionName}
+            </div>
+            <div class="detail-item">
+              <strong>Dato</strong>
+              ${data.sessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Tid</strong>
+              ${data.sessionTime}
+            </div>
+            <div class="detail-item">
+              <strong>Beløb</strong>
+              ${data.amount} DKK
+            </div>
+            <div class="detail-item">
+              <strong>Booking ID</strong>
+              ${data.bookingId}
+            </div>
           </div>
           
-          <p><strong>Hvad skal du gøre?</strong></p>
-          <ul>
+          <div class="divider"></div>
+          
+          <h3 style="color: #502B30;">Hvad skal du gøre?</h3>
+          <ul style="color: #4b5563;">
             <li>Tjek at dit kort har tilstrækkelige midler</li>
             <li>Kontakt din bank hvis problemet fortsætter</li>
             <li>Prøv at booke igen med et andet betalingskort</li>
             <li>Eller køb et klippekort og book med det</li>
           </ul>
           
-          <p>Din booking er ikke bekræftet før betalingen er gennemført.</p>
+          <div class="warning-box">
+            <p style="margin: 0;"><strong>💡 Vigtigt:</strong> Din booking er ikke bekræftet før betalingen er gennemført.</p>
+          </div>
           
           <div style="text-align: center;">
             <a href="https://inipi.dk/sessions" class="button">Book Igen</a>
           </div>
           
-          <p>Hvis du har spørgsmål, er du velkommen til at kontakte os.</p>
+          <p style="text-align: center;">Hvis du har spørgsmål, er du velkommen til at kontakte os.</p>
         </div>
         <div class="footer">
-          <p>INIPI Saunagus<br>
-          Havkajakvej, Amagerstrand</p>
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
         </div>
       </div>
     </body>
@@ -692,53 +800,59 @@ export async function sendGusmesterPointsEarned(data: GusmesterPointsEarnedEmail
     <!DOCTYPE html>
     <html>
     <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
-        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .points-box { background: #fef3c7; padding: 20px; border-left: 4px solid #f59e0b; margin: 20px 0; text-align: center; }
-        .points-earned { font-size: 48px; color: #502B30; font-weight: bold; }
-        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
-        .details strong { color: #502B30; }
-      </style>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>⭐ INIPI Gusmester Point</h1>
+          <h1>⭐ INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
         </div>
         <div class="content">
-          <h2>Du Har Optjent Point!</h2>
-          <p>Hej ${data.employeeName},</p>
+          <div class="success-box">
+            <h2 style="margin-top: 0; color: #502B30;">Du Har Optjent Point! 🎉</h2>
+            <p style="margin-bottom: 0; color: #065f46;">Hej ${data.employeeName}, tillykke med dine nye gusmester point!</p>
+          </div>
           
-          <div class="points-box">
-            <div class="points-earned">+${data.pointsEarned}</div>
-            <p style="margin: 10px 0 0 0; color: #78350f; font-size: 18px;">Gusmester Point</p>
+          <div class="highlight-box" style="text-align: center;">
+            <div style="font-size: 64px; color: #502B30; font-weight: bold; margin-bottom: 10px;">+${data.pointsEarned}</div>
+            <p style="margin: 0; color: #78350f; font-size: 24px; font-weight: bold;">Gusmester Point</p>
           </div>
           
           <div class="details">
-            <strong>Årsag:</strong> ${data.reason}<br>
-            <strong>Session:</strong> ${data.sessionName}<br>
-            <strong>Dato:</strong> ${data.sessionDate}<br>
-            <strong>Dine samlede point:</strong> ${data.totalPoints} point
+            <div class="detail-item">
+              <strong>Årsag</strong>
+              ${data.reason}
+            </div>
+            <div class="detail-item">
+              <strong>Session</strong>
+              ${data.sessionName}
+            </div>
+            <div class="detail-item">
+              <strong>Dato</strong>
+              ${data.sessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Dine samlede point</strong>
+              ${data.totalPoints} point
+            </div>
           </div>
           
-          <p>Tillykke! Dine point kan bruges til at booke gusmester spots på fremtidige sessioner.</p>
+          <div class="divider"></div>
           
-          <p><strong>Sådan bruger du dine point:</strong></p>
-          <ul>
+          <h3 style="color: #502B30;">Sådan bruger du dine point:</h3>
+          <ul style="color: #4b5563;">
             <li>Gå til Gusmester-siden</li>
             <li>Find en ledig gusmester plads</li>
             <li>Book med dine point (150 point pr. session)</li>
           </ul>
           
-          <p>Tak for din indsats som gusmester! 🔥</p>
+          <p style="text-align: center; font-size: 18px; color: #502B30; font-weight: bold;">Tak for din indsats som gusmester! 🔥</p>
         </div>
         <div class="footer">
-          <p>INIPI Saunagus<br>
-          Havkajakvej, Amagerstrand</p>
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
         </div>
       </div>
     </body>
@@ -763,68 +877,84 @@ export async function sendPrivateEventConfirmation(data: PrivateEventConfirmatio
     <!DOCTYPE html>
     <html>
     <head>
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #502B30 0%, #5e3023 100%); color: #FFF5E1; padding: 30px 20px; text-align: center; }
-        .header h1 { margin: 0; font-size: 32px; }
-        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
-        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        .theme-box { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 25px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #f59e0b; }
-        .theme-box h2 { margin: 0 0 10px 0; color: #502B30; font-size: 28px; }
-        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
-        .details strong { color: #502B30; }
-        .highlight { background: #fef3c7; padding: 15px; border-radius: 5px; margin: 20px 0; }
-      </style>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🎉 INIPI Privat/Firma Event</h1>
+          <h1>🎉 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
         </div>
         <div class="content">
-          <h2>Dit Private Event Er Bekræftet!</h2>
-          <p>Hej ${data.userName},</p>
-          
-          <div class="theme-box">
-            <h2>${data.themeName}</h2>
-            <p style="margin: 0; color: #78350f; font-size: 16px;">Din eksklusive saunagus oplevelse</p>
+          <div class="success-box">
+            <h2 style="margin-top: 0; color: #502B30;">Dit Private Event Er Bekræftet! 🎉</h2>
+            <p style="margin-bottom: 0; color: #065f46;">Hej ${data.userName}, tak for din booking!</p>
           </div>
           
-          <p>Tak for din booking! Vi glæder os til at give dig og dine gæster en uforglemmelig oplevelse.</p>
+          <div class="highlight-box" style="text-align: center; padding: 30px;">
+            <h2 style="margin: 0 0 10px 0; color: #502B30; font-size: 32px;">${data.themeName}</h2>
+            <p style="margin: 0; color: #78350f; font-size: 18px; font-style: italic;">Din eksklusive saunagus oplevelse</p>
+          </div>
+          
+          <p>Vi glæder os til at give dig og dine gæster en uforglemmelig oplevelse.</p>
           
           <div class="details">
-            <strong>Tema:</strong> ${data.themeName}<br>
-            <strong>Dato:</strong> ${data.sessionDate}<br>
-            <strong>Tid:</strong> ${data.sessionTime}<br>
-            <strong>Lokation:</strong> ${data.location}<br>
-            <strong>Antal pladser:</strong> ${data.spots}<br>
-            <strong>Total pris:</strong> ${data.totalPrice} DKK
+            <div class="detail-item">
+              <strong>Tema</strong>
+              ${data.themeName}
+            </div>
+            <div class="detail-item">
+              <strong>Dato</strong>
+              ${data.sessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Tid</strong>
+              ${data.sessionTime}
+            </div>
+            <div class="detail-item">
+              <strong>Lokation</strong>
+              ${data.location}
+            </div>
+            <div class="detail-item">
+              <strong>Antal pladser</strong>
+              ${data.spots} pladser (privat event)
+            </div>
+            <div class="detail-item">
+              <strong>Total pris</strong>
+              ${data.totalPrice} DKK
+            </div>
           </div>
           
-          <p><strong>Booking ID:</strong> ${data.bookingId}</p>
+          <div class="info-box">
+            <strong>Booking ID:</strong> ${data.bookingId}
+          </div>
           
-          <div class="highlight">
+          <div class="warning-box">
             <p style="margin: 0;"><strong>💡 Vigtigt:</strong> Dette er et privat event. Alle ${data.spots} pladser er reserveret til dig og dine gæster.</p>
           </div>
           
-          <h3>Hvad sker der nu?</h3>
-          <ul>
+          <div class="divider"></div>
+          
+          <h3 style="color: #502B30;">Hvad sker der nu?</h3>
+          <ul style="color: #4b5563;">
             <li>Du vil modtage en påmindelse 24 timer før eventet</li>
             <li>Husk at informere dine gæster om dato og tidspunkt</li>
             <li>Alle skal medbringe håndklæde</li>
             <li>Vi sørger for resten! 🔥</li>
           </ul>
           
-          <p><strong>Aflysning:</strong> Private events kan aflyses op til 48 timer før start for fuld refusion eller kompensation.</p>
+          <div class="info-box">
+            <strong>Aflysning:</strong> Private events kan aflyses op til 48 timer før start for fuld refusion eller kompensation.
+          </div>
           
-          <p>Hvis du har spørgsmål eller særlige ønsker til dit event, er du velkommen til at kontakte os.</p>
+          <p style="text-align: center;">Hvis du har spørgsmål eller særlige ønsker til dit event, er du velkommen til at kontakte os.</p>
           
-          <p>Vi glæder os til at se dig og dine gæster! 🧖‍♂️</p>
+          <p style="text-align: center; font-size: 18px; color: #502B30; font-weight: bold;">Vi glæder os til at se dig og dine gæster! 🧖‍♂️🔥</p>
         </div>
         <div class="footer">
-          <p>INIPI Saunagus<br>
-          Havkajakvej, Amagerstrand</p>
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
         </div>
       </div>
     </body>
