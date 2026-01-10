@@ -532,3 +532,311 @@ export async function sendEmployeeWelcome(data: EmployeeWelcomeEmail) {
   });
 }
 
+// Send session reminder (24h before)
+export async function sendSessionReminder(data: SessionReminderEmail) {
+  const client = getPostmarkClient();
+  
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
+        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .reminder-box { background: #fef3c7; padding: 20px; border-left: 4px solid #f59e0b; margin: 20px 0; }
+        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
+        .details strong { color: #502B30; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔥 INIPI Saunagus</h1>
+        </div>
+        <div class="content">
+          <h2>Påmindelse: Din Session Er I Morgen!</h2>
+          <p>Hej ${data.userName},</p>
+          
+          <div class="reminder-box">
+            <p style="margin: 0; font-size: 18px; color: #78350f;"><strong>⏰ Din session starter om ca. 24 timer!</strong></p>
+          </div>
+          
+          <p>Vi glæder os til at se dig!</p>
+          
+          <div class="details">
+            <strong>Session:</strong> ${data.sessionName}<br>
+            <strong>Dato:</strong> ${data.sessionDate}<br>
+            <strong>Tid:</strong> ${data.sessionTime}<br>
+            <strong>Lokation:</strong> ${data.location}<br>
+            <strong>Antal pladser:</strong> ${data.spots}
+          </div>
+          
+          <p><strong>Booking ID:</strong> ${data.bookingId}</p>
+          
+          <h3>Husk at medbringe:</h3>
+          <ul>
+            <li>Håndklæde</li>
+            <li>Vand (vi har også drikkevarer til salg)</li>
+            <li>Godt humør! 😊</li>
+          </ul>
+          
+          <p><strong>Vigtigt:</strong> Hvis du ikke kan deltage, bedes du aflyse din booking så snart som muligt, så andre kan få pladsen.</p>
+          
+          <p>Vi ses til gus! 🧖‍♂️</p>
+        </div>
+        <div class="footer">
+          <p>INIPI Saunagus<br>
+          Havkajakvej, Amagerstrand</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await client.sendEmail({
+    From: 'noreply@inipi.dk',
+    To: data.to,
+    Subject: `Påmindelse: ${data.sessionName} i morgen kl. ${data.sessionTime}`,
+    HtmlBody: htmlBody,
+    TextBody: `Hej ${data.userName},\n\nPåmindelse: Din session starter om ca. 24 timer!\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\n\nBooking ID: ${data.bookingId}\n\nHusk at medbringe håndklæde og vand.\n\nVi ses til gus!`,
+    MessageStream: 'outbound'
+  });
+}
+
+// Send payment failed notification
+export async function sendPaymentFailed(data: PaymentFailedEmail) {
+  const client = getPostmarkClient();
+  
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
+        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .error-box { background: #fee2e2; padding: 20px; border-left: 4px solid #dc2626; margin: 20px 0; }
+        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
+        .details strong { color: #502B30; }
+        .button { display: inline-block; padding: 12px 24px; background: #502B30; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔥 INIPI Saunagus</h1>
+        </div>
+        <div class="content">
+          <h2>Betaling Mislykkedes</h2>
+          <p>Hej ${data.userName},</p>
+          
+          <div class="error-box">
+            <p style="margin: 0; color: #991b1b;"><strong>⚠️ Din betaling kunne ikke gennemføres.</strong></p>
+          </div>
+          
+          <p>Desværre kunne vi ikke behandle din betaling for følgende booking:</p>
+          
+          <div class="details">
+            <strong>Session:</strong> ${data.sessionName}<br>
+            <strong>Dato:</strong> ${data.sessionDate}<br>
+            <strong>Tid:</strong> ${data.sessionTime}<br>
+            <strong>Beløb:</strong> ${data.amount} DKK<br>
+            <strong>Booking ID:</strong> ${data.bookingId}
+          </div>
+          
+          <p><strong>Hvad skal du gøre?</strong></p>
+          <ul>
+            <li>Tjek at dit kort har tilstrækkelige midler</li>
+            <li>Kontakt din bank hvis problemet fortsætter</li>
+            <li>Prøv at booke igen med et andet betalingskort</li>
+            <li>Eller køb et klippekort og book med det</li>
+          </ul>
+          
+          <p>Din booking er ikke bekræftet før betalingen er gennemført.</p>
+          
+          <div style="text-align: center;">
+            <a href="https://inipi.dk/sessions" class="button">Book Igen</a>
+          </div>
+          
+          <p>Hvis du har spørgsmål, er du velkommen til at kontakte os.</p>
+        </div>
+        <div class="footer">
+          <p>INIPI Saunagus<br>
+          Havkajakvej, Amagerstrand</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await client.sendEmail({
+    From: 'noreply@inipi.dk',
+    To: data.to,
+    Subject: `Betaling mislykkedes - ${data.sessionName}`,
+    HtmlBody: htmlBody,
+    TextBody: `Hej ${data.userName},\n\nDin betaling kunne ikke gennemføres.\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nBeløb: ${data.amount} DKK\n\nTjek dit kort og prøv igen, eller kontakt os for hjælp.`,
+    MessageStream: 'outbound'
+  });
+}
+
+// Send gusmester points earned notification
+export async function sendGusmesterPointsEarned(data: GusmesterPointsEarnedEmail) {
+  const client = getPostmarkClient();
+  
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #502B30; color: #FFF5E1; padding: 20px; text-align: center; }
+        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .points-box { background: #fef3c7; padding: 20px; border-left: 4px solid #f59e0b; margin: 20px 0; text-align: center; }
+        .points-earned { font-size: 48px; color: #502B30; font-weight: bold; }
+        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
+        .details strong { color: #502B30; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>⭐ INIPI Gusmester Point</h1>
+        </div>
+        <div class="content">
+          <h2>Du Har Optjent Point!</h2>
+          <p>Hej ${data.employeeName},</p>
+          
+          <div class="points-box">
+            <div class="points-earned">+${data.pointsEarned}</div>
+            <p style="margin: 10px 0 0 0; color: #78350f; font-size: 18px;">Gusmester Point</p>
+          </div>
+          
+          <div class="details">
+            <strong>Årsag:</strong> ${data.reason}<br>
+            <strong>Session:</strong> ${data.sessionName}<br>
+            <strong>Dato:</strong> ${data.sessionDate}<br>
+            <strong>Dine samlede point:</strong> ${data.totalPoints} point
+          </div>
+          
+          <p>Tillykke! Dine point kan bruges til at booke gusmester spots på fremtidige sessioner.</p>
+          
+          <p><strong>Sådan bruger du dine point:</strong></p>
+          <ul>
+            <li>Gå til Gusmester-siden</li>
+            <li>Find en ledig gusmester plads</li>
+            <li>Book med dine point (150 point pr. session)</li>
+          </ul>
+          
+          <p>Tak for din indsats som gusmester! 🔥</p>
+        </div>
+        <div class="footer">
+          <p>INIPI Saunagus<br>
+          Havkajakvej, Amagerstrand</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await client.sendEmail({
+    From: 'noreply@inipi.dk',
+    To: data.to,
+    Subject: `Du har optjent ${data.pointsEarned} gusmester point! ⭐`,
+    HtmlBody: htmlBody,
+    TextBody: `Hej ${data.employeeName},\n\nDu har optjent ${data.pointsEarned} gusmester point!\n\nÅrsag: ${data.reason}\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\n\nDine samlede point: ${data.totalPoints}\n\nTak for din indsats!`,
+    MessageStream: 'outbound'
+  });
+}
+
+// Send private event confirmation (for theme bookings)
+export async function sendPrivateEventConfirmation(data: PrivateEventConfirmationEmail) {
+  const client = getPostmarkClient();
+  
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #502B30 0%, #5e3023 100%); color: #FFF5E1; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 32px; }
+        .content { background: #fff; padding: 30px; border: 1px solid #ddd; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .theme-box { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 25px; border-radius: 8px; margin: 20px 0; text-align: center; border: 2px solid #f59e0b; }
+        .theme-box h2 { margin: 0 0 10px 0; color: #502B30; font-size: 28px; }
+        .details { background: #f9f9f9; padding: 15px; border-left: 4px solid #502B30; margin: 20px 0; }
+        .details strong { color: #502B30; }
+        .highlight { background: #fef3c7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🎉 INIPI Privat/Firma Event</h1>
+        </div>
+        <div class="content">
+          <h2>Dit Private Event Er Bekræftet!</h2>
+          <p>Hej ${data.userName},</p>
+          
+          <div class="theme-box">
+            <h2>${data.themeName}</h2>
+            <p style="margin: 0; color: #78350f; font-size: 16px;">Din eksklusive saunagus oplevelse</p>
+          </div>
+          
+          <p>Tak for din booking! Vi glæder os til at give dig og dine gæster en uforglemmelig oplevelse.</p>
+          
+          <div class="details">
+            <strong>Tema:</strong> ${data.themeName}<br>
+            <strong>Dato:</strong> ${data.sessionDate}<br>
+            <strong>Tid:</strong> ${data.sessionTime}<br>
+            <strong>Lokation:</strong> ${data.location}<br>
+            <strong>Antal pladser:</strong> ${data.spots}<br>
+            <strong>Total pris:</strong> ${data.totalPrice} DKK
+          </div>
+          
+          <p><strong>Booking ID:</strong> ${data.bookingId}</p>
+          
+          <div class="highlight">
+            <p style="margin: 0;"><strong>💡 Vigtigt:</strong> Dette er et privat event. Alle ${data.spots} pladser er reserveret til dig og dine gæster.</p>
+          </div>
+          
+          <h3>Hvad sker der nu?</h3>
+          <ul>
+            <li>Du vil modtage en påmindelse 24 timer før eventet</li>
+            <li>Husk at informere dine gæster om dato og tidspunkt</li>
+            <li>Alle skal medbringe håndklæde</li>
+            <li>Vi sørger for resten! 🔥</li>
+          </ul>
+          
+          <p><strong>Aflysning:</strong> Private events kan aflyses op til 48 timer før start for fuld refusion eller kompensation.</p>
+          
+          <p>Hvis du har spørgsmål eller særlige ønsker til dit event, er du velkommen til at kontakte os.</p>
+          
+          <p>Vi glæder os til at se dig og dine gæster! 🧖‍♂️</p>
+        </div>
+        <div class="footer">
+          <p>INIPI Saunagus<br>
+          Havkajakvej, Amagerstrand</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await client.sendEmail({
+    From: 'noreply@inipi.dk',
+    To: data.to,
+    Subject: `Private Event Bekræftet - ${data.themeName}`,
+    HtmlBody: htmlBody,
+    TextBody: `Hej ${data.userName},\n\nDit private event er bekræftet!\n\nTema: ${data.themeName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\nTotal pris: ${data.totalPrice} DKK\n\nBooking ID: ${data.bookingId}\n\nVi glæder os til at se dig og dine gæster!`,
+    MessageStream: 'outbound'
+  });
+}
