@@ -642,11 +642,27 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
     throw new Error('Du kan ikke aflyse en session der allerede er startet eller afsluttet');
   }
   
-  // Determine if eligible for compensation (24-hour rule)
-  const eligibleForCompensation = hoursUntil >= 24;
+  // Determine cancellation window based on booking type
+  // Theme bookings (private events): 48 hours
+  // Regular bookings (Fyraftensgus): 3 hours
+  const isThemeBooking = booking.selected_theme_id != null;
+  const minimumCancellationHours = isThemeBooking ? 48 : 3;
+  
+  // Check if cancellation is allowed
+  if (hoursUntil < minimumCancellationHours) {
+    const bookingType = isThemeBooking ? 'tema booking' : 'booking';
+    const timeWindow = isThemeBooking ? '48 timer' : '3 timer';
+    throw new Error(`Du kan ikke aflyse en ${bookingType} mindre end ${timeWindow} før sessionen`);
+  }
+  
+  // Determine if eligible for compensation
+  // For theme bookings: must cancel 48+ hours before
+  // For regular bookings: must cancel 24+ hours before (to get compensation)
+  const compensationWindowHours = isThemeBooking ? 48 : 24;
+  const eligibleForCompensation = hoursUntil >= compensationWindowHours;
   const cancelReason = eligibleForCompensation 
-    ? 'Aflyst af bruger mere end 24 timer før sessionens start'
-    : 'Aflyst af bruger mindre end 24 timer før sessionens start (ingen kompensation)';
+    ? `Aflyst af bruger mere end ${compensationWindowHours} timer før sessionens start`
+    : `Aflyst af bruger mindre end ${compensationWindowHours} timer før sessionens start (ingen kompensation)`;
 
   // Update booking status with automatic reason
   const { error: cancelError } = await supabase

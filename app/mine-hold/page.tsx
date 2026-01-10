@@ -246,7 +246,7 @@ export default function MineHoldPage() {
               <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
               <div className="text-sm text-amber-800">
                 <p className="font-semibold mb-1">Afbestillingspolitik</p>
-                <p>Du kan aflyse dine bookinger op til 3 timer før sessionen starter. Ved afbestilling får du enten dine klip tilbage, eller et nyt klippekort med tilsvarende antal klip.</p>
+                <p>Du kan aflyse Tema booking 48 timer før session start og fyraftensgus op til 3 timer før sessionen starter.</p>
               </div>
             </div>
           </div>
