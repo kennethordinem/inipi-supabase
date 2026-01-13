@@ -182,14 +182,16 @@ export function AddSeatsModal({ booking, userId, onClose, onSuccess }: AddSeatsM
   const [error, setError] = useState('');
   const [totalAmount, setTotalAmount] = useState(0);
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const [pricePerSeat, setPricePerSeat] = useState<number>(0);
+  const [themeName, setThemeName] = useState<string>('');
 
   const currentSpots = booking.spots || 1;
-  const pricePerSeat = booking.price / currentSpots; // Calculate price per seat from current booking
 
-  // Initialize Stripe on mount
+  // Initialize Stripe and fetch theme price on mount
   useEffect(() => {
-    const initStripe = async () => {
+    const init = async () => {
       try {
+        // Initialize Stripe
         console.log('[AddSeatsModal] Initializing Stripe...');
         const config = await members.getStripeConfig();
         
@@ -199,15 +201,39 @@ export function AddSeatsModal({ booking, userId, onClose, onSuccess }: AddSeatsM
         } else {
           console.error('[AddSeatsModal] Stripe not configured properly:', config);
           setError('Betalingssystem er ikke konfigureret. Kontakt administrator.');
+          return;
+        }
+
+        // Fetch theme price from database
+        if (booking.selectedThemeId) {
+          console.log('[AddSeatsModal] Fetching theme price for:', booking.selectedThemeId);
+          const { data: theme, error: themeError } = await members.supabase
+            .from('themes')
+            .select('price_per_seat, name')
+            .eq('id', booking.selectedThemeId)
+            .single();
+
+          if (themeError || !theme) {
+            console.error('[AddSeatsModal] Error fetching theme:', themeError);
+            setError('Kunne ikke hente tema information');
+            return;
+          }
+
+          console.log('[AddSeatsModal] Theme price per seat:', theme.price_per_seat);
+          setPricePerSeat(theme.price_per_seat || 0);
+          setThemeName(theme.name || '');
+        } else {
+          console.error('[AddSeatsModal] No theme ID found on booking');
+          setError('Denne booking har ikke et tema');
         }
       } catch (err) {
-        console.error('[AddSeatsModal] Error initializing Stripe:', err);
-        setError('Kunne ikke initialisere betalingssystem');
+        console.error('[AddSeatsModal] Error during initialization:', err);
+        setError('Kunne ikke initialisere');
       }
     };
 
-    initStripe();
-  }, []);
+    init();
+  }, [booking.selectedThemeId]);
 
   const handleContinueToPayment = async () => {
     setIsLoading(true);
