@@ -85,17 +85,20 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
           status,
           payment_method,
           payment_status,
-          price,
           selected_theme_id,
           created_at,
           sessions!inner(
             name,
             date,
             time,
-            location
+            location,
+            price
           ),
           themes!selected_theme_id(
             name
+          ),
+          invoices(
+            amount
           )
         `)
         .eq('user_id', client.id)
@@ -105,22 +108,32 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
 
       if (bookingsError) throw bookingsError;
 
-      const formattedBookings = (bookingsData || []).map((b: any) => ({
-        id: b.id,
-        session_id: b.session_id,
-        session_name: b.sessions.name,
-        session_date: b.sessions.date,
-        session_time: b.sessions.time,
-        spots: b.spots,
-        status: b.status,
-        payment_method: b.payment_method,
-        payment_status: b.payment_status,
-        price: b.price,
-        location: b.sessions.location,
-        selected_theme_id: b.selected_theme_id,
-        theme_name: b.themes?.name,
-        created_at: b.created_at,
-      }));
+      const formattedBookings = (bookingsData || []).map((b: any) => {
+        // Calculate price from invoice if available, otherwise from session price × spots
+        let price = 0;
+        if (b.invoices && b.invoices.length > 0) {
+          price = parseFloat(b.invoices[0].amount || 0);
+        } else if (b.sessions.price && b.spots) {
+          price = parseFloat(b.sessions.price) * b.spots;
+        }
+
+        return {
+          id: b.id,
+          session_id: b.session_id,
+          session_name: b.sessions.name,
+          session_date: b.sessions.date,
+          session_time: b.sessions.time,
+          spots: b.spots,
+          status: b.status,
+          payment_method: b.payment_method,
+          payment_status: b.payment_status,
+          price: price,
+          location: b.sessions.location,
+          selected_theme_id: b.selected_theme_id,
+          theme_name: b.themes?.name,
+          created_at: b.created_at,
+        };
+      });
 
       setBookings(formattedBookings);
 
