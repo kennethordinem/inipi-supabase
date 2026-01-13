@@ -526,13 +526,21 @@ async function bookSession(params: {
   if (bookingError) throw new Error(bookingError.message);
 
   // Update session participants
-  const { error: updateError } = await supabase.rpc('increment_session_participants', {
+  console.log('[bookSession] Calling increment_session_participants RPC:', {
+    session_id: params.sessionId,
+    increment_by: params.spots
+  });
+  
+  const { data: rpcData, error: updateError } = await supabase.rpc('increment_session_participants', {
     session_id: params.sessionId,
     increment_by: params.spots,
   });
 
   if (updateError) {
-    console.error('Error updating session participants:', updateError);
+    console.error('[bookSession] ERROR updating session participants:', updateError);
+    // Don't throw - booking is already created, this is just a count update
+  } else {
+    console.log('[bookSession] Successfully updated session participants:', rpcData);
   }
 
   // If using punch card, deduct punches
