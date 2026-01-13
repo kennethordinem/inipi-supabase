@@ -329,13 +329,13 @@ async function getClasses(filters?: {
     const sessionDate = new Date(session.date);
     const isPrivate = session.isPrivate || session.groupTypeName?.toLowerCase().includes('privat');
     
-    // NOTE: We DON'T hide private events with participants here because:
-    // 1. The user might have booked it themselves
-    // 2. The frontend (sessions page) handles showing "Booket" indicator
-    // 3. Hiding it here would make users' own bookings disappear from calendar
+    // Hide private events that already have participants (already booked)
+    if (isPrivate && session.currentParticipants > 0) {
+      return false;
+    }
     
     if (isPrivate) {
-      // Private events: show up to 1 year ahead
+      // Private events: show up to 1 year ahead (only if not booked)
       return sessionDate <= oneYearFromNow;
     } else {
       // Fyraftensgus: show only 30 days ahead
