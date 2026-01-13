@@ -198,12 +198,10 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
 
       if (punchCardsError) throw punchCardsError;
 
-      // Load usage history for each punch card
+      // Load usage history for each punch card (same as getPunchCardHistory in SDK)
       const punchCardsWithHistory = await Promise.all(
         (punchCardsData || []).map(async (card: any) => {
-          let usage_history: any[] = [];
-
-          // 1. Get usage from punch_card_usage table (when clips are used)
+          // Fetch usage history with session details
           const { data: usageData } = await supabase
             .from('punch_card_usage')
             .select(`
@@ -213,92 +211,50 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
               remaining_after,
               used_at,
               bookings!inner(
+                session_id,
                 sessions!inner(
+                  id,
                   name,
                   date,
                   time
                 )
               )
             `)
-            .eq('punch_card_id', card.id);
+            .eq('punch_card_id', card.id)
+            .order('used_at', { ascending: false });
 
-          const usageRecords = (usageData || []).map((usage: any) => ({
-            id: usage.id,
-            booking_id: usage.booking_id,
-            spots_used: usage.spots_used,
-            remaining_after: usage.remaining_after,
-            used_at: usage.used_at,
-            session_name: usage.bookings?.sessions?.name,
-            session_date: usage.bookings?.sessions?.date,
-            session_time: usage.bookings?.sessions?.time,
-            type: 'usage' as const,
-          }));
-
-          // 2. Get adjustments from punch_card_adjustments table (refunds, manual changes)
-          const { data: adjustmentsData } = await supabase
+          // Fetch adjustment history (refunds, compensations, etc.)
+          const { data: adjustmentData } = await supabase
             .from('punch_card_adjustments')
             .select('*')
-            .eq('punch_card_id', card.id);
+            .eq('punch_card_id', card.id)
+            .order('adjusted_at', { ascending: false });
 
-          const adjustmentRecords = (adjustmentsData || []).map((adj: any) => ({
-            id: adj.id,
-            booking_id: undefined,
-            spots_used: adj.amount, // Positive for refunds
-            remaining_after: adj.new_remaining,
-            used_at: adj.adjusted_at || adj.created_at,
-            type: adj.adjustment_type === 'refund' ? 'refund' : 'adjustment' as const,
-            reason: adj.reason,
-          }));
-
-          // 3. Fallback: If no usage history, get it from bookings table
-          if (usageRecords.length === 0) {
-            const { data: bookingsData } = await supabase
-              .from('bookings')
-              .select(`
-                id,
-                spots,
-                created_at,
-                sessions!inner(
-                  name,
-                  date,
-                  time
-                )
-              `)
-              .eq('punch_card_id', card.id)
-              .eq('status', 'confirmed');
-
-            const bookingRecords = (bookingsData || []).map((booking: any) => ({
-              id: booking.id,
-              booking_id: booking.id,
-              spots_used: booking.spots,
-              remaining_after: null,
-              used_at: booking.created_at,
-              session_name: booking.sessions?.name,
-              session_date: booking.sessions?.date,
-              session_time: booking.sessions?.time,
-              type: 'usage' as const,
-            }));
-            
-            usage_history = [...bookingRecords, ...adjustmentRecords];
-          } else {
-            usage_history = [...usageRecords, ...adjustmentRecords];
-          }
-
-          // 4. Add purchase record
-          usage_history.push({
-            id: card.id + '_purchase',
-            spots_used: card.total_punches,
-            remaining_after: card.total_punches,
-            used_at: card.created_at,
-            type: 'purchase' as const,
+          // Format usage data with session info
+          const formattedUsage = (usageData || []).map((u: any) => {
+            const session = u.bookings?.sessions;
+            return {
+              id: u.id,
+              type: 'usage',
+              timestamp: u.used_at,
+              spotsUsed: u.spots_used,
+              remainingAfter: u.remaining_after,
+              sessionName: session?.name || 'Session',
+              sessionDate: session?.date,
+              sessionTime: session?.time,
+              usedAt: u.used_at
+            };
           });
 
-          // Sort by date descending (newest first)
-          usage_history.sort((a, b) => new Date(b.used_at).getTime() - new Date(a.used_at).getTime());
+          // Combine and sort both histories by timestamp
+          const combinedHistory = [
+            ...formattedUsage,
+            ...(adjustmentData || []).map(a => ({ ...a, type: 'adjustment', timestamp: a.adjusted_at }))
+          ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
           return {
             ...card,
-            usage_history,
+            usage_history: combinedHistory,
           };
         })
       );
@@ -706,62 +662,96 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                           {/* Usage History */}
                           {card.usage_history && card.usage_history.length > 0 && (
                             <div className="mt-4 pt-4 border-t border-[#502B30]/10">
-                              <h5 className="text-sm font-semibold text-[#502B30] mb-3">Historik</h5>
+                              <h5 className="text-sm font-semibold text-[#502B30] mb-3">Forbrugshistorik</h5>
                               <div className="space-y-2 max-h-60 overflow-y-auto">
-                                {card.usage_history.map((entry) => {
-                                  // Determine display based on type
-                                  let bgColor = 'bg-[#faf8f5]';
-                                  let title = '';
-                                  let subtitle = '';
-                                  let amount = '';
-                                  
-                                  if (entry.type === 'purchase') {
-                                    bgColor = 'bg-green-50';
-                                    title = 'Købt klippekort';
-                                    amount = `+${entry.spots_used} klip`;
-                                  } else if (entry.type === 'usage') {
-                                    bgColor = 'bg-[#faf8f5]';
-                                    title = entry.session_name || 'Booking';
-                                    if (entry.session_date) {
-                                      subtitle = format(parseISO(entry.session_date), 'd. MMM yyyy', { locale: da });
-                                      if (entry.session_time) subtitle += ` kl. ${entry.session_time}`;
-                                    }
-                                    amount = `-${entry.spots_used} klip`;
-                                  } else if (entry.type === 'refund') {
-                                    bgColor = 'bg-blue-50';
-                                    title = 'Klip returneret';
-                                    subtitle = entry.reason || 'Booking aflyst';
-                                    amount = `+${entry.spots_used} klip`;
-                                  } else if (entry.type === 'adjustment') {
-                                    bgColor = 'bg-yellow-50';
-                                    title = 'Manuel justering';
-                                    subtitle = entry.reason || '';
-                                    amount = entry.spots_used > 0 ? `+${entry.spots_used} klip` : `${entry.spots_used} klip`;
-                                  }
-
-                                  return (
-                                    <div key={entry.id} className={`${bgColor} rounded-sm p-3 text-sm border border-[#502B30]/10`}>
-                                      <div className="flex items-start justify-between mb-1">
-                                        <div className="flex-1">
-                                          <div className="font-medium text-[#502B30]">{title}</div>
-                                          {subtitle && (
-                                            <div className="text-xs text-[#4a2329]/70">{subtitle}</div>
-                                          )}
-                                        </div>
-                                        <div className="text-right">
-                                          <div className={`font-semibold ${entry.type === 'usage' ? 'text-red-600' : 'text-green-600'}`}>
-                                            {amount}
+                                {card.usage_history.map((log: any, idx: number) => {
+                                  if (log.type === 'usage') {
+                                    // Session usage entry
+                                    return (
+                                      <div
+                                        key={log.id || `usage-${idx}`}
+                                        className="bg-white rounded-sm p-3 border border-[#502B30]/10"
+                                      >
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex-1">
+                                            <h6 className="font-semibold text-[#502B30] text-sm mb-1">
+                                              {log.sessionName || 'Session'}
+                                            </h6>
+                                            <div className="space-y-1 text-xs text-[#4a2329]/70">
+                                              {log.sessionDate && (
+                                                <div className="flex items-center">
+                                                  <Calendar className="h-3 w-3 mr-1" />
+                                                  {format(parseISO(log.sessionDate), 'd. MMMM yyyy', { locale: da })}
+                                                </div>
+                                              )}
+                                              {log.sessionTime && (
+                                                <div className="flex items-center">
+                                                  <Clock className="h-3 w-3 mr-1" />
+                                                  {log.sessionTime.substring(0, 5)}
+                                                </div>
+                                              )}
+                                              <div className="flex items-center">
+                                                <Ticket className="h-3 w-3 mr-1" />
+                                                Brugt: {log.spotsUsed} klip
+                                              </div>
+                                            </div>
                                           </div>
-                                          {entry.remaining_after !== null && (
-                                            <div className="text-xs text-[#4a2329]/60">{entry.remaining_after} tilbage</div>
-                                          )}
+                                          <div className="text-right ml-4">
+                                            <p className="text-xs text-[#502B30]/70 mb-1">Tilbage efter</p>
+                                            <p className="text-sm font-bold text-[#502B30]">
+                                              {log.remainingAfter}
+                                            </p>
+                                          </div>
                                         </div>
                                       </div>
-                                      <div className="text-xs text-[#4a2329]/50 mt-1">
-                                        {format(parseISO(entry.used_at), 'd. MMM yyyy HH:mm', { locale: da })}
+                                    );
+                                  } else {
+                                    // Adjustment entry (refund, compensation, etc.)
+                                    const adjustmentType = log.adjustment_type || log.adjustmentType;
+                                    const isRefund = adjustmentType === 'refund';
+                                    const isAddition = adjustmentType === 'add' || adjustmentType === 'refund';
+                                    return (
+                                      <div
+                                        key={log.id}
+                                        className={`rounded-sm p-3 border ${
+                                          isRefund
+                                            ? 'bg-blue-50 border-blue-200'
+                                            : isAddition
+                                            ? 'bg-green-50 border-green-200'
+                                            : 'bg-orange-50 border-orange-200'
+                                        }`}
+                                      >
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex-1">
+                                            <h6 className="font-semibold text-[#502B30] text-sm mb-1">
+                                              {isRefund ? '↩️ Klip returneret' : isAddition ? '✓ Klip tilføjet' : '− Klip trukket'}
+                                            </h6>
+                                            <div className="space-y-1 text-xs text-[#4a2329]/70">
+                                              <div className="flex items-center">
+                                                <Calendar className="h-3 w-3 mr-1" />
+                                                {format(parseISO(log.adjusted_at || log.adjustedAt), 'd. MMMM yyyy HH:mm', { locale: da })}
+                                              </div>
+                                              <div className="flex items-center">
+                                                <Ticket className="h-3 w-3 mr-1" />
+                                                {isRefund ? 'Returneret' : isAddition ? 'Tilføjet' : 'Trukket'}: {log.amount} klip
+                                              </div>
+                                              {log.reason && (
+                                                <div className="mt-1 text-xs italic bg-white p-2 rounded border border-[#502B30]/10">
+                                                  <strong>Årsag:</strong> {log.reason}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="text-right ml-4">
+                                            <p className="text-xs text-[#502B30]/70 mb-1">Tilbage efter</p>
+                                            <p className="text-sm font-bold text-[#502B30]">
+                                              {log.new_remaining || log.newRemaining}
+                                            </p>
+                                          </div>
+                                        </div>
                                       </div>
-                                    </div>
-                                  );
+                                    );
+                                  }
                                 })}
                               </div>
                             </div>
