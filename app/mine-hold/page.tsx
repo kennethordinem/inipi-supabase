@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
+import { AddSeatsModal } from '../components/AddSeatsModal';
 import { members } from '@/lib/supabase-sdk';
 import { cachedMembers } from '@/lib/cachedMembers';
 import type { AuthState } from '@/lib/supabase-sdk';
-import { Calendar, Clock, MapPin, User, Loader2, AlertCircle, CheckCircle, XCircle, Ticket } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Loader2, AlertCircle, CheckCircle, XCircle, Ticket, Plus } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { da } from 'date-fns/locale';
 
@@ -41,16 +42,23 @@ export default function MineHoldPage() {
   const [cancelSuccess, setCancelSuccess] = useState<string>('');
   const [cancelError, setCancelError] = useState<string>('');
   const [refundChoice, setRefundChoice] = useState<'card' | 'punchcard'>('punchcard');
+  const [showAddSeatsModal, setShowAddSeatsModal] = useState(false);
+  const [addSeatsBooking, setAddSeatsBooking] = useState<Booking | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
 
   useEffect(() => {
     // Subscribe to auth state changes
-    const unsubscribe = members.onAuthStateChanged((authState: AuthState) => {
+    const unsubscribe = members.onAuthStateChanged(async (authState: AuthState) => {
       if (!authState.isLoading) {
         if (!authState.isAuthenticated) {
           // Not logged in, redirect to login
           window.location.href = '/login';
         } else {
           // Logged in, load data
+          const user = await members.getCurrentUser();
+          if (user) {
+            setCurrentUserId(user.id);
+          }
           loadBookings();
         }
       }
@@ -187,6 +195,19 @@ export default function MineHoldPage() {
     } finally {
       setCancellingId(null);
     }
+  };
+
+  const handleAddSeatsClick = (booking: Booking) => {
+    setAddSeatsBooking(booking);
+    setShowAddSeatsModal(true);
+  };
+
+  const handleAddSeatsSuccess = () => {
+    setShowAddSeatsModal(false);
+    setAddSeatsBooking(null);
+    // Reload bookings to show updated seat count
+    cachedMembers.invalidateAfterBooking();
+    loadBookings();
   };
   
 
@@ -348,14 +369,15 @@ export default function MineHoldPage() {
 
                         {/* Cancel Button */}
                         <div className="ml-6 flex gap-3">
-                          {/* Add Seats Button - Only for regular bookings with sessionId */}
-                          {!booking.isGusmesterBooking && booking.sessionId && (
-                            <a
-                              href={`/sessions`}
-                              className="px-6 py-2 bg-[#502B30] hover:bg-[#5e3023] text-white rounded-sm font-medium transition-colors shadow-md"
+                          {/* Add Seats Button - Only for private events (with theme) */}
+                          {!booking.isGusmesterBooking && booking.selectedThemeId && (
+                            <button
+                              onClick={() => handleAddSeatsClick(booking)}
+                              className="px-6 py-2 bg-[#502B30] hover:bg-[#5e3023] text-white rounded-sm font-medium transition-colors shadow-md flex items-center gap-2"
                             >
+                              <Plus className="h-4 w-4" />
                               Tilføj pladser
-                            </a>
+                            </button>
                           )}
                           
                           {cancelStatus.canCancel ? (
@@ -627,6 +649,19 @@ export default function MineHoldPage() {
         </div>
         );
       })()}
+
+      {/* Add Seats Modal */}
+      {showAddSeatsModal && addSeatsBooking && currentUserId && (
+        <AddSeatsModal
+          booking={addSeatsBooking}
+          userId={currentUserId}
+          onClose={() => {
+            setShowAddSeatsModal(false);
+            setAddSeatsBooking(null);
+          }}
+          onSuccess={handleAddSeatsSuccess}
+        />
+      )}
     </>
   );
 }
