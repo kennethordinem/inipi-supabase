@@ -114,20 +114,29 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         booking_id: bookingId,
         invoice_number: invoiceNumber,
-        amount: amount.toString(),
+        amount: amount,
+        vat_amount: 0,
+        total_amount: amount,
+        description: `Ekstra ${additionalSeats} pladser til ${themeName} - ${session.name} (${sessionDateTime})`,
         payment_method: 'stripe',
         payment_status: 'paid',
-        items: [
-          {
-            description: `Ekstra pladser til ${themeName}`,
-            session: session.name,
-            date: sessionDateTime,
-            location: session.location || 'INIPI',
-            quantity: additionalSeats,
-            unitPrice: amount / additionalSeats,
-            total: amount,
-          }
-        ],
+        stripe_payment_intent_id: paymentIntentId,
+        metadata: {
+          items: [
+            {
+              description: `Ekstra pladser til ${themeName}`,
+              session: session.name,
+              date: sessionDateTime,
+              location: session.location || 'INIPI',
+              quantity: additionalSeats,
+              unitPrice: amount / additionalSeats,
+              total: amount,
+            }
+          ],
+          additionalSeats: true,
+          originalBookingId: bookingId,
+        },
+        paid_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
       })
       .select()
