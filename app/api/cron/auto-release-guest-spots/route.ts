@@ -213,8 +213,9 @@ export async function GET(request: NextRequest) {
     // ============================================
     const awardedPoints: any[] = [];
 
-    // Find sessions that have just started (within the last hour) that have a gusmester assigned
-    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    // Find sessions that have completed in the last 48 hours
+    // This gives us a buffer in case the cron job misses a run
+    const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
     const { data: completedSessions, error: completedError } = await supabase
       .from('sessions')
@@ -223,6 +224,7 @@ export async function GET(request: NextRequest) {
         name,
         date,
         time,
+        duration,
         session_employees!inner(
           employee_id,
           employees!inner(
@@ -240,8 +242,13 @@ export async function GET(request: NextRequest) {
         // Combine date and time to get session start timestamp
         const sessionStart = new Date(`${session.date}T${session.time}`);
         
-        // Check if session started within the last hour
-        if (sessionStart > now || sessionStart < oneHourAgo) {
+        // Calculate session end time (start + duration)
+        const sessionEnd = new Date(sessionStart.getTime() + (session.duration || 60) * 60 * 1000);
+        
+        // Only award points if:
+        // 1. Session has ended (sessionEnd < now)
+        // 2. Session ended within the last 48 hours (sessionEnd > fortyEightHoursAgo)
+        if (sessionEnd > now || sessionEnd < fortyEightHoursAgo) {
           continue;
         }
         
