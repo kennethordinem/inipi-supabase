@@ -59,6 +59,7 @@ export interface Booking {
   employeeName?: string;
   color?: string;
   punchCardId?: string;
+  selectedThemeId?: string; // For identifying private event bookings
 }
 
 export interface PunchCard {
@@ -719,6 +720,11 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
   } else if ((booking.payment_method === 'stripe' || booking.payment_method === 'card') && eligibleForCompensation) {
     // User paid with Stripe and cancelled >24 hours before
     
+    // For private events: ONLY allow Stripe refund (no punch card option)
+    if (isThemeBooking && !refundToCard) {
+      throw new Error('Private events kan kun refunderes til kort. Vælg venligst "Refunder til kort".');
+    }
+    
     if (refundToCard && booking.stripe_payment_intent_id) {
       // OPTION 1: Refund to card via Stripe
       try {
@@ -742,32 +748,27 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
         compensationMessage = 'Booking aflyst, men der opstod en fejl med refunderingen. Kontakt support.';
       }
     } else {
-      // OPTION 2: Give compensation punch card
+      // OPTION 2: Give compensation punch card (ONLY for Fyraftensgus, NOT private events)
+      if (isThemeBooking) {
+        // This should never happen due to the check above, but as a safety net
+        throw new Error('Private events kan ikke konverteres til klippekort');
+      }
+      
       const { data: session } = await supabase
         .from('sessions')
         .select('group_type_id, price')
         .eq('id', booking.session_id)
         .single();
 
-      // Calculate the actual price paid (theme price or session price)
-      let pricePerSeat = session?.price || 0;
-      let themeName = '';
-      
-      if (booking.selected_theme_id && booking.themes) {
-        const theme = Array.isArray(booking.themes) ? booking.themes[0] : booking.themes;
-        if (theme) {
-          pricePerSeat = theme.price_per_seat || pricePerSeat;
-          themeName = theme.name ? ` (${theme.name})` : '';
-        }
-      }
-      
+      // Calculate the actual price paid (session price for Fyraftensgus)
+      const pricePerSeat = session?.price || 0;
       const totalPrice = pricePerSeat * booking.spots;
 
       const { error: punchCardError } = await supabase
         .from('punch_cards')
         .insert({
           user_id: user.id,
-          name: `Kompensation - Aflyst booking${themeName}`,
+          name: `Kompensation - Aflyst booking`,
           total_punches: booking.spots,
           remaining_punches: booking.spots,
           price: totalPrice,
@@ -786,46 +787,41 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
       }
     }
   } else if (booking.payment_method === 'manual' && eligibleForCompensation) {
-    // Manual payment - only punch card compensation
-    const { data: session } = await supabase
-      .from('sessions')
-      .select('group_type_id, price')
-      .eq('id', booking.session_id)
-      .single();
-
-    // Calculate the actual price paid (theme price or session price)
-    let pricePerSeat = session?.price || 0;
-    let themeName = '';
-    
-    if (booking.selected_theme_id && booking.themes) {
-      const theme = Array.isArray(booking.themes) ? booking.themes[0] : booking.themes;
-      if (theme) {
-        pricePerSeat = theme.price_per_seat || pricePerSeat;
-        themeName = theme.name ? ` (${theme.name})` : '';
-      }
-    }
-    
-    const totalPrice = pricePerSeat * booking.spots;
-
-    const { error: punchCardError } = await supabase
-      .from('punch_cards')
-      .insert({
-        user_id: user.id,
-        name: `Kompensation - Aflyst booking${themeName}`,
-        total_punches: booking.spots,
-        remaining_punches: booking.spots,
-        price: totalPrice,
-        valid_for_group_types: session?.group_type_id ? [session.group_type_id] : [],
-        status: 'active',
-        reason: cancelReason,
-        related_booking_id: bookingId
-      });
-
-    if (!punchCardError) {
-      punchCardRestored = true;
-      compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip (værdi: ${totalPrice} kr) som kompensation`;
+    // Manual payment - only punch card compensation (ONLY for Fyraftensgus, NOT private events)
+    if (isThemeBooking) {
+      // Private events with manual payment cannot be converted to punch cards
+      compensationMessage = 'Booking aflyst. Kontakt administration for refundering.';
     } else {
-      compensationMessage = 'Booking aflyst';
+      const { data: session } = await supabase
+        .from('sessions')
+        .select('group_type_id, price')
+        .eq('id', booking.session_id)
+        .single();
+
+      // Calculate the actual price paid (session price for Fyraftensgus)
+      const pricePerSeat = session?.price || 0;
+      const totalPrice = pricePerSeat * booking.spots;
+
+      const { error: punchCardError } = await supabase
+        .from('punch_cards')
+        .insert({
+          user_id: user.id,
+          name: `Kompensation - Aflyst booking`,
+          total_punches: booking.spots,
+          remaining_punches: booking.spots,
+          price: totalPrice,
+          valid_for_group_types: session?.group_type_id ? [session.group_type_id] : [],
+          status: 'active',
+          reason: cancelReason,
+          related_booking_id: bookingId
+        });
+
+      if (!punchCardError) {
+        punchCardRestored = true;
+        compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip (værdi: ${totalPrice} kr) som kompensation`;
+      } else {
+        compensationMessage = 'Booking aflyst';
+      }
     }
   } else if (!eligibleForCompensation && !booking.punch_card_id) {
     // Cancelled less than 24 hours before - no compensation
@@ -909,6 +905,7 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
       location: session.location,
       color: session.group_types?.color || '#6366f1',
       punchCardId: booking.punch_card_id,
+      selectedThemeId: booking.selected_theme_id, // Include theme ID to identify private events
     };
 
     if (bookingDate >= today) {
