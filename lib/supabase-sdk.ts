@@ -457,26 +457,32 @@ async function bookSession(params: {
     .eq('id', params.sessionId)
     .single();
   
-  // Check user's existing bookings for this session
-  const { data: existingBookings } = await supabase
-    .from('bookings')
-    .select('spots')
-    .eq('session_id', params.sessionId)
-    .eq('user_id', user.id)
-    .eq('status', 'confirmed');
+  // For private events (theme bookings), skip the max seats per user check
+  // Private events allow booking all available spots
+  const isPrivateEvent = params.themeId != null;
   
-  // Calculate total spots already booked by this user
-  const totalBookedSpots = (existingBookings || []).reduce((sum, booking) => sum + booking.spots, 0);
-  const maxSeatsPerBooking = sessionData?.max_seats_per_booking || 6;
-  
-  // Check if adding these spots would exceed the limit
-  if (totalBookedSpots + params.spots > maxSeatsPerBooking) {
-    const remainingAllowed = maxSeatsPerBooking - totalBookedSpots;
-    throw new Error(
-      `Du har allerede booket ${totalBookedSpots} plads${totalBookedSpots !== 1 ? 'er' : ''} til denne session. ` +
-      `Max ${maxSeatsPerBooking} pladser pr. bruger. ` +
-      `Du kan kun booke ${remainingAllowed} plads${remainingAllowed !== 1 ? 'er' : ''} mere.`
-    );
+  if (!isPrivateEvent) {
+    // Check user's existing bookings for this session (only for regular sessions)
+    const { data: existingBookings } = await supabase
+      .from('bookings')
+      .select('spots')
+      .eq('session_id', params.sessionId)
+      .eq('user_id', user.id)
+      .eq('status', 'confirmed');
+    
+    // Calculate total spots already booked by this user
+    const totalBookedSpots = (existingBookings || []).reduce((sum, booking) => sum + booking.spots, 0);
+    const maxSeatsPerBooking = sessionData?.max_seats_per_booking || 6;
+    
+    // Check if adding these spots would exceed the limit
+    if (totalBookedSpots + params.spots > maxSeatsPerBooking) {
+      const remainingAllowed = maxSeatsPerBooking - totalBookedSpots;
+      throw new Error(
+        `Du har allerede booket ${totalBookedSpots} plads${totalBookedSpots !== 1 ? 'er' : ''} til denne session. ` +
+        `Max ${maxSeatsPerBooking} pladser pr. bruger. ` +
+        `Du kan kun booke ${remainingAllowed} plads${remainingAllowed !== 1 ? 'er' : ''} mere.`
+      );
+    }
   }
 
   // If theme is selected, get theme price and name; otherwise use session price
