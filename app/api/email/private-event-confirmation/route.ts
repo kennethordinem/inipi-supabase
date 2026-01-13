@@ -28,8 +28,7 @@ export async function POST(request: NextRequest) {
       .from('bookings')
       .select(`
         *,
-        sessions(name, date, time, location, price, selected_theme_id),
-        themes(name, price_per_seat)
+        sessions(name, date, time, location, price)
       `)
       .eq('id', bookingId)
       .single();
