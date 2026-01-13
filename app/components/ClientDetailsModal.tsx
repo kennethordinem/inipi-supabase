@@ -52,6 +52,18 @@ interface PunchCard {
   valid_until: string;
   status: string;
   created_at: string;
+  usage_history?: PunchCardUsage[];
+}
+
+interface PunchCardUsage {
+  id: string;
+  booking_id: string;
+  spots_used: number;
+  remaining_after: number;
+  used_at: string;
+  session_name?: string;
+  session_date?: string;
+  session_time?: string;
 }
 
 type TabType = 'overview' | 'bookings' | 'punchcards';
@@ -184,7 +196,47 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
 
       if (punchCardsError) throw punchCardsError;
 
-      setPunchCards(punchCardsData || []);
+      // Load usage history for each punch card
+      const punchCardsWithHistory = await Promise.all(
+        (punchCardsData || []).map(async (card: any) => {
+          const { data: usageData } = await supabase
+            .from('punch_card_usage')
+            .select(`
+              id,
+              booking_id,
+              spots_used,
+              remaining_after,
+              used_at,
+              bookings!inner(
+                sessions!inner(
+                  name,
+                  date,
+                  time
+                )
+              )
+            `)
+            .eq('punch_card_id', card.id)
+            .order('used_at', { ascending: false });
+
+          const usage_history = (usageData || []).map((usage: any) => ({
+            id: usage.id,
+            booking_id: usage.booking_id,
+            spots_used: usage.spots_used,
+            remaining_after: usage.remaining_after,
+            used_at: usage.used_at,
+            session_name: usage.bookings?.sessions?.name,
+            session_date: usage.bookings?.sessions?.date,
+            session_time: usage.bookings?.sessions?.time,
+          }));
+
+          return {
+            ...card,
+            usage_history,
+          };
+        })
+      );
+
+      setPunchCards(punchCardsWithHistory);
 
     } catch (err: any) {
       console.error('[ClientDetailsModal] Error loading data:', err);
@@ -579,8 +631,37 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                           </div>
 
                           {card.valid_until && (
-                            <div className="text-sm text-[#4a2329]/70">
+                            <div className="text-sm text-[#4a2329]/70 mb-4">
                               Gyldig til: {format(parseISO(card.valid_until), 'd. MMMM yyyy', { locale: da })}
+                            </div>
+                          )}
+
+                          {/* Usage History */}
+                          {card.usage_history && card.usage_history.length > 0 && (
+                            <div className="mt-4 pt-4 border-t border-[#502B30]/10">
+                              <h5 className="text-sm font-semibold text-[#502B30] mb-3">Brugshistorik</h5>
+                              <div className="space-y-2 max-h-60 overflow-y-auto">
+                                {card.usage_history.map((usage) => (
+                                  <div key={usage.id} className="bg-[#faf8f5] rounded-sm p-3 text-sm">
+                                    <div className="flex items-start justify-between mb-1">
+                                      <div className="flex-1">
+                                        <div className="font-medium text-[#502B30]">{usage.session_name}</div>
+                                        <div className="text-xs text-[#4a2329]/70">
+                                          {usage.session_date && format(parseISO(usage.session_date), 'd. MMM yyyy', { locale: da })}
+                                          {usage.session_time && ` kl. ${usage.session_time}`}
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="font-semibold text-[#502B30]">-{usage.spots_used} klip</div>
+                                        <div className="text-xs text-[#4a2329]/60">{usage.remaining_after} tilbage</div>
+                                      </div>
+                                    </div>
+                                    <div className="text-xs text-[#4a2329]/50 mt-1">
+                                      {format(parseISO(usage.used_at), 'd. MMM yyyy HH:mm', { locale: da })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
