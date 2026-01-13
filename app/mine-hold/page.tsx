@@ -56,8 +56,12 @@ export default function MineHoldPage() {
         } else {
           // Logged in, load data
           const user = await members.getCurrentUser();
+          console.log('[Mine Hold] Got current user:', user);
           if (user) {
+            console.log('[Mine Hold] Setting currentUserId to:', user.id);
             setCurrentUserId(user.id);
+          } else {
+            console.error('[Mine Hold] getCurrentUser returned null!');
           }
           loadBookings();
         }
