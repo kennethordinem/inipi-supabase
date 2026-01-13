@@ -202,8 +202,12 @@ export default function MineHoldPage() {
   };
 
   const handleAddSeatsClick = (booking: Booking) => {
+    console.log('[Add Seats] Handler called');
+    console.log('[Add Seats] Current user ID:', currentUserId);
+    console.log('[Add Seats] Booking:', booking);
     setAddSeatsBooking(booking);
     setShowAddSeatsModal(true);
+    console.log('[Add Seats] State updated - showAddSeatsModal should be true');
   };
 
   const handleAddSeatsSuccess = () => {
@@ -658,17 +662,25 @@ export default function MineHoldPage() {
       })()}
 
       {/* Add Seats Modal */}
-      {showAddSeatsModal && addSeatsBooking && currentUserId && (
-        <AddSeatsModal
-          booking={addSeatsBooking}
-          userId={currentUserId}
-          onClose={() => {
-            setShowAddSeatsModal(false);
-            setAddSeatsBooking(null);
-          }}
-          onSuccess={handleAddSeatsSuccess}
-        />
-      )}
+      {(() => {
+        console.log('[Add Seats Modal] Render check:', {
+          showAddSeatsModal,
+          hasBooking: !!addSeatsBooking,
+          hasUserId: !!currentUserId,
+          currentUserId
+        });
+        return showAddSeatsModal && addSeatsBooking && currentUserId ? (
+          <AddSeatsModal
+            booking={addSeatsBooking}
+            userId={currentUserId}
+            onClose={() => {
+              setShowAddSeatsModal(false);
+              setAddSeatsBooking(null);
+            }}
+            onSuccess={handleAddSeatsSuccess}
+          />
+        ) : null;
+      })()}
     </>
   );
 }
