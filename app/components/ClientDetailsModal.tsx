@@ -165,13 +165,13 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
     setCancelError(null);
 
     try {
-      // For private events, only allow Stripe refund
+      // For private events, only allow Stripe refund (no compensation)
       const isPrivateEvent = !!selectedBooking.selected_theme_id;
-      const finalRefundMethod = isPrivateEvent ? true : (refundMethod === 'stripe');
+      const issueCompensation = isPrivateEvent ? false : (refundMethod === 'punchcard');
 
-      const result = await members.cancelBooking(selectedBooking.id, finalRefundMethod, cancelReason);
+      const result = await members.adminCancelBooking(selectedBooking.id, cancelReason, issueCompensation);
 
-      setCancelSuccess('Booking aflyst succesfuldt');
+      setCancelSuccess(result.message || 'Booking aflyst succesfuldt');
       setShowCancelModal(false);
       
       // Reload data
