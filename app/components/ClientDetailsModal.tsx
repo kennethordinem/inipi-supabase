@@ -59,7 +59,7 @@ interface PunchCardUsage {
   id: string;
   booking_id: string;
   spots_used: number;
-  remaining_after: number;
+  remaining_after: number | null;
   used_at: string;
   session_name?: string;
   session_date?: string;
@@ -199,6 +199,7 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
       // Load usage history for each punch card
       const punchCardsWithHistory = await Promise.all(
         (punchCardsData || []).map(async (card: any) => {
+          // Try to get usage from punch_card_usage table first
           const { data: usageData } = await supabase
             .from('punch_card_usage')
             .select(`
@@ -218,7 +219,7 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
             .eq('punch_card_id', card.id)
             .order('used_at', { ascending: false });
 
-          const usage_history = (usageData || []).map((usage: any) => ({
+          let usage_history = (usageData || []).map((usage: any) => ({
             id: usage.id,
             booking_id: usage.booking_id,
             spots_used: usage.spots_used,
@@ -228,6 +229,36 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
             session_date: usage.bookings?.sessions?.date,
             session_time: usage.bookings?.sessions?.time,
           }));
+
+          // Fallback: If no usage history, get it from bookings table
+          if (usage_history.length === 0) {
+            const { data: bookingsData } = await supabase
+              .from('bookings')
+              .select(`
+                id,
+                spots,
+                created_at,
+                sessions!inner(
+                  name,
+                  date,
+                  time
+                )
+              `)
+              .eq('punch_card_id', card.id)
+              .eq('status', 'confirmed')
+              .order('created_at', { ascending: false });
+
+            usage_history = (bookingsData || []).map((booking: any) => ({
+              id: booking.id,
+              booking_id: booking.id,
+              spots_used: booking.spots,
+              remaining_after: null, // Not available from bookings
+              used_at: booking.created_at,
+              session_name: booking.sessions?.name,
+              session_date: booking.sessions?.date,
+              session_time: booking.sessions?.time,
+            }));
+          }
 
           return {
             ...card,
@@ -653,7 +684,9 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                                       </div>
                                       <div className="text-right">
                                         <div className="font-semibold text-[#502B30]">-{usage.spots_used} klip</div>
-                                        <div className="text-xs text-[#4a2329]/60">{usage.remaining_after} tilbage</div>
+                                        {usage.remaining_after !== null && (
+                                          <div className="text-xs text-[#4a2329]/60">{usage.remaining_after} tilbage</div>
+                                        )}
                                       </div>
                                     </div>
                                     <div className="text-xs text-[#4a2329]/50 mt-1">
