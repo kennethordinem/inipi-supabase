@@ -80,6 +80,10 @@ export default function MineHoldPage() {
       console.log('[Mine Hold] Regular bookings:', regularResult.upcoming);
       console.log('[Mine Hold] Gusmester bookings:', gusmesterResult.bookings);
       
+      // Check for private events (bookings with selectedThemeId)
+      const privateEvents = regularResult.upcoming?.filter((b: any) => b.selectedThemeId);
+      console.log('[Mine Hold] Private events found:', privateEvents?.length || 0, privateEvents);
+      
       // Convert gusmester bookings to the same format as regular bookings
       const gusmesterBookingsFormatted = (gusmesterResult.bookings || []).map((gb: any) => ({
         id: gb.id,
@@ -372,7 +376,10 @@ export default function MineHoldPage() {
                           {/* Add Seats Button - Only for private events (with theme) */}
                           {!booking.isGusmesterBooking && booking.selectedThemeId && (
                             <button
-                              onClick={() => handleAddSeatsClick(booking)}
+                              onClick={() => {
+                                console.log('[Add Seats] Button clicked for booking:', booking);
+                                handleAddSeatsClick(booking);
+                              }}
                               className="px-6 py-2 bg-[#502B30] hover:bg-[#5e3023] text-white rounded-sm font-medium transition-colors shadow-md flex items-center gap-2"
                             >
                               <Plus className="h-4 w-4" />
