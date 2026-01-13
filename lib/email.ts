@@ -144,6 +144,21 @@ export interface PrivateEventConfirmationEmail {
   bookingId: string;
 }
 
+export interface SeatsAddedConfirmationEmail {
+  to: string;
+  userName: string;
+  themeName: string;
+  sessionName: string;
+  sessionDate: string;
+  sessionTime: string;
+  location: string;
+  additionalSeats: number;
+  newTotalSeats: number;
+  amount: number;
+  pricePerSeat: number;
+  invoiceNumber: string;
+}
+
 // Send booking confirmation
 export async function sendBookingConfirmation(data: BookingConfirmationEmail) {
   const client = getPostmarkClient();
@@ -967,6 +982,114 @@ export async function sendPrivateEventConfirmation(data: PrivateEventConfirmatio
     Subject: `Private Event Bekræftet - ${data.themeName}`,
     HtmlBody: htmlBody,
     TextBody: `Hej ${data.userName},\n\nDit private event er bekræftet!\n\nTema: ${data.themeName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\nTotal pris: ${data.totalPrice} DKK\n\nBooking ID: ${data.bookingId}\n\nVi glæder os til at se dig og dine gæster!`,
+    MessageStream: 'outbound'
+  });
+}
+
+// Send seats added confirmation (for adding seats to private events)
+export async function sendSeatsAddedConfirmation(data: SeatsAddedConfirmationEmail) {
+  const client = getPostmarkClient();
+  
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔥 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
+        </div>
+        <div class="content">
+          <div class="success-box">
+            <h2 style="margin-top: 0; color: #502B30;">Ekstra Pladser Tilføjet! ✅</h2>
+            <p style="margin-bottom: 0; color: #065f46;">Hej ${data.userName}, dine ekstra pladser er bekræftet!</p>
+          </div>
+          
+          <p>Vi har tilføjet <strong>${data.additionalSeats} ekstra pladser</strong> til din private saunagus. Din betaling er modtaget, og din reservation er nu opdateret.</p>
+          
+          <div class="highlight-box" style="text-align: center;">
+            <h2 style="margin: 0 0 10px 0; color: #502B30; font-size: 28px;">${data.themeName}</h2>
+            <p style="margin: 0; color: #78350f; font-size: 16px;">Nu med plads til ${data.newTotalSeats} personer</p>
+          </div>
+          
+          <div class="details">
+            <div class="detail-item">
+              <strong>Tema</strong>
+              ${data.themeName}
+            </div>
+            <div class="detail-item">
+              <strong>Session</strong>
+              ${data.sessionName}
+            </div>
+            <div class="detail-item">
+              <strong>Dato</strong>
+              ${data.sessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Tid</strong>
+              ${data.sessionTime}
+            </div>
+            <div class="detail-item">
+              <strong>Lokation</strong>
+              ${data.location}
+            </div>
+            <div class="detail-item">
+              <strong>Antal pladser i alt</strong>
+              ${data.newTotalSeats} personer
+            </div>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <h3 style="color: #502B30;">Betaling for ekstra pladser</h3>
+          <div class="details">
+            <div class="detail-item">
+              <strong>Ekstra pladser</strong>
+              ${data.additionalSeats} personer
+            </div>
+            <div class="detail-item">
+              <strong>Pris pr. person</strong>
+              ${data.pricePerSeat.toFixed(2)} DKK
+            </div>
+            <div class="detail-item">
+              <strong>Betalt beløb</strong>
+              ${data.amount.toFixed(2)} DKK
+            </div>
+          </div>
+          
+          <div class="info-box">
+            <strong>Kvitteringsnr:</strong> ${data.invoiceNumber}
+          </div>
+          
+          <div class="divider"></div>
+          
+          <p>Du kan se din opdaterede reservation og kvittering under <strong>"Mine hold"</strong> på vores hjemmeside.</p>
+          
+          <div style="text-align: center;">
+            <a href="https://inipi.dk/mine-hold" class="button">Se Mine Hold →</a>
+          </div>
+          
+          <p style="text-align: center; font-size: 18px; color: #502B30; font-weight: bold;">Vi glæder os til at se dig og alle dine gæster! 🧖‍♂️🔥</p>
+        </div>
+        <div class="footer">
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await client.sendEmail({
+    From: 'noreply@inipi.dk',
+    To: data.to,
+    Subject: `Ekstra pladser tilføjet - ${data.themeName}`,
+    HtmlBody: htmlBody,
+    TextBody: `Hej ${data.userName},\n\nVi har tilføjet ${data.additionalSeats} ekstra pladser til din private saunagus.\n\nTema: ${data.themeName}\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nLokation: ${data.location}\nAntal pladser i alt: ${data.newTotalSeats}\n\nBetaling:\nEkstra pladser: ${data.additionalSeats}\nPris pr. person: ${data.pricePerSeat.toFixed(2)} DKK\nBetalt beløb: ${data.amount.toFixed(2)} DKK\n\nKvitteringsnr: ${data.invoiceNumber}\n\nVi glæder os til at se dig og alle dine gæster!`,
     MessageStream: 'outbound'
   });
 }
