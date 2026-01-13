@@ -94,7 +94,7 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
             time,
             location
           ),
-          themes(
+          themes!selected_theme_id(
             name
           )
         `)
