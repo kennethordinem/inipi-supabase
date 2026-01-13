@@ -57,13 +57,15 @@ interface PunchCard {
 
 interface PunchCardUsage {
   id: string;
-  booking_id: string;
+  booking_id?: string;
   spots_used: number;
   remaining_after: number | null;
   used_at: string;
   session_name?: string;
   session_date?: string;
   session_time?: string;
+  type: 'usage' | 'refund' | 'adjustment' | 'purchase';
+  reason?: string;
 }
 
 type TabType = 'overview' | 'bookings' | 'punchcards';
@@ -199,7 +201,9 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
       // Load usage history for each punch card
       const punchCardsWithHistory = await Promise.all(
         (punchCardsData || []).map(async (card: any) => {
-          // Try to get usage from punch_card_usage table first
+          let usage_history: any[] = [];
+
+          // 1. Get usage from punch_card_usage table (when clips are used)
           const { data: usageData } = await supabase
             .from('punch_card_usage')
             .select(`
@@ -216,10 +220,9 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                 )
               )
             `)
-            .eq('punch_card_id', card.id)
-            .order('used_at', { ascending: false });
+            .eq('punch_card_id', card.id);
 
-          let usage_history = (usageData || []).map((usage: any) => ({
+          const usageRecords = (usageData || []).map((usage: any) => ({
             id: usage.id,
             booking_id: usage.booking_id,
             spots_used: usage.spots_used,
@@ -228,10 +231,27 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
             session_name: usage.bookings?.sessions?.name,
             session_date: usage.bookings?.sessions?.date,
             session_time: usage.bookings?.sessions?.time,
+            type: 'usage' as const,
           }));
 
-          // Fallback: If no usage history, get it from bookings table
-          if (usage_history.length === 0) {
+          // 2. Get adjustments from punch_card_adjustments table (refunds, manual changes)
+          const { data: adjustmentsData } = await supabase
+            .from('punch_card_adjustments')
+            .select('*')
+            .eq('punch_card_id', card.id);
+
+          const adjustmentRecords = (adjustmentsData || []).map((adj: any) => ({
+            id: adj.id,
+            booking_id: undefined,
+            spots_used: adj.amount, // Positive for refunds
+            remaining_after: adj.new_remaining,
+            used_at: adj.adjusted_at || adj.created_at,
+            type: adj.adjustment_type === 'refund' ? 'refund' : 'adjustment' as const,
+            reason: adj.reason,
+          }));
+
+          // 3. Fallback: If no usage history, get it from bookings table
+          if (usageRecords.length === 0) {
             const { data: bookingsData } = await supabase
               .from('bookings')
               .select(`
@@ -245,20 +265,36 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                 )
               `)
               .eq('punch_card_id', card.id)
-              .eq('status', 'confirmed')
-              .order('created_at', { ascending: false });
+              .eq('status', 'confirmed');
 
-            usage_history = (bookingsData || []).map((booking: any) => ({
+            const bookingRecords = (bookingsData || []).map((booking: any) => ({
               id: booking.id,
               booking_id: booking.id,
               spots_used: booking.spots,
-              remaining_after: null, // Not available from bookings
+              remaining_after: null,
               used_at: booking.created_at,
               session_name: booking.sessions?.name,
               session_date: booking.sessions?.date,
               session_time: booking.sessions?.time,
+              type: 'usage' as const,
             }));
+            
+            usage_history = [...bookingRecords, ...adjustmentRecords];
+          } else {
+            usage_history = [...usageRecords, ...adjustmentRecords];
           }
+
+          // 4. Add purchase record
+          usage_history.push({
+            id: card.id + '_purchase',
+            spots_used: card.total_punches,
+            remaining_after: card.total_punches,
+            used_at: card.created_at,
+            type: 'purchase' as const,
+          });
+
+          // Sort by date descending (newest first)
+          usage_history.sort((a, b) => new Date(b.used_at).getTime() - new Date(a.used_at).getTime());
 
           return {
             ...card,
@@ -670,30 +706,63 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                           {/* Usage History */}
                           {card.usage_history && card.usage_history.length > 0 && (
                             <div className="mt-4 pt-4 border-t border-[#502B30]/10">
-                              <h5 className="text-sm font-semibold text-[#502B30] mb-3">Brugshistorik</h5>
+                              <h5 className="text-sm font-semibold text-[#502B30] mb-3">Historik</h5>
                               <div className="space-y-2 max-h-60 overflow-y-auto">
-                                {card.usage_history.map((usage) => (
-                                  <div key={usage.id} className="bg-[#faf8f5] rounded-sm p-3 text-sm">
-                                    <div className="flex items-start justify-between mb-1">
-                                      <div className="flex-1">
-                                        <div className="font-medium text-[#502B30]">{usage.session_name}</div>
-                                        <div className="text-xs text-[#4a2329]/70">
-                                          {usage.session_date && format(parseISO(usage.session_date), 'd. MMM yyyy', { locale: da })}
-                                          {usage.session_time && ` kl. ${usage.session_time}`}
+                                {card.usage_history.map((entry) => {
+                                  // Determine display based on type
+                                  let bgColor = 'bg-[#faf8f5]';
+                                  let title = '';
+                                  let subtitle = '';
+                                  let amount = '';
+                                  
+                                  if (entry.type === 'purchase') {
+                                    bgColor = 'bg-green-50';
+                                    title = 'Købt klippekort';
+                                    amount = `+${entry.spots_used} klip`;
+                                  } else if (entry.type === 'usage') {
+                                    bgColor = 'bg-[#faf8f5]';
+                                    title = entry.session_name || 'Booking';
+                                    if (entry.session_date) {
+                                      subtitle = format(parseISO(entry.session_date), 'd. MMM yyyy', { locale: da });
+                                      if (entry.session_time) subtitle += ` kl. ${entry.session_time}`;
+                                    }
+                                    amount = `-${entry.spots_used} klip`;
+                                  } else if (entry.type === 'refund') {
+                                    bgColor = 'bg-blue-50';
+                                    title = 'Klip returneret';
+                                    subtitle = entry.reason || 'Booking aflyst';
+                                    amount = `+${entry.spots_used} klip`;
+                                  } else if (entry.type === 'adjustment') {
+                                    bgColor = 'bg-yellow-50';
+                                    title = 'Manuel justering';
+                                    subtitle = entry.reason || '';
+                                    amount = entry.spots_used > 0 ? `+${entry.spots_used} klip` : `${entry.spots_used} klip`;
+                                  }
+
+                                  return (
+                                    <div key={entry.id} className={`${bgColor} rounded-sm p-3 text-sm border border-[#502B30]/10`}>
+                                      <div className="flex items-start justify-between mb-1">
+                                        <div className="flex-1">
+                                          <div className="font-medium text-[#502B30]">{title}</div>
+                                          {subtitle && (
+                                            <div className="text-xs text-[#4a2329]/70">{subtitle}</div>
+                                          )}
+                                        </div>
+                                        <div className="text-right">
+                                          <div className={`font-semibold ${entry.type === 'usage' ? 'text-red-600' : 'text-green-600'}`}>
+                                            {amount}
+                                          </div>
+                                          {entry.remaining_after !== null && (
+                                            <div className="text-xs text-[#4a2329]/60">{entry.remaining_after} tilbage</div>
+                                          )}
                                         </div>
                                       </div>
-                                      <div className="text-right">
-                                        <div className="font-semibold text-[#502B30]">-{usage.spots_used} klip</div>
-                                        {usage.remaining_after !== null && (
-                                          <div className="text-xs text-[#4a2329]/60">{usage.remaining_after} tilbage</div>
-                                        )}
+                                      <div className="text-xs text-[#4a2329]/50 mt-1">
+                                        {format(parseISO(entry.used_at), 'd. MMM yyyy HH:mm', { locale: da })}
                                       </div>
                                     </div>
-                                    <div className="text-xs text-[#4a2329]/50 mt-1">
-                                      {format(parseISO(usage.used_at), 'd. MMM yyyy HH:mm', { locale: da })}
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
