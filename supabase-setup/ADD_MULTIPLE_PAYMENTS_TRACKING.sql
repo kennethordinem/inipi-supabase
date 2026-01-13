@@ -49,9 +49,9 @@ CREATE POLICY "Admins can view all booking payments"
   FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE id = auth.uid()
-      AND permissions ? 'administration'
+      SELECT 1 FROM employees
+      WHERE user_id = auth.uid()
+      AND (frontend_permissions->>'administration')::boolean = true
     )
   );
 

@@ -8,7 +8,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 interface AddSeatsModalProps {
   booking: {
     id: string;
-    spots: number;
+    spots?: number;
     sessionId?: string;
     selectedThemeId?: string;
     type: string;
@@ -106,7 +106,7 @@ function AddSeatsForm({
         <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
         <h3 className="text-xl font-bold text-[#502B30] mb-2">Pladser tilføjet!</h3>
         <p className="text-[#4a2329]/70">
-          Du har nu {booking.spots + additionalSeats} pladser i alt
+          Du har nu {(booking.spots || 0) + additionalSeats} pladser i alt
         </p>
         <p className="text-sm text-[#4a2329]/60 mt-2">
           Du modtager en kvittering på email
@@ -119,13 +119,13 @@ function AddSeatsForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="bg-blue-50 border border-blue-200 rounded-sm p-4">
         <p className="text-sm text-blue-800">
-          <strong>Nuværende pladser:</strong> {booking.spots}
+          <strong>Nuværende pladser:</strong> {booking.spots || 0}
         </p>
         <p className="text-sm text-blue-800">
           <strong>Tilføjer:</strong> +{additionalSeats} pladser
         </p>
         <p className="text-sm text-blue-800 font-bold mt-2">
-          <strong>Nye total:</strong> {booking.spots + additionalSeats} pladser
+          <strong>Nye total:</strong> {(booking.spots || 0) + additionalSeats} pladser
         </p>
       </div>
 
@@ -184,7 +184,8 @@ export function AddSeatsModal({ booking, userId, onClose, onSuccess }: AddSeatsM
   const [error, setError] = useState('');
   const [totalAmount, setTotalAmount] = useState(0);
 
-  const pricePerSeat = booking.price / booking.spots; // Calculate price per seat from current booking
+  const currentSpots = booking.spots || 1;
+  const pricePerSeat = booking.price / currentSpots; // Calculate price per seat from current booking
 
   const handleContinueToPayment = async () => {
     setIsLoading(true);
@@ -246,7 +247,7 @@ export function AddSeatsModal({ booking, userId, onClose, onSuccess }: AddSeatsM
                   <strong>Dato:</strong> {new Date(booking.date).toLocaleDateString('da-DK')} kl. {booking.time}
                 </p>
                 <p className="text-sm text-[#4a2329]/70">
-                  <strong>Nuværende pladser:</strong> {booking.spots}
+                  <strong>Nuværende pladser:</strong> {currentSpots}
                 </p>
                 <p className="text-sm text-[#4a2329]/70">
                   <strong>Pris pr. plads:</strong> {pricePerSeat.toFixed(2)} kr
@@ -297,7 +298,7 @@ export function AddSeatsModal({ booking, userId, onClose, onSuccess }: AddSeatsM
                   </div>
                 </div>
                 <p className="text-xs text-[#4a2329]/60 mt-3">
-                  Efter betaling vil du have {booking.spots + additionalSeats} pladser i alt
+                  Efter betaling vil du have {currentSpots + additionalSeats} pladser i alt
                 </p>
               </div>
 
