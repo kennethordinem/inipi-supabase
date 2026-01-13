@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import type { AuthState } from '@/lib/supabase-sdk';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
+import { ClientDetailsModal } from '../components/ClientDetailsModal';
 import { 
   Calendar, 
   Users, 
@@ -129,6 +130,10 @@ export default function PersonalePage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [newGusmesterId, setNewGusmesterId] = useState('');
+  
+  // Client details modal state
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
 
   useEffect(() => {
     // Subscribe to auth state changes
@@ -404,6 +409,17 @@ export default function PersonalePage() {
   
   const goToToday = () => {
     setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1, locale: da }));
+  };
+
+  const handleClientClick = (client: Client) => {
+    setSelectedClient(client);
+    setShowClientModal(true);
+  };
+
+  const handleClientModalSuccess = () => {
+    // Reload clients and sessions data
+    loadClients();
+    loadSessions();
   };
 
   const weekNumber = getWeek(currentWeekStart, { weekStartsOn: 1, locale: da });
@@ -1160,7 +1176,11 @@ export default function PersonalePage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-[#502B30]/10">
                     {filteredClients.map((client) => (
-                      <tr key={client.id} className="hover:bg-[#502B30]/5">
+                      <tr 
+                        key={client.id} 
+                        onClick={() => handleClientClick(client)}
+                        className="hover:bg-[#502B30]/5 cursor-pointer transition-colors"
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-[#502B30]">
                             {client.first_name} {client.last_name}
@@ -1646,6 +1666,18 @@ export default function PersonalePage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Client Details Modal */}
+        {showClientModal && selectedClient && (
+          <ClientDetailsModal
+            client={selectedClient}
+            onClose={() => {
+              setShowClientModal(false);
+              setSelectedClient(null);
+            }}
+            onSuccess={handleClientModalSuccess}
+          />
         )}
       </div>
       <Footer />
