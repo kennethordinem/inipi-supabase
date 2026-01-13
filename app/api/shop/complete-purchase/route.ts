@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendPunchCardPurchase } from '@/lib/email';
 
 // Create server-side Supabase client with service role key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -115,11 +116,56 @@ export async function POST(request: NextRequest) {
 
     // Send purchase confirmation email
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/api/email/punch-card-purchase`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ punchCardId: newPunchCard.id }),
-      });
+      // Get user info - check both profiles and employees tables
+      let userEmail: string | null = null;
+      let userName: string | null = null;
+
+      // Try profiles table first
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email, first_name, last_name')
+        .eq('id', userId)
+        .single();
+
+      if (profile && profile.email) {
+        userEmail = profile.email;
+        userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+      } else {
+        // Try employees table
+        const { data: employee } = await supabase
+          .from('employees')
+          .select('email, name')
+          .eq('id', userId)
+          .single();
+
+        if (employee && employee.email) {
+          userEmail = employee.email;
+          userName = employee.name;
+        }
+      }
+
+      if (!userEmail) {
+        console.error('[CompletePurchase] No email found for user:', userId);
+      } else {
+        // Format purchase date
+        const purchaseDate = new Date().toLocaleDateString('da-DK', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+
+        // Send email directly using the helper function
+        await sendPunchCardPurchase({
+          to: userEmail,
+          userName: userName || 'Medlem',
+          punchCardName: product.name,
+          clips: product.total_punches,
+          price: product.price,
+          purchaseDate: purchaseDate,
+        });
+        console.log(`[CompletePurchase] Email sent successfully to: ${userEmail}`);
+      }
     } catch (emailError) {
       console.error('[CompletePurchase] Error sending email:', emailError);
       // Don't fail the request if email fails

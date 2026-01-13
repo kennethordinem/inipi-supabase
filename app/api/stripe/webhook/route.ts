@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { getStripeInstance } from '@/lib/stripe-server';
+import { sendPunchCardPurchase } from '@/lib/email';
 
 // Create server-side Supabase client with service role key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -173,11 +174,60 @@ async function handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
           }
           
           // Send purchase confirmation email
-          fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', 'https://')}/api/email/punch-card-purchase`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ punchCardId: newPunchCard.id }),
-          }).catch(err => console.error('Error sending punch card purchase email:', err));
+          try {
+            // Get user info - check both profiles and employees tables
+            let userEmail: string | null = null;
+            let userName: string | null = null;
+
+            // Try profiles table first
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('email, first_name, last_name')
+              .eq('id', patientId)
+              .single();
+
+            if (profile && profile.email) {
+              userEmail = profile.email;
+              userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+            } else {
+              // Try employees table
+              const { data: employee } = await supabase
+                .from('employees')
+                .select('email, name')
+                .eq('id', patientId)
+                .single();
+
+              if (employee && employee.email) {
+                userEmail = employee.email;
+                userName = employee.name;
+              }
+            }
+
+            if (!userEmail) {
+              console.error('[Webhook] No email found for user:', patientId);
+            } else {
+              // Format purchase date
+              const purchaseDate = new Date().toLocaleDateString('da-DK', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+
+              // Send email directly using the helper function
+              await sendPunchCardPurchase({
+                to: userEmail,
+                userName: userName || 'Medlem',
+                punchCardName: product.name,
+                clips: product.total_punches,
+                price: paymentIntent.amount / 100,
+                purchaseDate: purchaseDate,
+              });
+              console.log(`[Webhook] Email sent successfully to: ${userEmail}`);
+            }
+          } catch (emailErr) {
+            console.error('[Webhook] Error sending punch card purchase email:', emailErr);
+          }
         } else {
           console.error('Error creating punch card:', punchCardError);
         }
