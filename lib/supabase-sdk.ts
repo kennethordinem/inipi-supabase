@@ -1443,14 +1443,34 @@ async function getPaymentHistory(limit?: number): Promise<{ payments: any[] }> {
   if (error) throw new Error(error.message);
 
   // Format invoices to match expected payment format
-  const payments = (data || []).map(invoice => ({
-    id: invoice.id,
-    amount: parseFloat(invoice.total_amount || invoice.amount || 0),
-    description: invoice.description,
-    date: invoice.paid_at || invoice.created_at,
-    status: invoice.payment_status,
-    method: invoice.payment_method,
-  }));
+  const payments = (data || []).map(invoice => {
+    // Check if this is an "additional seats" invoice with metadata
+    const metadata = invoice.metadata || {};
+    const items = metadata.items || [];
+    
+    // If we have items in metadata, use them; otherwise create a simple item
+    const formattedItems = items.length > 0 
+      ? items.map((item: any) => ({
+          description: item.description || invoice.description,
+          quantity: item.quantity || 1,
+          price: item.unitPrice || parseFloat(invoice.total_amount || invoice.amount || 0),
+        }))
+      : [{
+          description: invoice.description,
+          quantity: 1,
+          price: parseFloat(invoice.total_amount || invoice.amount || 0),
+        }];
+
+    return {
+      id: invoice.id,
+      amount: parseFloat(invoice.total_amount || invoice.amount || 0),
+      description: invoice.description,
+      date: invoice.paid_at || invoice.created_at,
+      status: invoice.payment_status,
+      method: invoice.payment_method,
+      items: formattedItems, // Add items array for detailed display
+    };
+  });
 
   return { payments };
 }

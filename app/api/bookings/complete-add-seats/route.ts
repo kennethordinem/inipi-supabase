@@ -162,12 +162,16 @@ export async function POST(request: NextRequest) {
       console.error('[Complete-Add-Seats] Error tracking payment:', paymentTrackError);
     }
 
-    // Send confirmation email (async, don't wait)
-    // Reuse the private event confirmation email since this is for a private event
-    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/private-event-confirmation`, {
+    // Send confirmation email for added seats (async, don't wait)
+    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/seats-added-confirmation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bookingId: bookingId }),
+      body: JSON.stringify({ 
+        bookingId: bookingId,
+        additionalSeats: additionalSeats,
+        amount: amount,
+        invoiceNumber: invoiceNumber,
+      }),
     }).catch(err => console.error('Error sending confirmation email:', err));
 
     return NextResponse.json({
