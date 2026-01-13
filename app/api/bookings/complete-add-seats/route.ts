@@ -153,33 +153,13 @@ export async function POST(request: NextRequest) {
       console.error('[Complete-Add-Seats] Error tracking payment:', paymentTrackError);
     }
 
-    // Get user info for email
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('email, first_name, last_name')
-      .eq('id', userId)
-      .single();
-
     // Send confirmation email (async, don't wait)
-    if (profile?.email) {
-      fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/seats-added-confirmation`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: profile.email,
-          userName: `${profile.first_name || ''} ${profile.last_name || ''}`.trim(),
-          sessionName: session.name,
-          themeName: themeName,
-          sessionDate: session.date,
-          sessionTime: session.time,
-          location: session.location || 'INIPI',
-          additionalSeats: additionalSeats,
-          newTotalSeats: newTotalSeats,
-          amount: amount,
-          invoiceNumber: invoiceNumber,
-        }),
-      }).catch(err => console.error('Error sending seats added email:', err));
-    }
+    // Reuse the private event confirmation email since this is for a private event
+    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/private-event-confirmation`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId: bookingId }),
+    }).catch(err => console.error('Error sending confirmation email:', err));
 
     return NextResponse.json({
       success: true,
