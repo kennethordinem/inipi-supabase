@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getStripeInstance } from '@/lib/stripe-server';
+import { sendSeatsAddedConfirmation } from '@/lib/email';
 
 function getSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -163,35 +164,70 @@ export async function POST(request: NextRequest) {
     }
 
     // Send confirmation email for added seats (async, don't wait)
-    const emailUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/seats-added-confirmation`;
-    console.log('[Complete-Add-Seats] Sending email to:', emailUrl);
-    console.log('[Complete-Add-Seats] Email payload:', { 
-      bookingId: bookingId,
-      additionalSeats: additionalSeats,
-      amount: amount,
-      invoiceNumber: invoiceNumber,
-    });
+    console.log('[Complete-Add-Seats] Preparing to send email...');
     
-    fetch(emailUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        bookingId: bookingId,
-        additionalSeats: additionalSeats,
-        amount: amount,
-        invoiceNumber: invoiceNumber,
-      }),
-    })
-      .then(res => {
-        console.log('[Complete-Add-Seats] Email API response status:', res.status);
-        return res.json();
-      })
-      .then(data => {
-        console.log('[Complete-Add-Seats] Email API response:', data);
-      })
-      .catch(err => {
-        console.error('[Complete-Add-Seats] Error sending confirmation email:', err);
+    // Get user info for email
+    let userEmail: string | null = null;
+    let userName: string | null = null;
+
+    // Try profiles table first
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, first_name, last_name')
+      .eq('id', userId)
+      .single();
+
+    if (profile && profile.email) {
+      userEmail = profile.email;
+      userName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+    } else {
+      // Try employees table
+      const { data: employee } = await supabase
+        .from('employees')
+        .select('email, name')
+        .eq('id', userId)
+        .single();
+
+      if (employee && employee.email) {
+        userEmail = employee.email;
+        userName = employee.name;
+      }
+    }
+
+    if (userEmail) {
+      // Format date
+      const date = new Date(session.date);
+      const formattedDate = date.toLocaleDateString('da-DK', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
       });
+
+      // Send email directly (async, don't wait)
+      sendSeatsAddedConfirmation({
+        to: userEmail,
+        userName: userName || 'Medlem',
+        themeName: themeName,
+        sessionName: session.name,
+        sessionDate: formattedDate,
+        sessionTime: session.time,
+        location: session.location || 'INIPI Amagerstrand',
+        additionalSeats: additionalSeats,
+        newTotalSeats: newTotalSeats,
+        amount: amount,
+        pricePerSeat: amount / additionalSeats,
+        invoiceNumber: invoiceNumber,
+      })
+        .then(() => {
+          console.log('[Complete-Add-Seats] Email sent successfully to:', userEmail);
+        })
+        .catch(err => {
+          console.error('[Complete-Add-Seats] Error sending email:', err);
+        });
+    } else {
+      console.error('[Complete-Add-Seats] No email found for user:', userId);
+    }
 
     return NextResponse.json({
       success: true,
