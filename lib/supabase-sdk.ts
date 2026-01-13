@@ -602,14 +602,14 @@ async function bookSession(params: {
   // Send appropriate confirmation email based on booking type
   if (params.themeId) {
     // Private event confirmation for theme bookings
-    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/private-event-confirmation`, {
+    fetch('/api/email/private-event-confirmation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bookingId: booking.id }),
     }).catch(err => console.error('Error sending private event confirmation email:', err));
   } else {
     // Regular booking confirmation
-    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/booking-confirmation`, {
+    fetch('/api/email/booking-confirmation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bookingId: booking.id }),
@@ -618,7 +618,7 @@ async function bookSession(params: {
 
   // If using punch card, send punch card used email
   if (params.punchCardId) {
-    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/punch-card-used`, {
+    fetch('/api/email/punch-card-used', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bookingId: booking.id, punchCardId: params.punchCardId }),
@@ -840,7 +840,7 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
   }
 
   // Send cancellation email (async, don't wait)
-  fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/booking-cancellation`, {
+  fetch('/api/email/booking-cancellation', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ 
