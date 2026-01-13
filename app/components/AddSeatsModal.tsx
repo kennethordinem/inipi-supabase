@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { X, Plus, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { members } from '@/lib/supabase-sdk';
 
 interface AddSeatsModalProps {
   booking: {
@@ -20,9 +21,6 @@ interface AddSeatsModalProps {
   onClose: () => void;
   onSuccess: () => void;
 }
-
-// Initialize Stripe
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 function AddSeatsForm({ 
   booking, 
@@ -183,9 +181,33 @@ export function AddSeatsModal({ booking, userId, onClose, onSuccess }: AddSeatsM
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [totalAmount, setTotalAmount] = useState(0);
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
 
   const currentSpots = booking.spots || 1;
   const pricePerSeat = booking.price / currentSpots; // Calculate price per seat from current booking
+
+  // Initialize Stripe on mount
+  useEffect(() => {
+    const initStripe = async () => {
+      try {
+        console.log('[AddSeatsModal] Initializing Stripe...');
+        const config = await members.getStripeConfig();
+        
+        if (config && config.enabled && config.publishable_key && config.publishable_key.startsWith('pk_')) {
+          console.log('[AddSeatsModal] Stripe key found:', config.publishable_key.substring(0, 15) + '...');
+          setStripePromise(loadStripe(config.publishable_key));
+        } else {
+          console.error('[AddSeatsModal] Stripe not configured properly:', config);
+          setError('Betalingssystem er ikke konfigureret. Kontakt administrator.');
+        }
+      } catch (err) {
+        console.error('[AddSeatsModal] Error initializing Stripe:', err);
+        setError('Kunne ikke initialisere betalingssystem');
+      }
+    };
+
+    initStripe();
+  }, []);
 
   const handleContinueToPayment = async () => {
     setIsLoading(true);
