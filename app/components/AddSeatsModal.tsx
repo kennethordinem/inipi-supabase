@@ -5,6 +5,7 @@ import { X, Plus, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { members } from '@/lib/supabase-sdk';
+import { supabase } from '@/lib/supabase';
 
 interface AddSeatsModalProps {
   booking: {
@@ -207,7 +208,7 @@ export function AddSeatsModal({ booking, userId, onClose, onSuccess }: AddSeatsM
         // Fetch theme price from database
         if (booking.selectedThemeId) {
           console.log('[AddSeatsModal] Fetching theme price for:', booking.selectedThemeId);
-          const { data: theme, error: themeError } = await members.supabase
+          const { data: theme, error: themeError } = await supabase
             .from('themes')
             .select('price_per_seat, name')
             .eq('id', booking.selectedThemeId)
