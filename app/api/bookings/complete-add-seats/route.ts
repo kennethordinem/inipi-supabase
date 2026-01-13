@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import Stripe from 'stripe';
+import { getStripeInstance } from '@/lib/stripe-server';
 
 function getSupabaseClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,18 +16,6 @@ function getSupabaseClient() {
   }
   
   return createClient(supabaseUrl, supabaseKey);
-}
-
-function getStripeClient() {
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-  
-  if (!stripeSecretKey) {
-    throw new Error('Missing Stripe secret key');
-  }
-  
-  return new Stripe(stripeSecretKey, {
-    apiVersion: '2025-12-15.clover',
-  });
 }
 
 export async function POST(request: NextRequest) {
@@ -42,7 +30,15 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient();
-    const stripe = getStripeClient();
+    
+    // Get Stripe instance from database config
+    const stripe = await getStripeInstance();
+    if (!stripe) {
+      return NextResponse.json(
+        { error: 'Stripe is not configured' },
+        { status: 500 }
+      );
+    }
 
     // Verify payment intent is successful
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
