@@ -9,8 +9,11 @@
 -- The secret_key is never exposed to the frontend anyway
 -- ============================================
 
--- Drop the old restrictive policy
+-- Drop the old restrictive policy (must specify IF EXISTS correctly)
 DROP POLICY IF EXISTS "Admins can view stripe config" ON stripe_config;
+
+-- Drop the new policy if it already exists (in case of re-running)
+DROP POLICY IF EXISTS "Authenticated users can view stripe config" ON stripe_config;
 
 -- Create new policy: All authenticated users can read Stripe config
 -- This is safe because:
