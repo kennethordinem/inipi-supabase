@@ -29,6 +29,10 @@ interface Booking {
   punchCardId?: string;
   isGusmesterBooking?: boolean;
   selectedThemeId?: string; // For identifying private event bookings
+  adminReason?: string;
+  adminUserName?: string;
+  adminActionAt?: string;
+  cancelledAt?: string;
 }
 
 export default function MineHoldPage() {
@@ -501,6 +505,26 @@ export default function MineHoldPage() {
                                 )}
                               </div>
                             </div>
+
+                            {/* Admin Cancellation Info */}
+                            {booking.adminReason && (
+                              <div className="mt-4 pt-4 border-t border-gray-300">
+                                <div className="bg-blue-50 border border-blue-200 rounded-sm p-3">
+                                  <div className="text-sm text-blue-900">
+                                    <div className="font-medium mb-1">Aflyst af personale</div>
+                                    <div className="text-xs text-blue-700">
+                                      {booking.adminUserName && (
+                                        <div><strong>Personale:</strong> {booking.adminUserName}</div>
+                                      )}
+                                      {booking.adminActionAt && (
+                                        <div><strong>Tidspunkt:</strong> {format(parseISO(booking.adminActionAt), 'd. MMM yyyy HH:mm', { locale: da })}</div>
+                                      )}
+                                      <div className="mt-1"><strong>Årsag:</strong> {booking.adminReason}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

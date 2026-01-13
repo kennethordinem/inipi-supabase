@@ -60,6 +60,10 @@ export interface Booking {
   color?: string;
   punchCardId?: string;
   selectedThemeId?: string; // For identifying private event bookings
+  adminReason?: string; // Reason for admin action (e.g., cancellation)
+  adminUserName?: string; // Name of staff member who performed action
+  adminActionAt?: string; // Timestamp of admin action
+  cancelledAt?: string; // Timestamp of cancellation
 }
 
 export interface PunchCard {
@@ -863,10 +867,11 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
     .select(`
       *,
       sessions(name, date, time, duration, location, price, group_types(name, color)),
-      invoices(amount)
+      invoices(amount),
+      admin_employee:employees!admin_user_id(name)
     `)
     .eq('user_id', user.id)
-    .eq('status', 'confirmed')
+    .in('status', ['confirmed', 'cancelled'])
     .order('sessions(date)', { ascending: true });
 
   if (error) throw new Error(error.message);
@@ -905,11 +910,16 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
       color: session.group_types?.color || '#6366f1',
       punchCardId: booking.punch_card_id,
       selectedThemeId: booking.selected_theme_id, // Include theme ID to identify private events
+      adminReason: booking.admin_reason,
+      adminUserName: booking.admin_employee?.name,
+      adminActionAt: booking.admin_action_at,
+      cancelledAt: booking.cancelled_at,
     };
 
-    if (bookingDate >= today) {
+    // Only show confirmed bookings in upcoming, but include cancelled in past/history
+    if (booking.status === 'confirmed' && bookingDate >= today) {
       upcoming.push(formattedBooking);
-    } else if (includeHistory) {
+    } else if (includeHistory || booking.status === 'cancelled') {
       past.push(formattedBooking);
     }
   });

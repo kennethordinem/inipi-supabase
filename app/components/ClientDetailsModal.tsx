@@ -35,6 +35,12 @@ interface Booking {
   selected_theme_id?: string;
   theme_name?: string;
   created_at: string;
+  admin_action?: string;
+  admin_reason?: string;
+  admin_user_id?: string;
+  admin_user_name?: string;
+  admin_action_at?: string;
+  cancelled_at?: string;
 }
 
 interface PunchCard {
@@ -87,6 +93,11 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
           payment_status,
           selected_theme_id,
           created_at,
+          cancelled_at,
+          admin_action,
+          admin_reason,
+          admin_user_id,
+          admin_action_at,
           sessions!inner(
             name,
             date,
@@ -107,6 +118,27 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
         .limit(50);
 
       if (bookingsError) throw bookingsError;
+
+      // Fetch admin user names for cancelled bookings
+      const adminUserIds = [...new Set(
+        (bookingsData || [])
+          .filter((b: any) => b.admin_user_id)
+          .map((b: any) => b.admin_user_id)
+      )];
+
+      let adminUsers: Record<string, string> = {};
+      if (adminUserIds.length > 0) {
+        const { data: employeesData } = await supabase
+          .from('employees')
+          .select('id, name')
+          .in('id', adminUserIds);
+
+        if (employeesData) {
+          adminUsers = Object.fromEntries(
+            employeesData.map(emp => [emp.id, emp.name])
+          );
+        }
+      }
 
       const formattedBookings = (bookingsData || []).map((b: any) => {
         // Calculate price from invoice if available, otherwise from session price × spots
@@ -132,6 +164,12 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
           selected_theme_id: b.selected_theme_id,
           theme_name: b.themes?.name,
           created_at: b.created_at,
+          cancelled_at: b.cancelled_at,
+          admin_action: b.admin_action,
+          admin_reason: b.admin_reason,
+          admin_user_id: b.admin_user_id,
+          admin_user_name: b.admin_user_id ? adminUsers[b.admin_user_id] : undefined,
+          admin_action_at: b.admin_action_at,
         };
       });
 
@@ -473,7 +511,7 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                         <div className="space-y-2">
                           {pastBookings.slice(0, 10).map((booking) => (
                             <div key={booking.id} className="bg-[#faf8f5] rounded-sm p-3 border border-[#502B30]/10">
-                              <div className="flex items-center justify-between">
+                              <div className="flex items-center justify-between mb-2">
                                 <div className="flex-1">
                                   <div className="font-medium text-[#502B30] text-sm">{booking.session_name}</div>
                                   <div className="text-xs text-[#4a2329]/70">
@@ -482,6 +520,19 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                                 </div>
                                 {getStatusBadge(booking.status)}
                               </div>
+                              {booking.status === 'cancelled' && booking.admin_reason && (
+                                <div className="mt-2 pt-2 border-t border-[#502B30]/10">
+                                  <div className="text-xs text-[#4a2329]/60">
+                                    <strong>Aflyst af:</strong> {booking.admin_user_name || 'Personale'}
+                                    {booking.admin_action_at && (
+                                      <span> • {format(parseISO(booking.admin_action_at), 'd. MMM yyyy HH:mm', { locale: da })}</span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-[#4a2329]/70 mt-1">
+                                    <strong>Årsag:</strong> {booking.admin_reason}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
