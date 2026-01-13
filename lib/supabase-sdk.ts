@@ -204,11 +204,10 @@ function isAuthenticated(): boolean {
 }
 
 /**
- * Get current user (synchronous)
+ * Get current user from Supabase session
  */
-function getCurrentUser(): User | null {
-  // This is a simplified version - real implementation would use Supabase session
-  return null;
+async function getCurrentUser(): Promise<User | null> {
+  return getCurrentAuthUser();
 }
 
 /**
