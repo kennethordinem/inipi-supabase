@@ -15,9 +15,12 @@ function getSupabaseClient() {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[Seats-Added-Email] Received request');
     const { bookingId, additionalSeats, amount, invoiceNumber } = await request.json();
+    console.log('[Seats-Added-Email] Payload:', { bookingId, additionalSeats, amount, invoiceNumber });
 
     if (!bookingId || !additionalSeats || !amount || !invoiceNumber) {
+      console.error('[Seats-Added-Email] Missing required fields');
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -25,6 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseClient();
+    console.log('[Seats-Added-Email] Fetching booking details...');
 
     // Get booking details with session and theme info
     const { data: booking, error: bookingError } = await supabase
@@ -38,9 +42,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (bookingError || !booking) {
+      console.error('[Seats-Added-Email] Booking not found:', bookingError);
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
+    console.log('[Seats-Added-Email] Booking found, fetching user info...');
     const session = booking.sessions;
     const theme = booking.themes;
 
@@ -73,9 +79,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (!userEmail) {
-      console.error('No email found for user:', booking.user_id);
+      console.error('[Seats-Added-Email] No email found for user:', booking.user_id);
       return NextResponse.json({ error: 'User email not found' }, { status: 404 });
     }
+
+    console.log('[Seats-Added-Email] User email found:', userEmail);
+    console.log('[Seats-Added-Email] Sending email...');
 
     // Format date
     const date = new Date(session.date);
@@ -102,9 +111,10 @@ export async function POST(request: NextRequest) {
       invoiceNumber: invoiceNumber,
     });
 
+    console.log('[Seats-Added-Email] Email sent successfully!');
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Error sending seats added confirmation email:', error);
+    console.error('[Seats-Added-Email] Error sending seats added confirmation email:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to send email' },
       { status: 500 }

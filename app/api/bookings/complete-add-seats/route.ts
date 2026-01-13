@@ -163,7 +163,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Send confirmation email for added seats (async, don't wait)
-    fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/seats-added-confirmation`, {
+    const emailUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/seats-added-confirmation`;
+    console.log('[Complete-Add-Seats] Sending email to:', emailUrl);
+    console.log('[Complete-Add-Seats] Email payload:', { 
+      bookingId: bookingId,
+      additionalSeats: additionalSeats,
+      amount: amount,
+      invoiceNumber: invoiceNumber,
+    });
+    
+    fetch(emailUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -172,7 +181,17 @@ export async function POST(request: NextRequest) {
         amount: amount,
         invoiceNumber: invoiceNumber,
       }),
-    }).catch(err => console.error('Error sending confirmation email:', err));
+    })
+      .then(res => {
+        console.log('[Complete-Add-Seats] Email API response status:', res.status);
+        return res.json();
+      })
+      .then(data => {
+        console.log('[Complete-Add-Seats] Email API response:', data);
+      })
+      .catch(err => {
+        console.error('[Complete-Add-Seats] Error sending confirmation email:', err);
+      });
 
     return NextResponse.json({
       success: true,
