@@ -1204,7 +1204,7 @@ async function getEmployeeStats(): Promise<{
     .from('employee_points_history')
     .select(`
       *,
-      session:sessions(
+      sessions!related_session_id(
         id,
         name,
         date,
@@ -1226,9 +1226,9 @@ async function getEmployeeStats(): Promise<{
     timestamp: item.timestamp,
     related_session_id: item.related_session_id,
     related_booking_id: item.related_booking_id,
-    sessionName: item.session?.name,
-    sessionDate: item.session?.date,
-    sessionTime: item.session?.time,
+    sessionName: item.sessions?.name,
+    sessionDate: item.sessions?.date,
+    sessionTime: item.sessions?.time,
   }));
 
   return {
