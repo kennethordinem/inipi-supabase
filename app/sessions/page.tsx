@@ -37,11 +37,16 @@ function SessionsPageContent() {
   const [userBookedSessionIds, setUserBookedSessionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Clear cache to ensure fresh data
-    cachedMembers.clearCache(['bookings_upcoming', 'bookings_with_history']);
-    
     loadSessions();
-    loadUserBookings();
+    
+    // Use Supabase's built-in session check
+    import('@/lib/supabase').then(({ supabase }) => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          loadUserBookings();
+        }
+      });
+    });
   }, []);
   
   const loadUserBookings = async () => {
