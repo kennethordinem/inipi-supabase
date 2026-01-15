@@ -344,7 +344,7 @@ export default function MineHoldPage() {
                             </div>
                             <div className="flex items-center">
                               <Clock className="h-4 w-4 mr-2" />
-                              <span>{booking.time} - {format(endTime, 'HH:mm')} ({booking.duration} min)</span>
+                              <span>{booking.time.substring(0, 5)} - {format(endTime, 'HH:mm')} ({booking.duration} min)</span>
                             </div>
                             {booking.location && (
                               <div className="flex items-center">
@@ -470,7 +470,7 @@ export default function MineHoldPage() {
                               </div>
                               <div className="flex items-center">
                                 <Clock className="h-4 w-4 mr-2" />
-                                <span>{booking.time} - {format(endTime, 'HH:mm')} ({booking.duration} min)</span>
+                                <span>{booking.time.substring(0, 5)} - {format(endTime, 'HH:mm')} ({booking.duration} min)</span>
                               </div>
                               {booking.location && (
                                 <div className="flex items-center">
