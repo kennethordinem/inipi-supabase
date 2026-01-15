@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { cachedMembers } from '@/lib/cachedMembers';
+import { supabase } from '@/lib/supabase';
 import type { Session, AuthState } from '@/lib/supabase-sdk';
 import { SessionDetailsModal } from '../components/SessionDetailsModal';
 import { Header } from '../components/Header';
@@ -39,22 +40,21 @@ function SessionsPageContent() {
   useEffect(() => {
     loadSessions();
     
-    // Debug: Check what's in localStorage
-    console.log('[DEBUG] localStorage userId:', localStorage.getItem('userId'));
-    console.log('[DEBUG] localStorage userEmail:', localStorage.getItem('userEmail'));
-    
-    // Retry loading bookings multiple times with increasing delays
-    const tryLoadBookings = (attempt = 1) => {
-      console.log('[DEBUG] Attempt', attempt, 'to load bookings');
-      loadUserBookings().catch((err) => {
-        console.log('[DEBUG] Attempt', attempt, 'failed:', err.message);
-        if (attempt < 5) {
-          setTimeout(() => tryLoadBookings(attempt + 1), attempt * 500);
-        }
-      });
-    };
-    
-    tryLoadBookings();
+    // Get Supabase session directly and sync to localStorage
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('[DEBUG] Supabase session:', session?.user?.id);
+      if (session?.user) {
+        // Sync to localStorage so SDK works
+        localStorage.setItem('userId', session.user.id);
+        localStorage.setItem('userEmail', session.user.email || '');
+        console.log('[DEBUG] Synced session to localStorage');
+        
+        // Now load bookings
+        loadUserBookings();
+      } else {
+        console.log('[DEBUG] No session found');
+      }
+    });
   }, []);
   
   const loadUserBookings = async () => {
