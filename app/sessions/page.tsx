@@ -39,27 +39,25 @@ function SessionsPageContent() {
   useEffect(() => {
     loadSessions();
     
-    // Use Supabase's built-in session check
-    import('@/lib/supabase').then(({ supabase }) => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          loadUserBookings();
+    // Retry loading bookings multiple times with increasing delays
+    const tryLoadBookings = (attempt = 1) => {
+      loadUserBookings().catch(() => {
+        if (attempt < 5) {
+          setTimeout(() => tryLoadBookings(attempt + 1), attempt * 500);
         }
       });
-    });
+    };
+    
+    tryLoadBookings();
   }, []);
   
   const loadUserBookings = async () => {
-    try {
-      const { upcoming } = await cachedMembers.getMyBookings();
-      console.log('[DEBUG] Loaded bookings:', upcoming);
-      // Ensure session IDs are strings
-      const bookedIds = new Set(upcoming.map(booking => String(booking.sessionId)));
-      console.log('[DEBUG] Booked session IDs:', Array.from(bookedIds));
-      setUserBookedSessionIds(bookedIds);
-    } catch (err: any) {
-      console.log('[DEBUG] Failed to load bookings:', err);
-    }
+    const { upcoming } = await cachedMembers.getMyBookings();
+    console.log('[DEBUG] Loaded bookings:', upcoming);
+    // Ensure session IDs are strings
+    const bookedIds = new Set(upcoming.map(booking => String(booking.sessionId)));
+    console.log('[DEBUG] Booked session IDs:', Array.from(bookedIds));
+    setUserBookedSessionIds(bookedIds);
   };
 
   // Apply filter from URL parameters
