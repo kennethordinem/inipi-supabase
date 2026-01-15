@@ -109,10 +109,13 @@ export async function POST(request: NextRequest) {
     const pricePerSeat = theme.price_per_seat || session.price || 0;
     const totalAmount = pricePerSeat * additionalSeats;
 
-    // Create Stripe payment intent
+    // Create Stripe payment intent with automatic payment methods
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(totalAmount * 100), // Convert to øre
       currency: 'dkk',
+      automatic_payment_methods: {
+        enabled: true,
+      },
       metadata: {
         bookingId: booking.id,
         sessionId: session.id,
