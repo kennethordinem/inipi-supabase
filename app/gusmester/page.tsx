@@ -686,7 +686,7 @@ export default function GusmesterPage() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-[#502B30] mb-4 flex items-center">
               <Calendar className="h-6 w-6 mr-2" />
-              Mine Bookede Spots ({myBookings.length})
+              Mine Bookede Spots
             </h2>
             
             {filterByWeek(myBookings).length === 0 ? (
