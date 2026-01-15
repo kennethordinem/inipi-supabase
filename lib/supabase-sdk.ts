@@ -2248,15 +2248,12 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
 
     console.log('[getStaffSessionParticipants] Raw bookings:', bookings);
 
-    // Get gusmester bookings
+    // Get gusmester bookings - join through sessions table
     const { data: gusmesterBookings, error: gusmesterError } = await supabase
       .from('gusmester_bookings')
-      .select(`
-        *,
-        guest_spots!inner(session_id)
-      `)
-      .eq('guest_spots.session_id', sessionId)
-      .eq('status', 'confirmed');
+      .select('*')
+      .eq('session_id', sessionId)
+      .eq('status', 'active');
 
     if (gusmesterError) {
       console.error('[getStaffSessionParticipants] Gusmester bookings error:', gusmesterError);
