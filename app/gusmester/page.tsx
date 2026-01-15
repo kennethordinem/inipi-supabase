@@ -888,7 +888,7 @@ export default function GusmesterPage() {
             <div className="space-y-3 mb-6">
               <p className="text-[#502B30]/80"><strong>Session:</strong> {selectedSpot.name}</p>
               <p className="text-[#502B30]/80"><strong>Dato:</strong> {format(new Date(selectedSpot.date), "d. MMMM yyyy", { locale: da })}</p>
-              <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedSpot.time}</p>
+              <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedSpot.time.substring(0, 5)}</p>
               <p className="text-[#502B30]/80"><strong>Vært:</strong> {selectedSpot.hostName}</p>
               <p className="text-amber-600 font-bold text-lg"><strong>Pris:</strong> {selectedSpot.pointCost} points</p>
             </div>
@@ -929,7 +929,7 @@ export default function GusmesterPage() {
             <div className="space-y-3 mb-6">
               <p className="text-[#502B30]/80"><strong>Session:</strong> {selectedBooking.name}</p>
               <p className="text-[#502B30]/80"><strong>Dato:</strong> {format(new Date(selectedBooking.date), "d. MMMM yyyy", { locale: da })}</p>
-              <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedBooking.time}</p>
+              <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedBooking.time.substring(0, 5)}</p>
             </div>
 
             <p className="text-sm text-green-600 mb-6">
@@ -968,7 +968,7 @@ export default function GusmesterPage() {
             <div className="space-y-3 mb-6">
               <p className="text-[#502B30]/80"><strong>Session:</strong> {selectedHosting.name}</p>
               <p className="text-[#502B30]/80"><strong>Dato:</strong> {format(new Date(selectedHosting.date), "d. MMMM yyyy", { locale: da })}</p>
-              <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedHosting.time}</p>
+              <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedHosting.time.substring(0, 5)}</p>
             </div>
 
             {selectedHosting.guestSpot?.willEarnPoints ? (
@@ -1013,7 +1013,7 @@ export default function GusmesterPage() {
             <div className="space-y-3 mb-6">
               <p className="text-[#502B30]/80"><strong>Session:</strong> {selectedSessionForGuest.name}</p>
               <p className="text-[#502B30]/80"><strong>Dato:</strong> {format(new Date(selectedSessionForGuest.date), "d. MMMM yyyy", { locale: da })}</p>
-              <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedSessionForGuest.time}</p>
+              <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedSessionForGuest.time.substring(0, 5)}</p>
             </div>
 
             <div className="space-y-4 mb-6">

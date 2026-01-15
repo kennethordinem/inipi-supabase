@@ -475,7 +475,7 @@ export function MembersBookingFlow({
                 
                 <div className="flex justify-between">
                   <span className="text-[#5e3023]/70">Tid:</span>
-                  <span className="font-medium text-[#4a2329]">{session.time}</span>
+                  <span className="font-medium text-[#4a2329]">{session.time.substring(0, 5)}</span>
                 </div>
                 
                 <div className="flex justify-between">
@@ -769,7 +769,7 @@ export function MembersBookingFlow({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#5e3023]/70">Tid:</span>
-                  <span className="font-medium text-[#4a2329]">{session.time}</span>
+                  <span className="font-medium text-[#4a2329]">{session.time.substring(0, 5)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#5e3023]/70">Pladser:</span>
