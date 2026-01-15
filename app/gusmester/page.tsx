@@ -623,7 +623,7 @@ export default function GusmesterPage() {
                 <p className="text-[#502B30]/60">Ingen ledige pladser lige nu</p>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4">
                 {filterByWeek(availableSpots).map((spot) => (
                   <div key={spot.spotId} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 border border-[#502B30]/10 hover:border-[#502B30] transition-colors">
                     <div className="flex items-start justify-between mb-3">
@@ -694,7 +694,7 @@ export default function GusmesterPage() {
               <p className="text-[#502B30]/60">Du har ingen bookede spots</p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4">
               {filterByWeek(myBookings).map((booking) => (
                 <div key={booking.id} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 border border-green-200">
                   <div className="flex items-start justify-between mb-3">
@@ -752,7 +752,7 @@ export default function GusmesterPage() {
               <p className="text-[#502B30]/60">Du har ingen hosting sessioner</p>
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4">
               {filterByWeek(hostingSessions).map((session) => (
                 <div key={session.id} className="bg-white/80 backdrop-blur-sm rounded-sm shadow-lg p-6 border border-blue-200">
                   <div className="mb-3">
