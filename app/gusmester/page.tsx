@@ -98,6 +98,10 @@ export default function GusmesterPage() {
   const [showBookGuestModal, setShowBookGuestModal] = useState(false);
   const [selectedSessionForGuest, setSelectedSessionForGuest] = useState<HostingSession | null>(null);
   const [guestDetails, setGuestDetails] = useState({ name: '', email: '', phone: '' });
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [selectedSessionForParticipants, setSelectedSessionForParticipants] = useState<HostingSession | null>(null);
+  const [participants, setParticipants] = useState<any[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -869,6 +873,28 @@ export default function GusmesterPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* View Participants Button */}
+                  <button
+                    onClick={async () => {
+                      setSelectedSessionForParticipants(session);
+                      setShowParticipantsModal(true);
+                      setLoadingParticipants(true);
+                      try {
+                        const participantsList = await members.getStaffSessionParticipants(session.id);
+                        setParticipants(participantsList || []);
+                      } catch (err) {
+                        console.error('Error loading participants:', err);
+                        setParticipants([]);
+                      } finally {
+                        setLoadingParticipants(false);
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-[#502B30] text-white rounded-sm hover:bg-[#5e3023] transition-colors flex items-center justify-center gap-2"
+                  >
+                    <User className="h-4 w-4" />
+                    Se Deltagere
+                  </button>
                 </div>
               ))}
             </div>
@@ -1075,6 +1101,77 @@ export default function GusmesterPage() {
                 className="flex-1 px-4 py-2 bg-[#502B30] text-amber-100 rounded-sm hover:bg-[#5e3023] transition-colors disabled:opacity-50"
               >
                 {isSubmitting ? 'Booker...' : 'Book Gæst'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Participants Modal */}
+      {showParticipantsModal && selectedSessionForParticipants && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-sm max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl">
+            <h3 className="text-xl font-bold text-[#502B30] mb-4">Deltagere</h3>
+            
+            <div className="space-y-3 mb-6">
+              <p className="text-[#502B30]/80"><strong>Session:</strong> {selectedSessionForParticipants.name}</p>
+              <p className="text-[#502B30]/80"><strong>Dato:</strong> {format(new Date(selectedSessionForParticipants.date), "d. MMMM yyyy", { locale: da })}</p>
+              <p className="text-[#502B30]/80"><strong>Tid:</strong> {selectedSessionForParticipants.time.substring(0, 5)}</p>
+            </div>
+
+            {loadingParticipants ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#502B30] mx-auto mb-4"></div>
+                <p className="text-[#502B30]/60">Indlæser deltagere...</p>
+              </div>
+            ) : participants.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-[#502B30]/60">Ingen deltagere endnu</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {participants.map((participant, index) => (
+                  <div key={index} className="bg-gray-50 rounded-sm p-4 border border-gray-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-semibold text-[#502B30]">{participant.patientName}</p>
+                        {participant.patientEmail && (
+                          <p className="text-sm text-[#502B30]/60">{participant.patientEmail}</p>
+                        )}
+                        {participant.patientPhone && (
+                          <p className="text-sm text-[#502B30]/60">{participant.patientPhone}</p>
+                        )}
+                        <div className="mt-2 flex items-center gap-4 text-xs text-[#502B30]/50">
+                          <span>{participant.spots} {participant.spots === 1 ? 'plads' : 'pladser'}</span>
+                          <span>Betaling: {participant.paymentMethod === 'punch_card' ? 'Klippekort' : participant.paymentMethod === 'gusmester' ? 'Points' : 'Kort'}</span>
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                            title="Markér som mødt op"
+                          />
+                          <span className="ml-2 text-sm text-[#502B30]/70">Mødt</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={() => {
+                  setShowParticipantsModal(false);
+                  setSelectedSessionForParticipants(null);
+                  setParticipants([]);
+                }}
+                className="flex-1 px-4 py-2 bg-[#502B30] text-white rounded-sm hover:bg-[#5e3023] transition-colors"
+              >
+                Luk
               </button>
             </div>
           </div>
