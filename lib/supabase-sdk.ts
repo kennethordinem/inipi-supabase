@@ -867,8 +867,7 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
     .select(`
       *,
       sessions(name, date, time, duration, location, price, group_types(name, color)),
-      invoices(amount),
-      admin_profile:profiles!admin_user_id(first_name, last_name)
+      invoices(amount)
     `)
     .eq('user_id', user.id)
     .in('status', ['confirmed', 'cancelled'])
@@ -881,6 +880,27 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
 
   const upcoming: Booking[] = [];
   const past: Booking[] = [];
+
+  // Get unique admin user IDs to fetch their names
+  const adminUserIds = [...new Set((data || [])
+    .map(b => b.admin_user_id)
+    .filter(Boolean))] as string[];
+
+  // Fetch admin names if there are any
+  let adminNames: Record<string, string> = {};
+  if (adminUserIds.length > 0) {
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, first_name, last_name')
+      .in('id', adminUserIds);
+    
+    if (profilesData) {
+      adminNames = profilesData.reduce((acc, p) => {
+        acc[p.id] = `${p.first_name} ${p.last_name}`;
+        return acc;
+      }, {} as Record<string, string>);
+    }
+  }
 
   (data || []).forEach((booking: any) => {
     const session = booking.sessions;
@@ -911,7 +931,7 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
       punchCardId: booking.punch_card_id,
       selectedThemeId: booking.selected_theme_id, // Include theme ID to identify private events
       adminReason: booking.admin_reason,
-      adminUserName: booking.admin_profile ? `${booking.admin_profile.first_name} ${booking.admin_profile.last_name}` : undefined,
+      adminUserName: booking.admin_user_id ? adminNames[booking.admin_user_id] : undefined,
       adminActionAt: booking.admin_action_at,
       cancelledAt: booking.cancelled_at,
     };
