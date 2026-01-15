@@ -2165,20 +2165,25 @@ async function getStaffSessions(filters?: {
   const sessionsWithParticipants = await Promise.all(
     (data || []).map(async (dbSession: any) => {
       const employees = dbSession.session_employees?.map((se: any) => se.employees) || [];
+      const groupType = dbSession.group_types;
+      const isPrivate = groupType?.is_private || false;
       
-      // Count reserved guest spots for this session
-      const { data: guestSpots } = await supabase
-        .from('guest_spots')
-        .select('id, status')
-        .eq('session_id', dbSession.id)
-        .in('status', ['reserved_for_host', 'booked_by_host']);
-      
-      const reservedGuestSpots = guestSpots?.length || 0;
+      // Only count guest spots for non-private events (Fyraftensgus)
+      let reservedGuestSpots = 0;
+      if (!isPrivate) {
+        const { data: guestSpots } = await supabase
+          .from('guest_spots')
+          .select('id, status')
+          .eq('session_id', dbSession.id)
+          .in('status', ['reserved_for_host', 'booked_by_host']);
+        
+        reservedGuestSpots = guestSpots?.length || 0;
+      }
       
       // Calculate available spots: max - current - reserved guest spots
       const actualAvailableSpots = Math.max(0, dbSession.max_participants - dbSession.current_participants - reservedGuestSpots);
       
-      const session = formatSession(dbSession, employees, dbSession.group_types);
+      const session = formatSession(dbSession, employees, groupType);
       
       // Override availableSpots with correct calculation
       session.availableSpots = actualAvailableSpots;
