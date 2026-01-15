@@ -8,6 +8,8 @@
 
 import { supabase } from './supabase';
 import type { User } from '@supabase/supabase-js';
+import { format, parseISO } from 'date-fns';
+import { da } from 'date-fns/locale';
 
 // ============================================
 // TYPES (matching Clinio SDK types)
