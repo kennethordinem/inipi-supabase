@@ -2291,7 +2291,7 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
 
     // Get all user IDs from bookings
     const userIds = (bookings || []).map(b => b.user_id).filter(Boolean);
-    
+
     // Fetch profiles for all users in one query
     let profilesMap = new Map();
     if (userIds.length > 0) {
@@ -2299,7 +2299,7 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
         .from('profiles')
         .select('id, email, first_name, last_name, phone')
         .in('id', userIds);
-      
+
       if (!profilesError && profiles) {
         profiles.forEach(profile => {
           profilesMap.set(profile.id, profile);
@@ -2316,7 +2316,7 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
       const profile = profilesMap.get(booking.user_id);
       return {
         patientId: booking.user_id,
-        patientName: profile 
+        patientName: profile
           ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Ukendt bruger'
           : 'Ukendt bruger',
         patientEmail: profile?.email || '',
@@ -2328,6 +2328,7 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
         paymentAmount: booking.amount,
         selectedThemeId: booking.theme_id,
         punchCardId: booking.punch_card_id,
+        attended: booking.attended || false,
         isGuest: false,
       };
     });
@@ -2342,6 +2343,7 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
       bookedAt: booking.created_at,
       paymentStatus: 'paid',
       paymentMethod: 'gusmester',
+      attended: booking.attended || false,
       isGuest: true,
     }));
 
@@ -2352,6 +2354,53 @@ async function getStaffSessionParticipants(sessionId: string): Promise<any[]> {
   } catch (error) {
     console.error('[getStaffSessionParticipants] Error loading session participants:', error);
     return [];
+  }
+}
+
+/**
+ * Update participant attendance for a session
+ */
+async function updateParticipantAttendance(
+  sessionId: string,
+  participantId: string,
+  attended: boolean,
+  isGuest: boolean
+): Promise<{ success: boolean }> {
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Check if user is an employee
+  const employeeCheck = await checkIfEmployee();
+  if (!employeeCheck.isEmployee) {
+    throw new Error('Unauthorized - employee permission required');
+  }
+
+  try {
+    if (isGuest) {
+      // Update gusmester_bookings table
+      const { error } = await supabase
+        .from('gusmester_bookings')
+        .update({ attended })
+        .eq('id', participantId)
+        .eq('session_id', sessionId);
+
+      if (error) throw error;
+    } else {
+      // Update bookings table
+      const { error } = await supabase
+        .from('bookings')
+        .update({ attended })
+        .eq('user_id', participantId)
+        .eq('session_id', sessionId)
+        .eq('status', 'confirmed');
+
+      if (error) throw error;
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[updateParticipantAttendance] Error:', error);
+    throw new Error(error.message || 'Could not update attendance');
   }
 }
 
@@ -2667,6 +2716,7 @@ export const members = {
   // Staff
   getStaffSessions,
   getStaffSessionParticipants,
+  updateParticipantAttendance,
   getAllClients,
 
   // Admin

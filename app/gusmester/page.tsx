@@ -102,6 +102,7 @@ export default function GusmesterPage() {
   const [selectedSessionForParticipants, setSelectedSessionForParticipants] = useState<HostingSession | null>(null);
   const [participants, setParticipants] = useState<any[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [attendanceState, setAttendanceState] = useState<Record<string, boolean>>({});
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -867,6 +868,14 @@ export default function GusmesterPage() {
                       try {
                         const participantsList = await members.getStaffSessionParticipants(session.id);
                         setParticipants(participantsList || []);
+                        
+                        // Initialize attendance state from participant data
+                        const initialAttendance: Record<string, boolean> = {};
+                        (participantsList || []).forEach((p: any) => {
+                          const key = p.isGuest ? `guest_${p.patientId}` : `booking_${p.patientId}`;
+                          initialAttendance[key] = p.attended || false;
+                        });
+                        setAttendanceState(initialAttendance);
                       } catch (err) {
                         console.error('Error loading participants:', err);
                         setParticipants([]);
@@ -1134,6 +1143,14 @@ export default function GusmesterPage() {
                         <label className="flex items-center cursor-pointer">
                           <input
                             type="checkbox"
+                            checked={attendanceState[participant.isGuest ? `guest_${participant.patientId}` : `booking_${participant.patientId}`] || false}
+                            onChange={() => {
+                              const key = participant.isGuest ? `guest_${participant.patientId}` : `booking_${participant.patientId}`;
+                              setAttendanceState(prev => ({
+                                ...prev,
+                                [key]: !prev[key]
+                              }));
+                            }}
                             className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                             title="Markér som mødt op"
                           />
@@ -1152,10 +1169,52 @@ export default function GusmesterPage() {
                   setShowParticipantsModal(false);
                   setSelectedSessionForParticipants(null);
                   setParticipants([]);
+                  setAttendanceState({});
                 }}
-                className="flex-1 px-4 py-2 bg-[#502B30] text-white rounded-sm hover:bg-[#5e3023] transition-colors"
+                className="flex-1 px-4 py-2 border border-[#502B30] text-[#502B30] rounded-sm hover:bg-[#502B30]/5 transition-colors"
+                disabled={isSubmitting}
               >
-                Luk
+                Annuller
+              </button>
+              <button
+                onClick={async () => {
+                  if (!selectedSessionForParticipants) return;
+
+                  try {
+                    setIsSubmitting(true);
+                    setError('');
+
+                    // Save attendance for each participant
+                    for (const participant of participants) {
+                      const key = participant.isGuest ? `guest_${participant.patientId}` : `booking_${participant.patientId}`;
+                      const attended = attendanceState[key] || false;
+
+                      await members.updateParticipantAttendance(
+                        selectedSessionForParticipants.id,
+                        participant.patientId,
+                        attended,
+                        participant.isGuest
+                      );
+                    }
+
+                    setSuccess('Fremmøde gemt!');
+                    setShowParticipantsModal(false);
+                    setSelectedSessionForParticipants(null);
+                    setParticipants([]);
+                    setAttendanceState({});
+
+                    setTimeout(() => setSuccess(''), 3000);
+                  } catch (err: any) {
+                    console.error('[Gusmester] Save attendance error:', err);
+                    setError(err.message || 'Kunne ikke gemme fremmøde');
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-[#502B30] text-white rounded-sm hover:bg-[#5e3023] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Gemmer...' : 'Gem Fremmøde'}
               </button>
             </div>
           </div>
