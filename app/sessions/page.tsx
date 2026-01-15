@@ -39,22 +39,21 @@ function SessionsPageContent() {
   useEffect(() => {
     loadSessions();
     
-    // Wait a bit for auth state to be ready, then load bookings
-    const timer = setTimeout(() => {
-      loadUserBookings();
-    }, 500);
+    // Listen for auth state changes and load bookings when authenticated
+    const unsubscribe = cachedMembers.onAuthStateChanged((authState) => {
+      console.log('[Sessions] Auth state changed:', authState.isAuthenticated);
+      if (authState.isAuthenticated) {
+        loadUserBookings();
+      }
+    });
     
-    return () => clearTimeout(timer);
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
   
   const loadUserBookings = async () => {
     try {
-      // Check if user is authenticated first
-      if (!cachedMembers.isAuthenticated()) {
-        console.log('[Sessions] User not authenticated, skipping booking load');
-        return;
-      }
-
       console.log('[Sessions] Loading user bookings...');
       const { upcoming } = await cachedMembers.getMyBookings();
       console.log('[Sessions] User bookings loaded:', upcoming.length, 'bookings');
@@ -63,12 +62,6 @@ function SessionsPageContent() {
       setUserBookedSessionIds(bookedIds);
     } catch (err: any) {
       console.error('[Sessions] Error loading user bookings:', err);
-      
-      // If authentication failed, retry after a delay
-      if (err.message === 'Not authenticated') {
-        console.log('[Sessions] Auth not ready, will retry in 1 second...');
-        setTimeout(loadUserBookings, 1000);
-      }
     }
   };
 
