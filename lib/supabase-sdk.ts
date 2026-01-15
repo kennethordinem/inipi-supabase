@@ -795,35 +795,35 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
       // Private events with manual payment cannot be converted to punch cards
       compensationMessage = 'Booking aflyst. Kontakt administration for refundering.';
     } else {
-      const { data: session } = await supabase
-        .from('sessions')
-        .select('group_type_id, price')
-        .eq('id', booking.session_id)
-        .single();
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('group_type_id, price')
+      .eq('id', booking.session_id)
+      .single();
 
       // Calculate the actual price paid (session price for Fyraftensgus)
       const pricePerSeat = session?.price || 0;
-      const totalPrice = pricePerSeat * booking.spots;
+    const totalPrice = pricePerSeat * booking.spots;
 
-      const { error: punchCardError } = await supabase
-        .from('punch_cards')
-        .insert({
-          user_id: user.id,
+    const { error: punchCardError } = await supabase
+      .from('punch_cards')
+      .insert({
+        user_id: user.id,
           name: `Kompensation - Aflyst booking`,
-          total_punches: booking.spots,
-          remaining_punches: booking.spots,
-          price: totalPrice,
-          valid_for_group_types: session?.group_type_id ? [session.group_type_id] : [],
-          status: 'active',
-          reason: cancelReason,
-          related_booking_id: bookingId
-        });
+        total_punches: booking.spots,
+        remaining_punches: booking.spots,
+        price: totalPrice,
+        valid_for_group_types: session?.group_type_id ? [session.group_type_id] : [],
+        status: 'active',
+        reason: cancelReason,
+        related_booking_id: bookingId
+      });
 
-      if (!punchCardError) {
-        punchCardRestored = true;
-        compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip (værdi: ${totalPrice} kr) som kompensation`;
-      } else {
-        compensationMessage = 'Booking aflyst';
+    if (!punchCardError) {
+      punchCardRestored = true;
+      compensationMessage = `Booking aflyst. Du har fået et nyt klippekort med ${booking.spots} klip (værdi: ${totalPrice} kr) som kompensation`;
+    } else {
+      compensationMessage = 'Booking aflyst';
       }
     }
   } else if (!eligibleForCompensation && !booking.punch_card_id) {
@@ -1492,12 +1492,12 @@ async function getPaymentHistory(limit?: number): Promise<{ payments: any[] }> {
         }];
 
     return {
-      id: invoice.id,
-      amount: parseFloat(invoice.total_amount || invoice.amount || 0),
-      description: invoice.description,
-      date: invoice.paid_at || invoice.created_at,
-      status: invoice.payment_status,
-      method: invoice.payment_method,
+    id: invoice.id,
+    amount: parseFloat(invoice.total_amount || invoice.amount || 0),
+    description: invoice.description,
+    date: invoice.paid_at || invoice.created_at,
+    status: invoice.payment_status,
+    method: invoice.payment_method,
       items: formattedItems, // Add items array for detailed display
     };
   });

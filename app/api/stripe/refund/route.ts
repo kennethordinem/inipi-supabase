@@ -124,16 +124,16 @@ export async function POST(request: NextRequest) {
       // Fallback: Use the payment intent from the booking table (old bookings)
       console.log(`[Refund] No tracked payments, using booking.stripe_payment_intent_id`);
       
-      const refund = await createRefund({
+    const refund = await createRefund({
         paymentIntentId: booking.stripe_payment_intent_id,
-        amount, // Optional: if not provided, full refund
-        reason: 'requested_by_customer',
-      });
+      amount, // Optional: if not provided, full refund
+      reason: 'requested_by_customer',
+    });
 
-      if (!refund) {
-        return NextResponse.json(
-          { error: 'Failed to create refund in Stripe' },
-          { status: 500 }
+    if (!refund) {
+      return NextResponse.json(
+        { error: 'Failed to create refund in Stripe' },
+        { status: 500 }
         );
       }
 

@@ -582,44 +582,44 @@ export default function MineHoldPage() {
                         ) : (
                           // Fyraftensgus - show both options
                           <>
-                            <p className="text-sm font-semibold text-[#502B30] mb-3">Vælg refunderingsmetode:</p>
-                            <div className="space-y-3">
-                              <label className="flex items-start p-3 border-2 rounded-sm cursor-pointer hover:bg-gray-50 transition-colors"
-                                style={{ borderColor: refundChoice === 'card' ? '#502B30' : '#e5e7eb' }}>
-                                <input
-                                  type="radio"
-                                  name="refundChoice"
-                                  value="card"
-                                  checked={refundChoice === 'card'}
-                                  onChange={(e) => setRefundChoice(e.target.value as 'card' | 'punchcard')}
-                                  className="mt-1 mr-3"
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium text-[#502B30]">Refunder til kort</p>
-                                  <p className="text-xs text-[#4a2329]/70 mt-1">
-                                    Pengene refunderes til dit kort/MobilePay inden for 5-10 hverdage
-                                  </p>
-                                </div>
-                              </label>
-                              
-                              <label className="flex items-start p-3 border-2 rounded-sm cursor-pointer hover:bg-gray-50 transition-colors"
-                                style={{ borderColor: refundChoice === 'punchcard' ? '#502B30' : '#e5e7eb' }}>
-                                <input
-                                  type="radio"
-                                  name="refundChoice"
-                                  value="punchcard"
-                                  checked={refundChoice === 'punchcard'}
-                                  onChange={(e) => setRefundChoice(e.target.value as 'card' | 'punchcard')}
-                                  className="mt-1 mr-3"
-                                />
-                                <div className="flex-1">
-                                  <p className="font-medium text-[#502B30]">Få klippekort</p>
-                                  <p className="text-xs text-[#4a2329]/70 mt-1">
-                                    Få et nyt klippekort med {selectedBooking.spots || 1} klip til samme holdtype (tilgængeligt med det samme)
-                                  </p>
-                                </div>
-                              </label>
+                        <p className="text-sm font-semibold text-[#502B30] mb-3">Vælg refunderingsmetode:</p>
+                        <div className="space-y-3">
+                          <label className="flex items-start p-3 border-2 rounded-sm cursor-pointer hover:bg-gray-50 transition-colors"
+                            style={{ borderColor: refundChoice === 'card' ? '#502B30' : '#e5e7eb' }}>
+                            <input
+                              type="radio"
+                              name="refundChoice"
+                              value="card"
+                              checked={refundChoice === 'card'}
+                              onChange={(e) => setRefundChoice(e.target.value as 'card' | 'punchcard')}
+                              className="mt-1 mr-3"
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium text-[#502B30]">Refunder til kort</p>
+                              <p className="text-xs text-[#4a2329]/70 mt-1">
+                                Pengene refunderes til dit kort/MobilePay inden for 5-10 hverdage
+                              </p>
                             </div>
+                          </label>
+                          
+                          <label className="flex items-start p-3 border-2 rounded-sm cursor-pointer hover:bg-gray-50 transition-colors"
+                            style={{ borderColor: refundChoice === 'punchcard' ? '#502B30' : '#e5e7eb' }}>
+                            <input
+                              type="radio"
+                              name="refundChoice"
+                              value="punchcard"
+                              checked={refundChoice === 'punchcard'}
+                              onChange={(e) => setRefundChoice(e.target.value as 'card' | 'punchcard')}
+                              className="mt-1 mr-3"
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium text-[#502B30]">Få klippekort</p>
+                              <p className="text-xs text-[#4a2329]/70 mt-1">
+                                Få et nyt klippekort med {selectedBooking.spots || 1} klip til samme holdtype (tilgængeligt med det samme)
+                              </p>
+                            </div>
+                          </label>
+                        </div>
                           </>
                         )}
                       </div>

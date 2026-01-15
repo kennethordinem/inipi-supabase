@@ -151,10 +151,10 @@ export default function ReceiptsPage() {
         items: payment.items && payment.items.length > 0 
           ? payment.items 
           : [{
-              description: payment.description,
-              quantity: 1,
-              price: payment.amount
-            }],
+          description: payment.description,
+          quantity: 1,
+          price: payment.amount
+        }],
         paymentMethod: payment.method === 'stripe' ? 'Kort' : payment.method === 'punch_card' ? 'Klippekort' : payment.method
       }));
 
