@@ -615,7 +615,7 @@ export default function GusmesterPage() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-[#502B30] mb-4 flex items-center">
               <Star className="h-6 w-6 mr-2" />
-              Ledige Gus Mester Pladser ({availableSpots.length})
+              Ledige Gus Mester Pladser
             </h2>
             
             {filterByWeek(availableSpots).length === 0 ? (
