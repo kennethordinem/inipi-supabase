@@ -39,9 +39,15 @@ function SessionsPageContent() {
   useEffect(() => {
     loadSessions();
     
+    // Debug: Check what's in localStorage
+    console.log('[DEBUG] localStorage userId:', localStorage.getItem('userId'));
+    console.log('[DEBUG] localStorage userEmail:', localStorage.getItem('userEmail'));
+    
     // Retry loading bookings multiple times with increasing delays
     const tryLoadBookings = (attempt = 1) => {
-      loadUserBookings().catch(() => {
+      console.log('[DEBUG] Attempt', attempt, 'to load bookings');
+      loadUserBookings().catch((err) => {
+        console.log('[DEBUG] Attempt', attempt, 'failed:', err.message);
         if (attempt < 5) {
           setTimeout(() => tryLoadBookings(attempt + 1), attempt * 500);
         }
