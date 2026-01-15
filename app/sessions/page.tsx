@@ -481,11 +481,11 @@ function SessionCard({ session, onClick, isBooked }: { session: Session; onClick
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left border rounded-sm overflow-hidden transition-all hover:shadow-lg hover:border-[#502B30] border-[#502B30]/20 ${
-        isBooked 
-          ? 'bg-green-50/80 border-green-500/40' 
-          : 'bg-white/80'
-      } backdrop-blur-sm`}
+      className="w-full text-left border rounded-sm overflow-hidden transition-all hover:shadow-lg hover:border-[#502B30] border-[#502B30]/20 backdrop-blur-sm"
+      style={{
+        backgroundColor: isBooked ? 'rgba(240, 253, 244, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+        borderColor: isBooked ? 'rgba(34, 197, 94, 0.4)' : undefined
+      }}
     >
       <div className="h-1" style={{ backgroundColor: session.groupTypeColor }} />
       
