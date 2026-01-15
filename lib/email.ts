@@ -194,7 +194,7 @@ export async function sendBookingConfirmation(data: BookingConfirmationEmail) {
             </div>
             <div class="detail-item">
               <strong>Tid</strong>
-              ${data.sessionTime}
+              ${data.sessionTime.substring(0, 5)}
             </div>
             <div class="detail-item">
               <strong>Lokation</strong>
@@ -280,7 +280,7 @@ export async function sendBookingCancellation(data: BookingCancellationEmail) {
             </div>
             <div class="detail-item">
               <strong>Tid</strong>
-              ${data.sessionTime}
+              ${data.sessionTime.substring(0, 5)}
             </div>
             <div class="detail-item">
               <strong>Refusion</strong>
@@ -421,7 +421,7 @@ export async function sendPunchCardUsed(data: PunchCardUsedEmail) {
             </div>
             <div class="detail-item">
               <strong>Tid</strong>
-              ${data.sessionTime}
+              ${data.sessionTime.substring(0, 5)}
             </div>
             <div class="detail-item">
               <strong>Klippekort</strong>
@@ -669,7 +669,7 @@ export async function sendSessionReminder(data: SessionReminderEmail) {
             </div>
             <div class="detail-item">
               <strong>Tid</strong>
-              ${data.sessionTime}
+              ${data.sessionTime.substring(0, 5)}
             </div>
             <div class="detail-item">
               <strong>Lokation</strong>
@@ -755,7 +755,7 @@ export async function sendPaymentFailed(data: PaymentFailedEmail) {
             </div>
             <div class="detail-item">
               <strong>Tid</strong>
-              ${data.sessionTime}
+              ${data.sessionTime.substring(0, 5)}
             </div>
             <div class="detail-item">
               <strong>Beløb</strong>
@@ -924,7 +924,7 @@ export async function sendPrivateEventConfirmation(data: PrivateEventConfirmatio
             </div>
             <div class="detail-item">
               <strong>Tid</strong>
-              ${data.sessionTime}
+              ${data.sessionTime.substring(0, 5)}
             </div>
             <div class="detail-item">
               <strong>Lokation</strong>
@@ -1030,7 +1030,7 @@ export async function sendSeatsAddedConfirmation(data: SeatsAddedConfirmationEma
             </div>
             <div class="detail-item">
               <strong>Tid</strong>
-              ${data.sessionTime}
+              ${data.sessionTime.substring(0, 5)}
             </div>
             <div class="detail-item">
               <strong>Lokation</strong>
