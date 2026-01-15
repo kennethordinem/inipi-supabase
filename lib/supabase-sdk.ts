@@ -2168,20 +2168,31 @@ async function getStaffSessions(filters?: {
       const groupType = dbSession.group_types;
       const isPrivate = groupType?.is_private || false;
       
-      // Only count guest spots for non-private events (Fyraftensgus)
+      // For non-private events (Fyraftensgus), check guest spot status
+      let releasedGuestSpots = 0;
       let reservedGuestSpots = 0;
+      
       if (!isPrivate) {
         const { data: guestSpots } = await supabase
           .from('guest_spots')
           .select('id, status')
-          .eq('session_id', dbSession.id)
-          .in('status', ['reserved_for_host', 'booked_by_host']);
+          .eq('session_id', dbSession.id);
         
-        reservedGuestSpots = guestSpots?.length || 0;
+        // Count released spots (add to available)
+        releasedGuestSpots = guestSpots?.filter(spot => 
+          spot.status === 'released_to_public'
+        ).length || 0;
+        
+        // Count reserved spots (subtract from available)
+        reservedGuestSpots = guestSpots?.filter(spot => 
+          spot.status === 'reserved_for_host' || spot.status === 'booked_by_host'
+        ).length || 0;
       }
       
-      // Calculate available spots: max - current - reserved guest spots
-      const actualAvailableSpots = Math.max(0, dbSession.max_participants - dbSession.current_participants - reservedGuestSpots);
+      // Calculate: max - current - reserved + released
+      const actualAvailableSpots = Math.max(0, 
+        dbSession.max_participants - dbSession.current_participants - reservedGuestSpots + releasedGuestSpots
+      );
       
       const session = formatSession(dbSession, employees, groupType);
       
