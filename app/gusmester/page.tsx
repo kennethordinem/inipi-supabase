@@ -744,7 +744,7 @@ export default function GusmesterPage() {
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-[#502B30] mb-4 flex items-center">
               <User className="h-6 w-6 mr-2" />
-              Mine Hosting Sessioner ({hostingSessions.length})
+              Mine Hosting Sessioner
             </h2>
             
             {filterByWeek(hostingSessions).length === 0 ? (
