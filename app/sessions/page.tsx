@@ -38,30 +38,16 @@ function SessionsPageContent() {
 
   useEffect(() => {
     loadSessions();
-    
-    // Listen for auth state changes and load bookings when authenticated
-    const unsubscribe = cachedMembers.onAuthStateChanged((authState: AuthState) => {
-      console.log('[Sessions] Auth state changed:', authState.isAuthenticated);
-      if (authState.isAuthenticated) {
-        loadUserBookings();
-      }
-    });
-    
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    loadUserBookings();
   }, []);
   
   const loadUserBookings = async () => {
     try {
-      console.log('[Sessions] Loading user bookings...');
       const { upcoming } = await cachedMembers.getMyBookings();
-      console.log('[Sessions] User bookings loaded:', upcoming.length, 'bookings');
       const bookedIds = new Set(upcoming.map(booking => booking.sessionId));
-      console.log('[Sessions] Booked session IDs:', Array.from(bookedIds));
       setUserBookedSessionIds(bookedIds);
     } catch (err: any) {
-      console.error('[Sessions] Error loading user bookings:', err);
+      // Silently fail if not authenticated
     }
   };
 
@@ -455,11 +441,6 @@ function SessionsPageContent() {
 }
 
 function SessionCard({ session, onClick, isBooked }: { session: Session; onClick: () => void; isBooked?: boolean }) {
-  // Debug logging
-  if (isBooked) {
-    console.log('[SessionCard] Session marked as booked:', session.id, session.name);
-  }
-
   // Format time without seconds (HH:MM only)
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
