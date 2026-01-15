@@ -37,6 +37,9 @@ function SessionsPageContent() {
   const [userBookedSessionIds, setUserBookedSessionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    // Clear cache to ensure fresh data
+    cachedMembers.clearCache(['bookings_upcoming', 'bookings_with_history']);
+    
     loadSessions();
     loadUserBookings();
   }, []);
@@ -45,7 +48,8 @@ function SessionsPageContent() {
     try {
       const { upcoming } = await cachedMembers.getMyBookings();
       console.log('[DEBUG] Loaded bookings:', upcoming);
-      const bookedIds = new Set(upcoming.map(booking => booking.sessionId));
+      // Ensure session IDs are strings
+      const bookedIds = new Set(upcoming.map(booking => String(booking.sessionId)));
       console.log('[DEBUG] Booked session IDs:', Array.from(bookedIds));
       setUserBookedSessionIds(bookedIds);
     } catch (err: any) {
@@ -352,7 +356,7 @@ function SessionsPageContent() {
                   <div className="space-y-3">
                     {daySessions.length > 0 ? (
                       daySessions.map(session => {
-                        const isBooked = userBookedSessionIds.has(session.id);
+                        const isBooked = userBookedSessionIds.has(String(session.id));
                         if (isBooked) console.log('[DEBUG] Session is booked:', session.id, session.name);
                         return <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} isBooked={isBooked} />;
                       })
@@ -395,7 +399,7 @@ function SessionsPageContent() {
                   
                   <div className="p-4 space-y-3">
                     {daySessions.map(session => {
-                      const isBooked = userBookedSessionIds.has(session.id);
+                      const isBooked = userBookedSessionIds.has(String(session.id));
                       if (isBooked) console.log('[DEBUG] Session is booked:', session.id, session.name);
                       return <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} isBooked={isBooked} />;
                     })}
