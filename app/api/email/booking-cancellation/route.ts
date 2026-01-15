@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       userName: userName || 'Medlem',
       sessionName: session.name,
       sessionDate: formattedDate,
-      sessionTime: session.time,
+      sessionTime: session.time.substring(0, 5),
       refundInfo: refundInfo || 'Din betaling vil blive refunderet',
       punchCardAdded: punchCardAdded || false,
     });

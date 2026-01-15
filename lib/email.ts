@@ -257,7 +257,7 @@ export async function sendBookingConfirmation(data: BookingConfirmationEmail) {
     To: data.to,
     Subject: `Booking bekræftet - ${data.sessionName}`,
     HtmlBody: htmlBody,
-    TextBody: `Hej ${data.userName},\n\nDin booking er bekræftet!\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\n\nBooking ID: ${data.bookingId}\n\nVi ses til gus!`,
+    TextBody: `Hej ${data.userName},\n\nDin booking er bekræftet!\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime.substring(0, 5)}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\n\nBooking ID: ${data.bookingId}\n\nVi ses til gus!`,
     MessageStream: 'outbound'
   });
 }
@@ -324,7 +324,7 @@ export async function sendBookingCancellation(data: BookingCancellationEmail) {
     To: data.to,
     Subject: `Booking aflyst - ${data.sessionName}`,
     HtmlBody: htmlBody,
-    TextBody: `Hej ${data.userName},\n\nDin booking er blevet aflyst.\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nRefusion: ${data.refundInfo}\n\n${data.punchCardAdded ? 'Et klip er blevet tilføjet til dit klippekort som kompensation.' : ''}`,
+    TextBody: `Hej ${data.userName},\n\nDin booking er blevet aflyst.\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime.substring(0, 5)}\nRefusion: ${data.refundInfo}\n\n${data.punchCardAdded ? 'Et klip er blevet tilføjet til dit klippekort som kompensation.' : ''}`,
     MessageStream: 'outbound'
   });
 }
@@ -466,7 +466,7 @@ export async function sendPunchCardUsed(data: PunchCardUsedEmail) {
     To: data.to,
     Subject: `Klip brugt - ${data.sessionName}`,
     HtmlBody: htmlBody,
-    TextBody: `Hej ${data.userName},\n\nEt klip er blevet brugt fra dit klippekort.\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\n\nKlip tilbage: ${data.clipsRemaining}`,
+    TextBody: `Hej ${data.userName},\n\nEt klip er blevet brugt fra dit klippekort.\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime.substring(0, 5)}\n\nKlip tilbage: ${data.clipsRemaining}`,
     MessageStream: 'outbound'
   });
 }
@@ -728,9 +728,9 @@ export async function sendSessionReminder(data: SessionReminderEmail) {
   await client.sendEmail({
     From: 'noreply@inipi.dk',
     To: data.to,
-    Subject: `Påmindelse: ${data.sessionName} i morgen kl. ${data.sessionTime}`,
+    Subject: `Påmindelse: ${data.sessionName} i morgen kl. ${data.sessionTime.substring(0, 5)}`,
     HtmlBody: htmlBody,
-    TextBody: `Hej ${data.userName},\n\nPåmindelse: Din session starter om ca. 24 timer!\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\n\nBooking ID: ${data.bookingId}\n\nHusk at medbringe håndklæde og vand.\n\nVi ses til gus!`,
+    TextBody: `Hej ${data.userName},\n\nPåmindelse: Din session starter om ca. 24 timer!\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime.substring(0, 5)}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\n\nBooking ID: ${data.bookingId}\n\nHusk at medbringe håndklæde og vand.\n\nVi ses til gus!`,
     MessageStream: 'outbound'
   });
 }
@@ -817,7 +817,7 @@ export async function sendPaymentFailed(data: PaymentFailedEmail) {
     To: data.to,
     Subject: `Betaling mislykkedes - ${data.sessionName}`,
     HtmlBody: htmlBody,
-    TextBody: `Hej ${data.userName},\n\nDin betaling kunne ikke gennemføres.\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nBeløb: ${data.amount} DKK\n\nTjek dit kort og prøv igen, eller kontakt os for hjælp.`,
+    TextBody: `Hej ${data.userName},\n\nDin betaling kunne ikke gennemføres.\n\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime.substring(0, 5)}\nBeløb: ${data.amount} DKK\n\nTjek dit kort og prøv igen, eller kontakt os for hjælp.`,
     MessageStream: 'outbound'
   });
 }
@@ -996,7 +996,7 @@ export async function sendPrivateEventConfirmation(data: PrivateEventConfirmatio
     To: data.to,
     Subject: `Private Event Bekræftet - ${data.themeName}`,
     HtmlBody: htmlBody,
-    TextBody: `Hej ${data.userName},\n\nDit private event er bekræftet!\n\nTema: ${data.themeName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\nTotal pris: ${data.totalPrice} DKK\n\nBooking ID: ${data.bookingId}\n\nVi glæder os til at se dig og dine gæster!`,
+    TextBody: `Hej ${data.userName},\n\nDit private event er bekræftet!\n\nTema: ${data.themeName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime.substring(0, 5)}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\nTotal pris: ${data.totalPrice} DKK\n\nBooking ID: ${data.bookingId}\n\nVi glæder os til at se dig og dine gæster!`,
     MessageStream: 'outbound'
   });
 }
@@ -1104,7 +1104,7 @@ export async function sendSeatsAddedConfirmation(data: SeatsAddedConfirmationEma
     To: data.to,
     Subject: `Ekstra pladser tilføjet - ${data.themeName}`,
     HtmlBody: htmlBody,
-    TextBody: `Hej ${data.userName},\n\nVi har tilføjet ${data.additionalSeats} ekstra pladser til din private saunagus.\n\nTema: ${data.themeName}\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nLokation: ${data.location}\nAntal pladser i alt: ${data.newTotalSeats}\n\nBetaling:\nEkstra pladser: ${data.additionalSeats}\nPris pr. person: ${data.pricePerSeat.toFixed(2)} DKK\nBetalt beløb: ${data.amount.toFixed(2)} DKK\n\nKvitteringsnr: ${data.invoiceNumber}\n\nVi glæder os til at se dig og alle dine gæster!`,
+    TextBody: `Hej ${data.userName},\n\nVi har tilføjet ${data.additionalSeats} ekstra pladser til din private saunagus.\n\nTema: ${data.themeName}\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime.substring(0, 5)}\nLokation: ${data.location}\nAntal pladser i alt: ${data.newTotalSeats}\n\nBetaling:\nEkstra pladser: ${data.additionalSeats}\nPris pr. person: ${data.pricePerSeat.toFixed(2)} DKK\nBetalt beløb: ${data.amount.toFixed(2)} DKK\n\nKvitteringsnr: ${data.invoiceNumber}\n\nVi glæder os til at se dig og alle dine gæster!`,
     MessageStream: 'outbound'
   });
 }

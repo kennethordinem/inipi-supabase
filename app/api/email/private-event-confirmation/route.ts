@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       userName: userName || 'Medlem',
       themeName,
       sessionDate: formattedDate,
-      sessionTime: session.time,
+      sessionTime: session.time.substring(0, 5),
       location: session.location,
       spots: booking.spots,
       totalPrice,

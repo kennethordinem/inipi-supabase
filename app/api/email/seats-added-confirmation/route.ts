@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       themeName: theme.name,
       sessionName: session.name,
       sessionDate: formattedDate,
-      sessionTime: session.time,
+      sessionTime: session.time.substring(0, 5),
       location: session.location || 'INIPI Amagerstrand',
       additionalSeats: additionalSeats,
       newTotalSeats: booking.spots,

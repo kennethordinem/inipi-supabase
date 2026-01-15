@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       userName: userName || 'Medlem',
       sessionName: session.name,
       sessionDate: formattedDate,
-      sessionTime: session.time,
+      sessionTime: session.time.substring(0, 5),
       location: session.location,
       spots: booking.spots,
       price: session.price * booking.spots,
