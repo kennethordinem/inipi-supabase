@@ -80,7 +80,7 @@ export default function GusmesterPage() {
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [hostingSessions, setHostingSessions] = useState<HostingSession[]>([]);
   const [showPointsHistory, setShowPointsHistory] = useState(false);
-  const [autoReleasePreference, setAutoReleasePreference] = useState<string>('3_hours');
+  const [autoReleasePreference, setAutoReleasePreference] = useState<string>('24_hours');
   
   // Tab state - default to 'hosting'
   const [activeTab, setActiveTab] = useState<'hosting' | 'available' | 'bookings' | 'settings'>('hosting');
@@ -156,7 +156,7 @@ export default function GusmesterPage() {
       // Load employee stats
       const stats = await members.getEmployeeStats();
       setEmployeeStats(stats);
-      setAutoReleasePreference(stats.autoReleasePreference || '3_hours');
+      setAutoReleasePreference(stats.autoReleasePreference || '24_hours');
 
       // Load available spots and sort by date/time
       const spotsData = await members.getAvailableGusmesterSpots();
@@ -586,22 +586,6 @@ export default function GusmesterPage() {
                     <div className="flex-1">
                       <p className="font-medium text-[#502B30]">Min Gusmesterplads skal ikke frigives automatisk</p>
                       <p className="text-sm text-[#502B30]/60 mt-1">Du skal frigive manuelt</p>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start p-3 border border-[#502B30]/20 rounded-sm cursor-pointer hover:bg-[#502B30]/5 transition-colors">
-                    <input
-                      type="radio"
-                      name="autoRelease"
-                      value="3_hours"
-                      checked={autoReleasePreference === '3_hours'}
-                      onChange={(e) => handleUpdateAutoRelease(e.target.value)}
-                      disabled={isSubmitting}
-                      className="mt-1 mr-3 text-[#502B30] focus:ring-[#502B30]"
-                    />
-                    <div className="flex-1">
-                      <p className="font-medium text-[#502B30]">Min Gusmesterplads skal frigives 3 timer før gus start, hvis jeg ikke har booket den</p>
-                      <p className="text-sm text-[#502B30]/60 mt-1">Standard indstilling - giver dig mulighed for at booke sent, men frigiver automatisk</p>
                     </div>
                   </label>
 
