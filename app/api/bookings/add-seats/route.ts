@@ -113,8 +113,8 @@ export async function POST(request: NextRequest) {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(totalAmount * 100), // Convert to øre
       currency: 'dkk',
-      // Explicitly list enabled payment methods (no Klarna)
-      payment_method_types: ['card', 'mobilepay', 'link', 'amazon_pay', 'apple_pay', 'samsung_pay'],
+      // Only card and mobilepay - confirmed working in Dashboard
+      payment_method_types: ['card', 'mobilepay'],
       metadata: {
         bookingId: booking.id,
         sessionId: session.id,

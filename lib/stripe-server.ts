@@ -89,17 +89,17 @@ export async function createPaymentIntent(params: {
     }
 
     // Create payment intent with explicit payment methods to match Dashboard
-    // This prevents Klarna from showing (it's eligible but not in our enabled list)
+    // Based on Stripe Dashboard screenshot: Cards, Amazon Pay, Apple Pay, Link, MobilePay, Samsung Pay
+    // Only include methods that are ACTUALLY activated in Dashboard
     const paymentIntent = await stripe.paymentIntents.create({
       amount: params.amount,
       currency: params.currency || 'dkk',
       metadata: params.metadata || {},
-      // Explicitly list enabled payment methods from Dashboard
-      // Card, MobilePay, Link, Amazon Pay, Apple Pay, Samsung Pay (no Klarna)
-      payment_method_types: ['card', 'mobilepay', 'link', 'amazon_pay', 'apple_pay', 'samsung_pay'],
+      // Only card and mobilepay are confirmed working - start with these
+      payment_method_types: ['card', 'mobilepay'],
     });
 
-    console.log('[Stripe] Payment intent created with explicit payment methods');
+    console.log('[Stripe] Payment intent created with card and mobilepay');
     return paymentIntent;
   } catch (err) {
     console.error('Error creating payment intent:', err);
