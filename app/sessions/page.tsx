@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { cachedMembers } from '@/lib/cachedMembers';
-import type { Session } from '@/lib/supabase-sdk';
+import type { Session, AuthState } from '@/lib/supabase-sdk';
 import { SessionDetailsModal } from '../components/SessionDetailsModal';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
@@ -40,7 +40,7 @@ function SessionsPageContent() {
     loadSessions();
     
     // Listen for auth state changes and load bookings when authenticated
-    const unsubscribe = cachedMembers.onAuthStateChanged((authState) => {
+    const unsubscribe = cachedMembers.onAuthStateChanged((authState: AuthState) => {
       console.log('[Sessions] Auth state changed:', authState.isAuthenticated);
       if (authState.isAuthenticated) {
         loadUserBookings();
