@@ -38,7 +38,13 @@ function SessionsPageContent() {
 
   useEffect(() => {
     loadSessions();
-    loadUserBookings();
+    
+    // Wait a bit for auth state to be ready, then load bookings
+    const timer = setTimeout(() => {
+      loadUserBookings();
+    }, 500);
+    
+    return () => clearTimeout(timer);
   }, []);
   
   const loadUserBookings = async () => {
@@ -51,13 +57,18 @@ function SessionsPageContent() {
 
       console.log('[Sessions] Loading user bookings...');
       const { upcoming } = await cachedMembers.getMyBookings();
-      console.log('[Sessions] User bookings loaded:', upcoming);
+      console.log('[Sessions] User bookings loaded:', upcoming.length, 'bookings');
       const bookedIds = new Set(upcoming.map(booking => booking.sessionId));
       console.log('[Sessions] Booked session IDs:', Array.from(bookedIds));
       setUserBookedSessionIds(bookedIds);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Sessions] Error loading user bookings:', err);
-      // Don't show error, just continue without highlighting
+      
+      // If authentication failed, retry after a delay
+      if (err.message === 'Not authenticated') {
+        console.log('[Sessions] Auth not ready, will retry in 1 second...');
+        setTimeout(loadUserBookings, 1000);
+      }
     }
   };
 
