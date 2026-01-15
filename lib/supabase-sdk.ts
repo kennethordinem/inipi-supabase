@@ -2135,7 +2135,8 @@ async function getStaffSessions(filters?: {
       group_types(id, name, color),
       session_employees(
         employees(id, name)
-      )
+      ),
+      guest_spots(id, status)
     `)
     .eq('status', 'active');
 
@@ -2166,38 +2167,31 @@ async function getStaffSessions(filters?: {
     (data || []).map(async (dbSession: any) => {
       const employees = dbSession.session_employees?.map((se: any) => se.employees) || [];
       const groupType = dbSession.group_types;
-      const isPrivate = groupType?.is_private || false;
       
-      // For non-private events (Fyraftensgus), check guest spot status
-      let releasedGuestSpots = 0;
-      let reservedGuestSpots = 0;
+      // Count released guest spots (these are now available for booking)
+      const releasedGuestSpots = (dbSession.guest_spots || []).filter(
+        (spot: any) => spot.status === 'released_to_public'
+      ).length;
       
-      if (!isPrivate) {
-        const { data: guestSpots } = await supabase
-          .from('guest_spots')
-          .select('id, status')
-          .eq('session_id', dbSession.id);
-        
-        // Count released spots (add to available)
-        releasedGuestSpots = guestSpots?.filter(spot => 
-          spot.status === 'released_to_public'
-        ).length || 0;
-        
-        // Count reserved spots (subtract from available)
-        reservedGuestSpots = guestSpots?.filter(spot => 
-          spot.status === 'reserved_for_host' || spot.status === 'booked_by_host'
-        ).length || 0;
-      }
+      // Count booked gusmester spots (these are occupied but not in current_participants)
+      const bookedGusmesterSpots = (dbSession.guest_spots || []).filter(
+        (spot: any) => spot.status === 'booked_by_gusmester'
+      ).length;
       
-      // Calculate: max - current - reserved + released
-      const actualAvailableSpots = Math.max(0, 
-        dbSession.max_participants - dbSession.current_participants - reservedGuestSpots + releasedGuestSpots
-      );
+      // Count reserved gusmester spots (not yet released or booked)
+      const reservedGusmesterSpots = (dbSession.guest_spots || []).filter(
+        (spot: any) => spot.status === 'reserved_for_host' || spot.status === 'booked_by_host'
+      ).length;
       
-      const session = formatSession(dbSession, employees, groupType);
+      // Adjust current participants to include:
+      // - booked gusmester spots (someone booked with points)
+      // - reserved gusmester spots (not yet released to public)
+      const adjustedSession = {
+        ...dbSession,
+        current_participants: dbSession.current_participants + bookedGusmesterSpots + reservedGusmesterSpots
+      };
       
-      // Override availableSpots with correct calculation
-      session.availableSpots = actualAvailableSpots;
+      const session = formatSession(adjustedSession, employees, groupType, releasedGuestSpots);
       
       // Load participants for this session
       const participants = await getStaffSessionParticipants(dbSession.id);
