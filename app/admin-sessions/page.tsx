@@ -817,7 +817,7 @@ export default function AdminSessionsPage() {
                       </div>
                       <div className="flex items-center space-x-2 text-gray-600">
                         <Clock className="w-4 h-4" />
-                        <span>{session.time} ({session.duration} min)</span>
+                        <span>{session.time.substring(0, 5)} ({session.duration} min)</span>
                       </div>
                       <div className="flex items-center space-x-2 text-gray-600">
                         <Users className="w-4 h-4" />
@@ -899,7 +899,7 @@ export default function AdminSessionsPage() {
                 <h3 className="font-semibold text-gray-900">Original Session</h3>
                 <div className="text-sm text-gray-600 space-y-1">
                   <p><strong>Dato:</strong> {format(new Date(repeatSession.date), 'dd. MMM yyyy', { locale: da })}</p>
-                  <p><strong>Tid:</strong> {repeatSession.time} ({repeatSession.duration} min)</p>
+                  <p><strong>Tid:</strong> {repeatSession.time.substring(0, 5)} ({repeatSession.duration} min)</p>
                   <p><strong>Deltagere:</strong> {repeatSession.max_participants}</p>
                   <p><strong>Pris:</strong> {repeatSession.price} DKK</p>
                   <p><strong>Lokation:</strong> {repeatSession.location}</p>

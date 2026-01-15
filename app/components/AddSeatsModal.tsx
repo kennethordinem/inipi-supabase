@@ -293,7 +293,7 @@ export function AddSeatsModal({ booking, userId, onClose, onSuccess }: AddSeatsM
               <div className="bg-[#faf8f5] p-4 rounded-sm border border-[#502B30]/20">
                 <h3 className="font-semibold text-[#502B30] mb-2">Din nuværende booking:</h3>
                 <p className="text-sm text-[#4a2329]/70">
-                  <strong>Dato:</strong> {new Date(booking.date).toLocaleDateString('da-DK')} kl. {booking.time}
+                  <strong>Dato:</strong> {new Date(booking.date).toLocaleDateString('da-DK')} kl. {booking.time.substring(0, 5)}
                 </p>
                 <p className="text-sm text-[#4a2329]/70">
                   <strong>Nuværende pladser:</strong> {currentSpots}

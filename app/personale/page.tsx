@@ -974,7 +974,7 @@ export default function PersonalePage() {
                                       <div className="flex flex-wrap items-center gap-4 text-sm text-[#4a2329]/70">
                                         <span className="flex items-center">
                                           <Clock className="h-4 w-4 mr-1.5" />
-                                          {session.time} - {endTime} ({session.duration} min)
+                                          {session.time.substring(0, 5)} - {endTime} ({session.duration} min)
                                         </span>
                                         {session.location && (
                                           <span className="flex items-center">
@@ -1268,7 +1268,7 @@ export default function PersonalePage() {
                   </span>
                   <span className="flex items-center">
                     <Clock className="h-4 w-4 mr-1.5" />
-                    {selectedSession.time} ({selectedSession.duration} min)
+                    {selectedSession.time.substring(0, 5)} ({selectedSession.duration} min)
                   </span>
                   {selectedSession.location && (
                     <span className="flex items-center">
@@ -1542,7 +1542,7 @@ export default function PersonalePage() {
                       <option value="">Vælg session...</option>
                       {availableSessions.map((session) => (
                         <option key={session.id} value={session.id}>
-                          {session.name} - {format(parseISO(session.date), 'd. MMM yyyy', { locale: da })} kl. {session.time}
+                          {session.name} - {format(parseISO(session.date), 'd. MMM yyyy', { locale: da })} kl. {session.time.substring(0, 5)}
                           ({session.availableSpots} ledige pladser)
                         </option>
                       ))}

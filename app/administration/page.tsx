@@ -604,7 +604,7 @@ export default function AdministrationPage() {
                                     </div>
                                     <div className="flex items-center">
                                       <Clock className="h-3 w-3 mr-2" />
-                                      <span>{booking.time} - {format(endTime, 'HH:mm')} ({booking.duration} min)</span>
+                                      <span>{booking.time.substring(0, 5)} - {format(endTime, 'HH:mm')} ({booking.duration} min)</span>
                                     </div>
                                     {booking.location && (
                                       <div className="flex items-center">
@@ -687,7 +687,7 @@ export default function AdministrationPage() {
                         {selectedMember.pastBookings.slice(0, 10).map((booking) => (
                           <div key={booking.id} className="text-sm text-[#4a2329]/70 py-2 border-b border-[#502B30]/10 last:border-0">
                             <div className="font-medium text-[#502B30]">{booking.sessionName}</div>
-                            <div>{format(parseISO(booking.date), 'd. MMM yyyy', { locale: da })} - {booking.time}</div>
+                            <div>{format(parseISO(booking.date), 'd. MMM yyyy', { locale: da })} - {booking.time.substring(0, 5)}</div>
                             <div className="text-xs">
                               Status: <span className={booking.status === 'cancelled' ? 'text-red-600' : 'text-green-600'}>
                                 {booking.status === 'cancelled' ? 'Aflyst' : 'Gennemført'}
@@ -716,7 +716,7 @@ export default function AdministrationPage() {
                 <div className="space-y-3 mb-6">
                   <p className="text-[#502B30]/80"><strong>Session:</strong> {bookingToCancel.sessionName}</p>
                   <p className="text-[#502B30]/80">
-                    <strong>Dato:</strong> {format(parseISO(bookingToCancel.date), 'd. MMMM yyyy', { locale: da })} kl. {bookingToCancel.time}
+                    <strong>Dato:</strong> {format(parseISO(bookingToCancel.date), 'd. MMMM yyyy', { locale: da })} kl. {bookingToCancel.time.substring(0, 5)}
                   </p>
                   {bookingToCancel.spots > 1 && (
                     <p className="text-[#502B30]/80"><strong>Pladser:</strong> {bookingToCancel.spots}</p>
@@ -804,7 +804,7 @@ export default function AdministrationPage() {
                 <div className="space-y-3 mb-6">
                   <p className="text-[#502B30]/80"><strong>Nuværende session:</strong> {bookingToMove.sessionName}</p>
                   <p className="text-[#502B30]/80">
-                    <strong>Dato:</strong> {format(parseISO(bookingToMove.date), 'd. MMMM yyyy', { locale: da })} kl. {bookingToMove.time}
+                    <strong>Dato:</strong> {format(parseISO(bookingToMove.date), 'd. MMMM yyyy', { locale: da })} kl. {bookingToMove.time.substring(0, 5)}
                   </p>
                 </div>
 
@@ -820,7 +820,7 @@ export default function AdministrationPage() {
                     <option value="">Vælg session...</option>
                     {availableSessions.map((session: any) => (
                       <option key={session.id} value={session.id}>
-                        {session.name} - {format(parseISO(session.date), 'd. MMM yyyy', { locale: da })} kl. {session.time} ({session.availableSpots} ledige)
+                        {session.name} - {format(parseISO(session.date), 'd. MMM yyyy', { locale: da })} kl. {session.time.substring(0, 5)} ({session.availableSpots} ledige)
                       </option>
                     ))}
                   </select>

@@ -286,7 +286,7 @@ export function SessionDetailsModal({ session, onClose }: SessionDetailsModalPro
                 <Clock className="h-5 w-5 text-[#502B30]/70 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-[#502B30]">
-                    {session.time} - {endTime}
+                    {session.time.substring(0, 5)} - {endTime}
                   </p>
                   <p className="text-xs text-[#502B30]/60">{session.duration} minutter</p>
                 </div>

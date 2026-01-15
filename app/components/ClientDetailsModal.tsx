@@ -496,7 +496,7 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                               <div className="flex-1">
                                 <div className="font-medium text-[#502B30]">{booking.session_name}</div>
                                 <div className="text-sm text-[#4a2329]/70">
-                                  {format(parseISO(booking.session_date), 'd. MMM yyyy', { locale: da })} kl. {booking.session_time}
+                                  {format(parseISO(booking.session_date), 'd. MMM yyyy', { locale: da })} kl. {booking.session_time.substring(0, 5)}
                                 </div>
                               </div>
                               {getStatusBadge(booking.status)}
@@ -537,7 +537,7 @@ export function ClientDetailsModal({ client, onClose, onSuccess }: ClientDetails
                                     </div>
                                     <div className="flex items-center">
                                       <Clock className="h-4 w-4 mr-2" />
-                                      {booking.session_time}
+                                      {booking.session_time.substring(0, 5)}
                                     </div>
                                     {booking.location && (
                                       <div className="flex items-center">

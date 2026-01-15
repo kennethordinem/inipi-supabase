@@ -220,7 +220,7 @@ export default function DashboardPage() {
                           </span>
                           <span className="flex items-center">
                             <Clock className="h-3 w-3 mr-1" />
-                            {cls.time}
+                            {cls.time.substring(0, 5)}
                           </span>
                           {cls.location && (
                             <span className="flex items-center">

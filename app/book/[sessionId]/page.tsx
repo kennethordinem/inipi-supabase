@@ -128,10 +128,10 @@ export default function BookingPage({ params }: { params: { sessionId: string } 
               <div className="space-y-2 text-[#4a2329]/80">
                 <p>📅 {new Date(session.date).toLocaleDateString('da-DK', { 
                   weekday: 'long', 
-                  day: 'numeric', 
-                  month: 'long' 
+                  day: 'numeric',
+                  month: 'long'
                 })}</p>
-                <p>🕐 {session.time}</p>
+                <p>🕐 {session.time.substring(0, 5)}</p>
                 <p>⏱️ {session.duration} minutter</p>
                 {session.description && (
                   <p className="mt-4 text-[#4a2329]/70">{session.description}</p>

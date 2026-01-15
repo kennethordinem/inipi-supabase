@@ -659,7 +659,7 @@ export default function GusmesterPage() {
                       </div>
                       <div className="flex items-center text-[#502B30]/70">
                         <Clock className="h-4 w-4 mr-2" />
-                        {spot.time} ({spot.duration} min)
+                        {spot.time.substring(0, 5)} ({spot.duration} min)
                       </div>
                       {spot.location && (
                         <div className="flex items-center text-[#502B30]/70">
@@ -724,7 +724,7 @@ export default function GusmesterPage() {
                     </div>
                     <div className="flex items-center text-[#502B30]/70">
                       <Clock className="h-4 w-4 mr-2" />
-                      {booking.time} ({booking.duration} min)
+                      {booking.time.substring(0, 5)} ({booking.duration} min)
                     </div>
                     <div className="flex items-center text-[#502B30]/70">
                       <User className="h-4 w-4 mr-2" />
@@ -779,7 +779,7 @@ export default function GusmesterPage() {
                       </div>
                       <div className="flex items-center text-[#502B30]/70">
                         <Clock className="h-4 w-4 mr-2" />
-                        {session.time} ({session.duration} min)
+                        {session.time.substring(0, 5)} ({session.duration} min)
                       </div>
                     </div>
                   </div>
