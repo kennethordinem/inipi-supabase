@@ -44,10 +44,12 @@ function SessionsPageContent() {
   const loadUserBookings = async () => {
     try {
       const { upcoming } = await cachedMembers.getMyBookings();
+      console.log('[DEBUG] Loaded bookings:', upcoming);
       const bookedIds = new Set(upcoming.map(booking => booking.sessionId));
+      console.log('[DEBUG] Booked session IDs:', Array.from(bookedIds));
       setUserBookedSessionIds(bookedIds);
     } catch (err: any) {
-      // Silently fail if not authenticated
+      console.log('[DEBUG] Failed to load bookings:', err);
     }
   };
 
@@ -349,7 +351,11 @@ function SessionsPageContent() {
                   
                   <div className="space-y-3">
                     {daySessions.length > 0 ? (
-                      daySessions.map(session => <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} isBooked={userBookedSessionIds.has(session.id)} />)
+                      daySessions.map(session => {
+                        const isBooked = userBookedSessionIds.has(session.id);
+                        if (isBooked) console.log('[DEBUG] Session is booked:', session.id, session.name);
+                        return <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} isBooked={isBooked} />;
+                      })
                     ) : (
                       <div className="text-center py-8 text-sm text-[#502B30]/40">
                         Ingen saunagus
@@ -388,7 +394,11 @@ function SessionsPageContent() {
                   </div>
                   
                   <div className="p-4 space-y-3">
-                    {daySessions.map(session => <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} isBooked={userBookedSessionIds.has(session.id)} />)}
+                    {daySessions.map(session => {
+                      const isBooked = userBookedSessionIds.has(session.id);
+                      if (isBooked) console.log('[DEBUG] Session is booked:', session.id, session.name);
+                      return <SessionCard key={session.id} session={session} onClick={() => handleSessionClick(session)} isBooked={isBooked} />;
+                    })}
                   </div>
                 </div>
               );
