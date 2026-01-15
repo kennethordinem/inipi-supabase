@@ -43,8 +43,17 @@ function SessionsPageContent() {
   
   const loadUserBookings = async () => {
     try {
+      // Check if user is authenticated first
+      if (!cachedMembers.isAuthenticated()) {
+        console.log('[Sessions] User not authenticated, skipping booking load');
+        return;
+      }
+
+      console.log('[Sessions] Loading user bookings...');
       const { upcoming } = await cachedMembers.getMyBookings();
+      console.log('[Sessions] User bookings loaded:', upcoming);
       const bookedIds = new Set(upcoming.map(booking => booking.sessionId));
+      console.log('[Sessions] Booked session IDs:', Array.from(bookedIds));
       setUserBookedSessionIds(bookedIds);
     } catch (err) {
       console.error('[Sessions] Error loading user bookings:', err);
@@ -442,6 +451,11 @@ function SessionsPageContent() {
 }
 
 function SessionCard({ session, onClick, isBooked }: { session: Session; onClick: () => void; isBooked?: boolean }) {
+  // Debug logging
+  if (isBooked) {
+    console.log('[SessionCard] Session marked as booked:', session.id, session.name);
+  }
+
   // Format time without seconds (HH:MM only)
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
