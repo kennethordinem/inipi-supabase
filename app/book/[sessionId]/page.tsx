@@ -66,7 +66,7 @@ export default function BookingPage({ params }: { params: { sessionId: string } 
       } else {
         // Booking complete
         alert('Booking gennemført!');
-        window.location.href = '/dashboard';
+        window.location.href = '/mine-hold';
       }
     } catch (error: any) {
       alert('Fejl: ' + error.message);

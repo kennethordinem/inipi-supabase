@@ -577,11 +577,11 @@ export default function PersonalePage() {
             <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
             <h2 className="text-red-800 font-semibold mb-2 text-xl">Ingen adgang</h2>
             <p className="text-red-600">{error || 'Du har ikke adgang til personaleområdet.'}</p>
-            <button 
-              onClick={() => window.location.href = '/dashboard'}
+            <button
+              onClick={() => window.location.href = '/mine-hold'}
               className="mt-6 bg-[#502B30] text-amber-100 px-6 py-3 rounded-sm hover:bg-[#5e3023] transition-colors"
             >
-              Tilbage til Dashboard
+              Tilbage til Mine Hold
             </button>
           </div>
         </div>

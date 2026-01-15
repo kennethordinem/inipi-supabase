@@ -354,10 +354,10 @@ export default function ShopPage() {
                   Fortsæt med at shoppe
                 </button>
                 <button
-                  onClick={() => window.location.href = '/dashboard'}
+                  onClick={() => window.location.href = '/mine-hold'}
                   className="w-full border-2 border-[#502B30]/20 hover:bg-[#502B30]/10 text-[#502B30] px-6 py-3 rounded-sm font-medium transition-colors"
                 >
-                  Gå til dashboard
+                  Gå til mine hold
                 </button>
               </div>
             </div>

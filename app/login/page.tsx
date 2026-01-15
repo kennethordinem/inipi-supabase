@@ -30,8 +30,8 @@ export default function LoginPage() {
         localStorage.setItem('userName', user.email?.split('@')[0] || 'User');
       }
       
-      // Redirect to dashboard
-      window.location.href = '/dashboard';
+      // Redirect to mine-hold
+      window.location.href = '/mine-hold';
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -61,7 +61,7 @@ export default function LoginPage() {
         localStorage.setItem('userName', name || user.email?.split('@')[0] || 'User');
       }
       
-      window.location.href = '/dashboard';
+      window.location.href = '/mine-hold';
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
