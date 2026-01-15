@@ -159,6 +159,21 @@ export interface SeatsAddedConfirmationEmail {
   invoiceNumber: string;
 }
 
+export interface BookingMovedEmail {
+  to: string;
+  userName: string;
+  oldSessionName: string;
+  oldSessionDate: string;
+  oldSessionTime: string;
+  newSessionName: string;
+  newSessionDate: string;
+  newSessionTime: string;
+  location: string;
+  spots: number;
+  reason: string;
+  bookingId: string;
+}
+
 // Send booking confirmation
 export async function sendBookingConfirmation(data: BookingConfirmationEmail) {
   const client = getPostmarkClient();
@@ -1090,6 +1105,108 @@ export async function sendSeatsAddedConfirmation(data: SeatsAddedConfirmationEma
     Subject: `Ekstra pladser tilføjet - ${data.themeName}`,
     HtmlBody: htmlBody,
     TextBody: `Hej ${data.userName},\n\nVi har tilføjet ${data.additionalSeats} ekstra pladser til din private saunagus.\n\nTema: ${data.themeName}\nSession: ${data.sessionName}\nDato: ${data.sessionDate}\nTid: ${data.sessionTime}\nLokation: ${data.location}\nAntal pladser i alt: ${data.newTotalSeats}\n\nBetaling:\nEkstra pladser: ${data.additionalSeats}\nPris pr. person: ${data.pricePerSeat.toFixed(2)} DKK\nBetalt beløb: ${data.amount.toFixed(2)} DKK\n\nKvitteringsnr: ${data.invoiceNumber}\n\nVi glæder os til at se dig og alle dine gæster!`,
+    MessageStream: 'outbound'
+  });
+}
+
+// Send booking moved notification
+export async function sendBookingMoved(data: BookingMovedEmail) {
+  const client = getPostmarkClient();
+  
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔥 INIPI</h1>
+          <p>"Kom som du er, gå hjem som dig selv"</p>
+        </div>
+        <div class="content">
+          <div class="info-box">
+            <h2 style="margin-top: 0; color: #502B30;">Din Booking Er Blevet Flyttet 📅</h2>
+            <p style="margin-bottom: 0; color: #1e40af;">Hej ${data.userName}, din booking er blevet flyttet til en ny tid.</p>
+          </div>
+          
+          <p>Din booking er blevet flyttet af personalet. Se de nye detaljer nedenfor:</p>
+          
+          <div class="warning-box">
+            <p style="margin: 0;"><strong>Årsag:</strong> ${data.reason}</p>
+          </div>
+
+          <div class="divider"></div>
+
+          <h3 style="color: #502B30;">Ny Session</h3>
+          <div class="details">
+            <div class="detail-item">
+              <strong>Session</strong>
+              ${data.newSessionName}
+            </div>
+            <div class="detail-item">
+              <strong>Ny Dato</strong>
+              ${data.newSessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Ny Tid</strong>
+              ${data.newSessionTime.substring(0, 5)}
+            </div>
+            <div class="detail-item">
+              <strong>Lokation</strong>
+              ${data.location}
+            </div>
+            <div class="detail-item">
+              <strong>Antal pladser</strong>
+              ${data.spots}
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h3 style="color: #502B30;">Tidligere Session</h3>
+          <div class="details" style="opacity: 0.6;">
+            <div class="detail-item">
+              <strong>Session</strong>
+              ${data.oldSessionName}
+            </div>
+            <div class="detail-item">
+              <strong>Dato</strong>
+              ${data.oldSessionDate}
+            </div>
+            <div class="detail-item">
+              <strong>Tid</strong>
+              ${data.oldSessionTime.substring(0, 5)}
+            </div>
+          </div>
+          
+          <div class="info-box">
+            <strong>Booking ID:</strong> ${data.bookingId}
+          </div>
+          
+          <div class="divider"></div>
+          
+          <p>Hvis du har spørgsmål til denne ændring, er du velkommen til at kontakte os.</p>
+          
+          <p style="text-align: center; font-size: 18px; color: #502B30; font-weight: bold;">Vi ses til gus! 🧖‍♂️🔥</p>
+        </div>
+        <div class="footer">
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await client.sendEmail({
+    From: 'noreply@inipi.dk',
+    To: data.to,
+    Subject: `Booking flyttet - ${data.newSessionName}`,
+    HtmlBody: htmlBody,
+    TextBody: `Hej ${data.userName},\n\nDin booking er blevet flyttet til en ny tid.\n\nÅrsag: ${data.reason}\n\nNy session:\nSession: ${data.newSessionName}\nDato: ${data.newSessionDate}\nTid: ${data.newSessionTime}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\n\nTidligere session:\nSession: ${data.oldSessionName}\nDato: ${data.oldSessionDate}\nTid: ${data.oldSessionTime}\n\nBooking ID: ${data.bookingId}\n\nVi ses til gus!`,
     MessageStream: 'outbound'
   });
 }

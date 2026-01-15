@@ -286,16 +286,34 @@ export default function PersonalePage() {
     setActionSuccess(null);
     setActionReason('');
     setTargetSessionId('');
-    
+
     // Load available sessions first
     try {
       const { sessions: allSessions } = await members.getStaffSessions({
         startDate: format(new Date(), 'yyyy-MM-dd'),
         endDate: format(addWeeks(new Date(), 4), 'yyyy-MM-dd')
       });
-      
-      setAvailableSessions(allSessions.filter(s => s.id !== currentSession.id));
-      
+
+      // Check if current session is a private event
+      const isPrivateEvent = participant.selectedThemeId || currentSession.groupTypeName.toLowerCase().includes('privat');
+
+      // Filter sessions based on booking type
+      const filtered = allSessions.filter(s => {
+        if (s.id === currentSession.id) return false; // Exclude current session
+        
+        // If moving a private event booking, only show empty private event sessions
+        if (isPrivateEvent) {
+          const isPrivate = s.groupTypeName.toLowerCase().includes('privat');
+          const isEmpty = s.currentParticipants === 0;
+          return isPrivate && isEmpty;
+        }
+        
+        // For regular bookings, show all sessions with available spots
+        return s.availableSpots >= participant.spots;
+      });
+
+      setAvailableSessions(filtered);
+
       // Close session details modal and open move modal
       setShowSessionDetailsModal(false);
       setShowMoveModal(true);

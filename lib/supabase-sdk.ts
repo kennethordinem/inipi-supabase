@@ -2478,20 +2478,24 @@ async function adminMoveBooking(bookingId: string, newSessionId: string, reason:
   }
 
   try {
-    // Get booking details
+    // Get booking details with old and new session info
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('*')
+      .select(`
+        *,
+        old_session:sessions!session_id(id, name, date, time, location, group_types(name)),
+        user:profiles!user_id(id, email, first_name, last_name)
+      `)
       .eq('id', bookingId)
       .single();
 
     if (bookingError) throw bookingError;
     if (!booking) throw new Error('Booking not found');
 
-    // Check if new session has availability
+    // Get new session details
     const { data: newSession, error: sessionError } = await supabase
       .from('sessions')
-      .select('max_participants, current_participants')
+      .select('id, name, date, time, location, max_participants, current_participants, group_types(name)')
       .eq('id', newSessionId)
       .single();
 
@@ -2506,7 +2510,7 @@ async function adminMoveBooking(bookingId: string, newSessionId: string, reason:
     // Move the booking with admin tracking
     const { error: updateError } = await supabase
       .from('bookings')
-      .update({ 
+      .update({
         session_id: newSessionId,
         admin_action: 'moved',
         admin_reason: reason,
@@ -2517,6 +2521,28 @@ async function adminMoveBooking(bookingId: string, newSessionId: string, reason:
       .eq('id', bookingId);
 
     if (updateError) throw updateError;
+
+    // Send email notification
+    const { sendBookingMoved } = await import('./email');
+    const userEmail = booking.user?.email || '';
+    const userName = booking.user ? `${booking.user.first_name || ''} ${booking.user.last_name || ''}`.trim() : 'Kunde';
+
+    if (userEmail) {
+      await sendBookingMoved({
+        to: userEmail,
+        userName,
+        oldSessionName: booking.old_session?.name || 'Session',
+        oldSessionDate: booking.old_session?.date ? format(parseISO(booking.old_session.date), 'd. MMMM yyyy', { locale: da }) : '',
+        oldSessionTime: booking.old_session?.time || '',
+        newSessionName: newSession.name,
+        newSessionDate: format(parseISO(newSession.date), 'd. MMMM yyyy', { locale: da }),
+        newSessionTime: newSession.time,
+        location: newSession.location || 'Havkajakvej, Amagerstrand',
+        spots: booking.spots,
+        reason,
+        bookingId: booking.id
+      }).catch(err => console.error('Error sending booking moved email:', err));
+    }
 
     return {
       success: true,
