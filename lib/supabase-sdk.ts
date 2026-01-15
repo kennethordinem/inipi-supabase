@@ -2568,11 +2568,15 @@ async function adminMoveBooking(bookingId: string, newSessionId: string, reason:
       throw new Error('Not enough available spots in target session');
     }
 
+    // Store old session ID before moving
+    const oldSessionId = booking.session_id;
+
     // Move the booking with admin tracking
     const { error: updateError } = await supabase
       .from('bookings')
       .update({
         session_id: newSessionId,
+        old_session_id: oldSessionId,
         admin_action: 'moved',
         admin_reason: reason,
         admin_user_id: user.id,
@@ -2583,27 +2587,12 @@ async function adminMoveBooking(bookingId: string, newSessionId: string, reason:
 
     if (updateError) throw updateError;
 
-    // Send email notification
-    const { sendBookingMoved } = await import('./email');
-    const userEmail = userProfile?.email || '';
-    const userName = userProfile ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() : 'Kunde';
-
-    if (userEmail) {
-      await sendBookingMoved({
-        to: userEmail,
-        userName,
-        oldSessionName: booking.old_session?.name || 'Session',
-        oldSessionDate: booking.old_session?.date ? format(parseISO(booking.old_session.date), 'd. MMMM yyyy', { locale: da }) : '',
-        oldSessionTime: booking.old_session?.time || '',
-        newSessionName: newSession.name,
-        newSessionDate: format(parseISO(newSession.date), 'd. MMMM yyyy', { locale: da }),
-        newSessionTime: newSession.time,
-        location: newSession.location || 'Havkajakvej, Amagerstrand',
-        spots: booking.spots,
-        reason,
-        bookingId: booking.id
-      }).catch(err => console.error('Error sending booking moved email:', err));
-    }
+    // Send email notification via API route (async, don't wait)
+    fetch('/api/email/booking-moved', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId }),
+    }).catch(err => console.error('Error sending booking moved email:', err));
 
     return {
       success: true,
