@@ -868,7 +868,7 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
       *,
       sessions(name, date, time, duration, location, price, group_types(name, color)),
       invoices(amount),
-      admin_employee:employees!admin_user_id(name)
+      admin_profile:profiles!admin_user_id(first_name, last_name)
     `)
     .eq('user_id', user.id)
     .in('status', ['confirmed', 'cancelled'])
@@ -911,7 +911,7 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
       punchCardId: booking.punch_card_id,
       selectedThemeId: booking.selected_theme_id, // Include theme ID to identify private events
       adminReason: booking.admin_reason,
-      adminUserName: booking.admin_employee?.name,
+      adminUserName: booking.admin_profile ? `${booking.admin_profile.first_name} ${booking.admin_profile.last_name}` : undefined,
       adminActionAt: booking.admin_action_at,
       cancelledAt: booking.cancelled_at,
     };
