@@ -225,6 +225,9 @@ export async function GET(request: NextRequest) {
         date,
         time,
         duration,
+        group_types!inner(
+          is_private
+        ),
         session_employees!inner(
           employee_id,
           employees!inner(
@@ -252,6 +255,13 @@ export async function GET(request: NextRequest) {
           continue;
         }
         
+        // Determine if this is a private event
+        const groupType = Array.isArray(session.group_types) ? session.group_types[0] : session.group_types;
+        const isPrivateEvent = groupType?.is_private === true;
+        
+        // Private events = 300 points, Regular Fyraftensgus = 150 points
+        const pointsToAward = isPrivateEvent ? 300 : 150;
+        
         const sessionEmployees = Array.isArray(session.session_employees) ? session.session_employees : [session.session_employees];
         
         for (const se of sessionEmployees) {
@@ -272,10 +282,10 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
-          // Award 150 points for hosting
+          // Award points for hosting (300 for private, 150 for regular)
           const { error: pointsError } = await supabase.rpc('increment_employee_points', {
             employee_id: employee.id,
-            points_to_add: 150,
+            points_to_add: pointsToAward,
           });
 
           if (pointsError) {
@@ -288,7 +298,7 @@ export async function GET(request: NextRequest) {
             .from('employee_points_history')
             .insert({
               employee_id: employee.id,
-              amount: 150,
+              amount: pointsToAward,
               reason: 'Hosted session',
               related_session_id: session.id,
             });
@@ -298,10 +308,11 @@ export async function GET(request: NextRequest) {
             sessionName: session.name,
             employeeId: employee.id,
             employeeName: employee.name,
-            pointsAwarded: 150,
+            pointsAwarded: pointsToAward,
+            eventType: isPrivateEvent ? 'private' : 'regular',
           });
 
-          console.log(`[Award-Points] Awarded 150 points to ${employee.name} for hosting ${session.name}`);
+          console.log(`[Award-Points] Awarded ${pointsToAward} points to ${employee.name} for hosting ${session.name} (${isPrivateEvent ? 'Private Event' : 'Fyraftensgus'})`);
 
           // Send points earned email
           fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://inipi.dk'}/api/email/gusmester-points-earned`, {
@@ -309,7 +320,7 @@ export async function GET(request: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               employeeId: employee.id,
-              pointsEarned: 150,
+              pointsEarned: pointsToAward,
               sessionId: session.id,
               reason: 'Hosted session',
             }),
