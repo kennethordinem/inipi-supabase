@@ -80,7 +80,7 @@ export default function GusmesterPage() {
   const [myBookings, setMyBookings] = useState<MyBooking[]>([]);
   const [hostingSessions, setHostingSessions] = useState<HostingSession[]>([]);
   const [showPointsHistory, setShowPointsHistory] = useState(false);
-  const [autoReleasePreference, setAutoReleasePreference] = useState<string>('24_hours');
+  const [autoReleasePreference, setAutoReleasePreference] = useState<string>('never');
   
   // Tab state - default to 'hosting'
   const [activeTab, setActiveTab] = useState<'hosting' | 'available' | 'bookings' | 'settings'>('hosting');
@@ -156,7 +156,7 @@ export default function GusmesterPage() {
       // Load employee stats
       const stats = await members.getEmployeeStats();
       setEmployeeStats(stats);
-      setAutoReleasePreference(stats.autoReleasePreference || '24_hours');
+      setAutoReleasePreference(stats.autoReleasePreference || 'never');
 
       // Load available spots and sort by date/time
       const spotsData = await members.getAvailableGusmesterSpots();

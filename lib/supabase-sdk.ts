@@ -1238,7 +1238,7 @@ async function getEmployeeStats(): Promise<{
     employeeName: employee.name,
     points: employee.points,
     pointsHistory: formattedHistory,
-    autoReleasePreference: employee.auto_release_guest_spot || '24_hours',
+    autoReleasePreference: employee.auto_release_guest_spot || 'never',
   };
 }
 
