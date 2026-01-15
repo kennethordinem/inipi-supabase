@@ -92,12 +92,7 @@ export async function createPaymentIntent(params: {
       amount: params.amount,
       currency: params.currency || 'dkk',
       metadata: params.metadata || {},
-      // Use automatic payment methods - Stripe will show only what's enabled in Dashboard
-      automatic_payment_methods: {
-        enabled: true,
-      },
-      // Explicitly exclude Klarna (and other unwanted methods)
-      // This is needed because Stripe may show methods based on eligibility even if disabled in Dashboard
+      // Explicitly specify payment methods to match Dashboard enabled settings
       payment_method_types: ['card', 'mobilepay', 'link', 'amazon_pay', 'apple_pay', 'samsung_pay'],
     });
 
