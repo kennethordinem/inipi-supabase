@@ -95,9 +95,10 @@ export async function createPaymentIntent(params: {
       // Use automatic payment methods - Stripe will show only what's enabled in Dashboard
       automatic_payment_methods: {
         enabled: true,
-        // Explicitly allow only the methods we want (based on Dashboard enabled list)
-        allow_redirects: 'never', // Prevents redirect-based methods like Klarna from appearing
       },
+      // Explicitly exclude Klarna (and other unwanted methods)
+      // This is needed because Stripe may show methods based on eligibility even if disabled in Dashboard
+      payment_method_types: ['card', 'mobilepay', 'link', 'amazon_pay', 'apple_pay', 'samsung_pay'],
     });
 
     console.log('[Stripe] Payment intent created with automatic payment methods');

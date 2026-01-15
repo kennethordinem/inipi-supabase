@@ -115,8 +115,9 @@ export async function POST(request: NextRequest) {
       currency: 'dkk',
       automatic_payment_methods: {
         enabled: true,
-        allow_redirects: 'never', // Prevents redirect-based methods like Klarna
       },
+      // Explicitly specify enabled payment methods to match Dashboard settings
+      payment_method_types: ['card', 'mobilepay', 'link', 'amazon_pay', 'apple_pay', 'samsung_pay'],
       metadata: {
         bookingId: booking.id,
         sessionId: session.id,
