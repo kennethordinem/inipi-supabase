@@ -109,14 +109,12 @@ export async function POST(request: NextRequest) {
     const pricePerSeat = theme.price_per_seat || session.price || 0;
     const totalAmount = pricePerSeat * additionalSeats;
 
-    // Create Stripe payment intent with automatic payment methods
+    // Create Stripe payment intent with explicit payment methods
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(totalAmount * 100), // Convert to øre
       currency: 'dkk',
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'never', // Prevents redirect-based methods like Klarna
-      },
+      // Explicitly list enabled payment methods (no Klarna)
+      payment_method_types: ['card', 'mobilepay', 'link', 'amazon_pay', 'apple_pay', 'samsung_pay'],
       metadata: {
         bookingId: booking.id,
         sessionId: session.id,

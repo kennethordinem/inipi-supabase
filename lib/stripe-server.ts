@@ -88,19 +88,18 @@ export async function createPaymentIntent(params: {
       throw new Error('Stripe is not configured');
     }
 
+    // Create payment intent with explicit payment methods to match Dashboard
+    // This prevents Klarna from showing (it's eligible but not in our enabled list)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: params.amount,
       currency: params.currency || 'dkk',
       metadata: params.metadata || {},
-      // Use automatic payment methods - Stripe will show only what's enabled in Dashboard
-      automatic_payment_methods: {
-        enabled: true,
-        // Explicitly allow only the methods we want (based on Dashboard enabled list)
-        allow_redirects: 'never', // Prevents redirect-based methods like Klarna from appearing
-      },
+      // Explicitly list enabled payment methods from Dashboard
+      // Card, MobilePay, Link, Amazon Pay, Apple Pay, Samsung Pay (no Klarna)
+      payment_method_types: ['card', 'mobilepay', 'link', 'amazon_pay', 'apple_pay', 'samsung_pay'],
     });
 
-    console.log('[Stripe] Payment intent created with automatic payment methods');
+    console.log('[Stripe] Payment intent created with explicit payment methods');
     return paymentIntent;
   } catch (err) {
     console.error('Error creating payment intent:', err);
