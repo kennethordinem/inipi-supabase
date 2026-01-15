@@ -117,6 +117,16 @@ export default function MineHoldPage() {
       const active = allBookings.filter((b: Booking) => b.status !== 'cancelled');
       const cancelled = allBookings.filter((b: Booking) => b.status === 'cancelled');
       
+      // Sort by date and time (earliest first)
+      const sortByDateTime = (a: Booking, b: Booking) => {
+        const dateA = new Date(`${a.date}T${a.time}`);
+        const dateB = new Date(`${b.date}T${b.time}`);
+        return dateA.getTime() - dateB.getTime();
+      };
+      
+      active.sort(sortByDateTime);
+      cancelled.sort(sortByDateTime);
+      
       setUpcomingBookings(active);
       setCancelledBookings(cancelled);
     } catch (err: any) {
