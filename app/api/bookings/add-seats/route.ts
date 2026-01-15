@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
       currency: 'dkk',
       automatic_payment_methods: {
         enabled: true,
+        allow_redirects: 'never', // Prevents redirect-based methods like Klarna
       },
       metadata: {
         bookingId: booking.id,

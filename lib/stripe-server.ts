@@ -95,6 +95,8 @@ export async function createPaymentIntent(params: {
       // Use automatic payment methods - Stripe will show only what's enabled in Dashboard
       automatic_payment_methods: {
         enabled: true,
+        // Explicitly allow only the methods we want (based on Dashboard enabled list)
+        allow_redirects: 'never', // Prevents redirect-based methods like Klarna from appearing
       },
     });
 
