@@ -561,6 +561,12 @@ export default function PersonalePage() {
     }
   };
 
+  const isSessionInPast = (session: StaffSession) => {
+    const sessionDateTime = new Date(`${session.date}T${session.time}`);
+    const sessionEnd = new Date(sessionDateTime.getTime() + session.duration * 60 * 1000);
+    return sessionEnd < new Date();
+  };
+
   const groupTypes = useMemo(() => {
     const types = new Map<string, { id: string; name: string; color: string }>();
     sessions.forEach(session => {
@@ -1010,16 +1016,18 @@ export default function PersonalePage() {
                                             Fuldt booket
                                           </span>
                                         )}
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleEditSession(session);
-                                          }}
-                                          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                                        >
-                                          <UserCog className="h-4 w-4" />
-                                          Skift gusmester
-                                        </button>
+                                        {!isSessionInPast(session) && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleEditSession(session);
+                                            }}
+                                            className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                                          >
+                                            <UserCog className="h-4 w-4" />
+                                            Skift gusmester
+                                          </button>
+                                        )}
                                       </div>
                                     </div>
 
@@ -1108,7 +1116,7 @@ export default function PersonalePage() {
                                                   </div>
                                                 </div>
                                                 
-                                                {!participant.isGuest && (
+                                                {!participant.isGuest && !isSessionInPast(session) && (
                                                   <div className="flex gap-2">
                                                     <button
                                                       onClick={() => handleMoveBooking(participant, session)}
@@ -1399,7 +1407,7 @@ export default function PersonalePage() {
                               </div>
                             </div>
                             
-                            {!participant.isGuest && (
+                            {!participant.isGuest && selectedSession && !isSessionInPast(selectedSession) && (
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => handleMoveBooking(participant, selectedSession)}
