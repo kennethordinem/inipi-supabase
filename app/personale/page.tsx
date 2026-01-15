@@ -308,7 +308,11 @@ export default function PersonalePage() {
           return isPrivate && isEmpty;
         }
         
-        // For regular bookings, show all sessions with available spots
+        // For Fyraftensgus bookings, only show other Fyraftensgus sessions (exclude private events)
+        const isTargetPrivate = s.groupTypeName.toLowerCase().includes('privat');
+        if (isTargetPrivate) return false; // Don't show private events for regular bookings
+        
+        // Show sessions with available spots
         return s.availableSpots >= participant.spots;
       });
 

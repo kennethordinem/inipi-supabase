@@ -2529,19 +2529,29 @@ async function adminMoveBooking(bookingId: string, newSessionId: string, reason:
   }
 
   try {
-    // Get booking details with old and new session info
+    // Get booking details with old session info
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select(`
         *,
-        old_session:sessions!session_id(id, name, date, time, location, group_types(name)),
-        user:profiles!user_id(id, email, first_name, last_name)
+        old_session:sessions!session_id(id, name, date, time, location, group_types(name))
       `)
       .eq('id', bookingId)
       .single();
 
     if (bookingError) throw bookingError;
     if (!booking) throw new Error('Booking not found');
+
+    // Get user profile separately (no FK relationship exists)
+    const { data: userProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, email, first_name, last_name')
+      .eq('id', booking.user_id)
+      .single();
+
+    if (profileError) {
+      console.error('[adminMoveBooking] Profile fetch error:', profileError);
+    }
 
     // Get new session details
     const { data: newSession, error: sessionError } = await supabase
@@ -2575,8 +2585,8 @@ async function adminMoveBooking(bookingId: string, newSessionId: string, reason:
 
     // Send email notification
     const { sendBookingMoved } = await import('./email');
-    const userEmail = booking.user?.email || '';
-    const userName = booking.user ? `${booking.user.first_name || ''} ${booking.user.last_name || ''}`.trim() : 'Kunde';
+    const userEmail = userProfile?.email || '';
+    const userName = userProfile ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() : 'Kunde';
 
     if (userEmail) {
       await sendBookingMoved({
