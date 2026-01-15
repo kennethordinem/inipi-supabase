@@ -516,11 +516,11 @@ export default function PersonalePage() {
   }, [filteredSessions]);
 
   const filteredClients = useMemo(() => {
-    const nonEmployeeClients = clients.filter(client => !client.isEmployee);
+    // Show all clients including employees
     const search = clientSearch.toLowerCase();
-    if (!search) return nonEmployeeClients;
-    
-    return nonEmployeeClients.filter(client => 
+    if (!search) return clients;
+
+    return clients.filter(client =>
       client.first_name?.toLowerCase().includes(search) ||
       client.last_name?.toLowerCase().includes(search) ||
       client.email?.toLowerCase().includes(search) ||
@@ -1200,8 +1200,16 @@ export default function PersonalePage() {
                         className="hover:bg-[#502B30]/5 cursor-pointer transition-colors"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-[#502B30]">
-                            {client.first_name} {client.last_name}
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-medium text-[#502B30]">
+                              {client.first_name} {client.last_name}
+                            </div>
+                            {client.isEmployee && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                                <UserCog className="h-3 w-3 mr-1" />
+                                Gusmester
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
