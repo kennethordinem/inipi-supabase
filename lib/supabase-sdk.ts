@@ -868,7 +868,7 @@ async function getMyBookings(includeHistory: boolean = false): Promise<{
     .from('bookings')
     .select(`
       *,
-      sessions(name, date, time, duration, location, price, group_types(name, color)),
+      sessions!session_id(name, date, time, duration, location, price, group_types(name, color)),
       invoices(amount)
     `)
     .eq('user_id', user.id)
