@@ -2578,6 +2578,40 @@ async function adminMoveBooking(bookingId: string, newSessionId: string, reason:
     // Store old session ID before moving
     const oldSessionId = booking.session_id;
 
+    // Update participant counts: remove from old session, add to new session
+    console.log('[adminMoveBooking] Updating participant counts:', {
+      oldSessionId,
+      newSessionId,
+      spots: booking.spots
+    });
+
+    // Decrement participants from old session
+    const { error: decrementError } = await supabase.rpc('decrement_session_participants', {
+      session_id: oldSessionId,
+      decrement_by: booking.spots,
+    });
+
+    if (decrementError) {
+      console.error('[adminMoveBooking] Error decrementing old session:', decrementError);
+      throw new Error('Failed to update old session participant count');
+    }
+
+    // Increment participants on new session
+    const { error: incrementError } = await supabase.rpc('increment_session_participants', {
+      session_id: newSessionId,
+      increment_by: booking.spots,
+    });
+
+    if (incrementError) {
+      console.error('[adminMoveBooking] Error incrementing new session:', incrementError);
+      // Rollback: restore old session count
+      await supabase.rpc('increment_session_participants', {
+        session_id: oldSessionId,
+        increment_by: booking.spots,
+      });
+      throw new Error('Failed to update new session participant count');
+    }
+
     // Move the booking with admin tracking
     const { error: updateError } = await supabase
       .from('bookings')
