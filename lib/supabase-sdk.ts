@@ -650,7 +650,7 @@ async function cancelBooking(bookingId: string, refundToCard: boolean = false): 
     .from('bookings')
     .select(`
       *,
-      sessions(*),
+      sessions!session_id(*),
       themes:selected_theme_id(id, name, price_per_seat)
     `)
     .eq('id', bookingId)
@@ -2452,7 +2452,7 @@ async function adminCancelBooking(bookingId: string, reason: string, issueCompen
     // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('*, sessions(*)')
+      .select('*, sessions!session_id(*)')
       .eq('id', bookingId)
       .single();
 

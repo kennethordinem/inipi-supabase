@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       .from('bookings')
       .select(`
         *,
-        sessions(
+        sessions!session_id(
           id,
           name,
           date,

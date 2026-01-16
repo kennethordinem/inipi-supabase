@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       .from('bookings')
       .select(`
         *,
-        sessions(name, date, time, location)
+        sessions!session_id(name, date, time, location)
       `)
       .eq('id', bookingId)
       .single();
