@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
-import { Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { cachedMembers } from '@/lib/cachedMembers';
 
 export default function ContactPage() {
@@ -16,6 +16,17 @@ export default function ContactPage() {
     phone: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    message: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     loadCompanyInfo();
@@ -38,6 +49,43 @@ export default function ContactPage() {
       console.error('[Contact] Error loading company info:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setSubmitError('');
+    setSubmitSuccess(false);
+
+    try {
+      const response = await fetch('/api/email/contact-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Kunne ikke sende besked');
+      }
+
+      setSubmitSuccess(true);
+      setFormData({ name: '', email: '', phone: '', message: '' });
+      
+      // Hide success message after 5 seconds
+      setTimeout(() => setSubmitSuccess(false), 5000);
+    } catch (err: any) {
+      console.error('[Contact] Error submitting form:', err);
+      setSubmitError(err.message || 'Kunne ikke sende besked. Prøv venligst igen.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -176,66 +224,107 @@ export default function ContactPage() {
                     Send Os En Besked
                   </h2>
                   
-                  <form className="space-y-4">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-[#502B30] mb-2">
-                        Navn
-                      </label>
-                      <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent bg-white"
-                        placeholder="Dit navn"
-                      />
+                  {submitSuccess ? (
+                    <div className="bg-green-50 border border-green-200 rounded-sm p-6 text-center">
+                      <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-green-800 mb-2">
+                        Besked sendt!
+                      </h3>
+                      <p className="text-green-700">
+                        Tak for din besked. Vi vender tilbage hurtigst muligt.
+                      </p>
                     </div>
+                  ) : (
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-[#502B30] mb-2">
+                          Navn *
+                        </label>
+                        <input
+                          type="text"
+                          id="name"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleInputChange}
+                          required
+                          disabled={submitting}
+                          className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent bg-white disabled:opacity-50"
+                          placeholder="Dit navn"
+                        />
+                      </div>
 
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-[#502B30] mb-2">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent bg-white"
-                        placeholder="din@email.dk"
-                      />
-                    </div>
+                      <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-[#502B30] mb-2">
+                          Email *
+                        </label>
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          required
+                          disabled={submitting}
+                          className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent bg-white disabled:opacity-50"
+                          placeholder="din@email.dk"
+                        />
+                      </div>
 
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-[#502B30] mb-2">
-                        Telefon (valgfrit)
-                      </label>
-                      <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent bg-white"
-                        placeholder="+45 12 34 56 78"
-                      />
-                    </div>
+                      <div>
+                        <label htmlFor="phone" className="block text-sm font-medium text-[#502B30] mb-2">
+                          Telefon (valgfrit)
+                        </label>
+                        <input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          disabled={submitting}
+                          className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent bg-white disabled:opacity-50"
+                          placeholder="+45 12 34 56 78"
+                        />
+                      </div>
 
-                    <div>
-                      <label htmlFor="message" className="block text-sm font-medium text-[#502B30] mb-2">
-                        Besked
-                      </label>
-                      <textarea
-                        id="message"
-                        name="message"
-                        rows={5}
-                        className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent bg-white"
-                        placeholder="Hvordan kan vi hjælpe dig?"
-                      ></textarea>
-                    </div>
+                      <div>
+                        <label htmlFor="message" className="block text-sm font-medium text-[#502B30] mb-2">
+                          Besked *
+                        </label>
+                        <textarea
+                          id="message"
+                          name="message"
+                          value={formData.message}
+                          onChange={handleInputChange}
+                          required
+                          disabled={submitting}
+                          rows={5}
+                          className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent bg-white disabled:opacity-50"
+                          placeholder="Hvordan kan vi hjælpe dig?"
+                        ></textarea>
+                      </div>
 
-                    <button
-                      type="submit"
-                      className="w-full bg-[#502B30] hover:bg-[#5e3023] text-amber-100 px-6 py-3 rounded-sm font-semibold transition-colors"
-                    >
-                      Send Besked
-                    </button>
-                  </form>
+                      {submitError && (
+                        <div className="bg-red-50 border border-red-200 rounded-sm p-4 text-red-800 text-sm">
+                          {submitError}
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="w-full bg-[#502B30] hover:bg-[#5e3023] text-amber-100 px-6 py-3 rounded-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            Sender...
+                          </>
+                        ) : (
+                          'Send Besked'
+                        )}
+                      </button>
+                    </form>
+                  )}
                 </div>
               </div>
             )}

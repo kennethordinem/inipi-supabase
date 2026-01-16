@@ -132,6 +132,13 @@ export interface GusmesterPointsEarnedEmail {
   reason: string;
 }
 
+export interface ContactFormEmail {
+  name: string;
+  email: string;
+  phone?: string;
+  message: string;
+}
+
 export interface PrivateEventConfirmationEmail {
   to: string;
   userName: string;
@@ -1207,6 +1214,78 @@ export async function sendBookingMoved(data: BookingMovedEmail) {
     Subject: `Booking flyttet - ${data.newSessionName}`,
     HtmlBody: htmlBody,
     TextBody: `Hej ${data.userName},\n\nDin booking er blevet flyttet til en ny tid.\n\nÅrsag: ${data.reason}\n\nNy session:\nSession: ${data.newSessionName}\nDato: ${data.newSessionDate}\nTid: ${data.newSessionTime}\nLokation: ${data.location}\nAntal pladser: ${data.spots}\n\nTidligere session:\nSession: ${data.oldSessionName}\nDato: ${data.oldSessionDate}\nTid: ${data.oldSessionTime}\n\nBooking ID: ${data.bookingId}\n\nVi ses til gus!`,
+    MessageStream: 'outbound'
+  });
+}
+
+/**
+ * Send contact form submission to mail@inipi.dk
+ */
+export async function sendContactForm(data: ContactFormEmail): Promise<void> {
+  const client = getPostmarkClient();
+
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>${PREMIUM_EMAIL_STYLES}</style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>📧 Ny Kontaktformular</h1>
+          <p>Fra INIPI Website</p>
+        </div>
+        <div class="content">
+          <div class="highlight-box">
+            <h2 style="margin: 0 0 10px 0; color: #502B30;">Besked fra ${data.name}</h2>
+          </div>
+
+          <div class="details">
+            <div class="detail-item">
+              <strong>Navn:</strong>
+              ${data.name}
+            </div>
+            <div class="detail-item">
+              <strong>Email:</strong>
+              <a href="mailto:${data.email}" style="color: #502B30;">${data.email}</a>
+            </div>
+            ${data.phone ? `
+            <div class="detail-item">
+              <strong>Telefon:</strong>
+              <a href="tel:${data.phone}" style="color: #502B30;">${data.phone}</a>
+            </div>
+            ` : ''}
+          </div>
+
+          <div class="info-box">
+            <strong style="color: #1e40af; display: block; margin-bottom: 10px;">Besked:</strong>
+            <p style="margin: 0; white-space: pre-wrap;">${data.message}</p>
+          </div>
+
+          <div class="divider"></div>
+
+          <p style="color: #6b7280; font-size: 14px; text-align: center;">
+            Denne besked blev sendt via kontaktformularen på inipi.dk
+          </p>
+        </div>
+        <div class="footer">
+          <strong>INIPI Saunagus</strong><br>
+          Havkajakvej, Amagerstrand<br>
+          <a href="https://inipi.dk" style="color: #502B30; text-decoration: none;">inipi.dk</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  await client.sendEmail({
+    From: 'noreply@inipi.dk',
+    To: 'mail@inipi.dk',
+    ReplyTo: data.email,
+    Subject: `Kontaktformular: ${data.name}`,
+    HtmlBody: htmlBody,
+    TextBody: `Ny besked fra kontaktformularen\n\nNavn: ${data.name}\nEmail: ${data.email}${data.phone ? `\nTelefon: ${data.phone}` : ''}\n\nBesked:\n${data.message}\n\n---\nDenne besked blev sendt via kontaktformularen på inipi.dk`,
     MessageStream: 'outbound'
   });
 }
