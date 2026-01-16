@@ -1868,7 +1868,7 @@ async function cancelGusmesterBooking(bookingId: string): Promise<{ success: boo
 }
 
 /**
- * Get sessions where I'm hosting (have a guest spot)
+ * Get sessions where I'm hosting (have a guest spot OR assigned as gusmester)
  */
 async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
   const user = await getCurrentAuthUser();
@@ -1883,23 +1883,31 @@ async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
 
   if (!employee) return { sessions: [] };
 
-  // Get guest spots where I'm the host
+  // Get all sessions where I'm assigned as gusmester (includes private events)
+  const { data: sessionEmployees, error: seError } = await supabase
+    .from('session_employees')
+    .select('session_id')
+    .eq('employee_id', employee.id);
+
+  if (seError) throw new Error(seError.message);
+
+  const assignedSessionIds = sessionEmployees?.map(se => se.session_id) || [];
+
+  if (assignedSessionIds.length === 0) return { sessions: [] };
+
+  // Get guest spots for these sessions (only Fyraftensgus will have them)
   const { data: guestSpotsData, error: guestSpotsError } = await supabase
     .from('guest_spots')
     .select('*')
-    .eq('host_employee_id', employee.id);
+    .in('session_id', assignedSessionIds);
 
   if (guestSpotsError) throw new Error(guestSpotsError.message);
-  if (!guestSpotsData || guestSpotsData.length === 0) return { sessions: [] };
 
-  // Get session IDs
-  const sessionIds = guestSpotsData.map(gs => gs.session_id);
-
-  // Fetch sessions
+  // Fetch all assigned sessions (both with and without guest spots)
   const { data: sessionsData, error: sessionsError } = await supabase
     .from('sessions')
     .select('*')
-    .in('id', sessionIds)
+    .in('id', assignedSessionIds)
     .gte('date', new Date().toISOString().split('T')[0]);
 
   if (sessionsError) throw new Error(sessionsError.message);
@@ -1921,7 +1929,6 @@ async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
 
   const sessions = (sessionsData || []).map(session => {
     const spots = sessionSpotsMap.get(session.id);
-    if (!spots) return null;
 
     const sessionDate = new Date(`${session.date}T${session.time}`);
     const hoursUntil = (sessionDate.getTime() - Date.now()) / (1000 * 60 * 60);
@@ -1933,16 +1940,16 @@ async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
       time: session.time,
       duration: session.duration,
       location: session.location,
-      // Gusmester Spot (auto-released 3h before, no manual control)
-      gusmesterSpot: spots.gusmesterSpot ? {
+      // Gusmester Spot (auto-released 3h before, no manual control) - only for Fyraftensgus
+      gusmesterSpot: spots?.gusmesterSpot ? {
         id: spots.gusmesterSpot.id,
         status: spots.gusmesterSpot.status,
         spotType: 'gusmester_spot',
         autoRelease: true,
         canManuallyRelease: false,
       } : null,
-      // Guest Spot (manually releasable, earns points)
-      guestSpot: spots.guestSpot ? {
+      // Guest Spot (manually releasable, earns points) - only for Fyraftensgus
+      guestSpot: spots?.guestSpot ? {
         id: spots.guestSpot.id,
         status: spots.guestSpot.status,
         spotType: 'guest_spot',
@@ -1954,7 +1961,7 @@ async function getMyHostingSessions(): Promise<{ sessions: any[] }> {
       } : null,
       hoursUntilEvent: hoursUntil,
     };
-  }).filter(s => s !== null);
+  });
 
   return { sessions };
 }
