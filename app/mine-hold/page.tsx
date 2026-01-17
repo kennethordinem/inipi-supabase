@@ -670,7 +670,7 @@ export default function MineHoldPage() {
                   <div className="space-y-3 mb-6">
                     <p className="text-[#502B30]/80"><strong>Session:</strong> {selectedBooking.type}</p>
                     <p className="text-[#502B30]/80">
-                      <strong>Dato:</strong> {format(parseISO(selectedBooking.date), 'd. MMMM yyyy HH:mm', { locale: da })}
+                      <strong>Dato:</strong> {format(parseISO(selectedBooking.date), 'd. MMMM yyyy', { locale: da })} kl. {selectedBooking.time.substring(0, 5)}
                     </p>
                     {selectedBooking.spots && selectedBooking.spots > 1 && (
                       <p className="text-[#502B30]/80"><strong>Pladser:</strong> {selectedBooking.spots}</p>
@@ -840,7 +840,7 @@ export default function MineHoldPage() {
                 <div className="space-y-3 mb-6">
                   <p className="text-[#502B30]/80"><strong>Session:</strong> {removeSeatsBooking.type}</p>
                   <p className="text-[#502B30]/80">
-                    <strong>Dato:</strong> {format(parseISO(removeSeatsBooking.date), 'd. MMMM yyyy HH:mm', { locale: da })}
+                    <strong>Dato:</strong> {format(parseISO(removeSeatsBooking.date), 'd. MMMM yyyy', { locale: da })} kl. {removeSeatsBooking.time.substring(0, 5)}
                   </p>
                   <p className="text-[#502B30]/80"><strong>Nuværende pladser:</strong> {removeSeatsBooking.spots}</p>
                 </div>
