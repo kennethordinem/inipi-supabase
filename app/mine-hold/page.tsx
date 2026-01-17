@@ -7,9 +7,10 @@ import { AddSeatsModal } from '../components/AddSeatsModal';
 import { members } from '@/lib/supabase-sdk';
 import { cachedMembers } from '@/lib/cachedMembers';
 import type { AuthState } from '@/lib/supabase-sdk';
-import { Calendar, Clock, MapPin, User, Loader2, AlertCircle, CheckCircle, XCircle, Ticket, Plus } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Loader2, AlertCircle, CheckCircle, XCircle, Ticket, Plus, Minus } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { da } from 'date-fns/locale';
+import { supabase } from '@/lib/supabase';
 
 interface Booking {
   id: string;
@@ -49,6 +50,14 @@ export default function MineHoldPage() {
   const [showAddSeatsModal, setShowAddSeatsModal] = useState(false);
   const [addSeatsBooking, setAddSeatsBooking] = useState<Booking | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  
+  // Remove seats state
+  const [showRemoveSeatsModal, setShowRemoveSeatsModal] = useState(false);
+  const [removeSeatsBooking, setRemoveSeatsBooking] = useState<Booking | null>(null);
+  const [seatsToRemove, setSeatsToRemove] = useState(1);
+  const [removingSeats, setRemovingSeats] = useState(false);
+  const [removeSeatsError, setRemoveSeatsError] = useState('');
+  const [removeSeatsSuccess, setRemoveSeatsSuccess] = useState('');
 
   useEffect(() => {
     // Subscribe to auth state changes
@@ -235,6 +244,81 @@ export default function MineHoldPage() {
     cachedMembers.invalidateAfterBooking();
     loadBookings();
   };
+
+  const handleRemoveSeatsClick = async (booking: Booking) => {
+    // Check how many seats can be removed (only seats added after original booking)
+    try {
+      const { data: payments, error } = await supabase
+        .from('booking_payments')
+        .select('seats_count, payment_type')
+        .eq('booking_id', booking.id)
+        .eq('payment_type', 'additional_seats')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const addedSeats = payments?.reduce((sum, p) => sum + (p.seats_count || 0), 0) || 0;
+
+      if (addedSeats === 0) {
+        setRemoveSeatsError('Kan kun fjerne pladser der blev tilføjet efter den oprindelige booking');
+        setTimeout(() => setRemoveSeatsError(''), 5000);
+        return;
+      }
+
+      setRemoveSeatsBooking(booking);
+      setSeatsToRemove(1);
+      setRemoveSeatsError('');
+      setRemoveSeatsSuccess('');
+      setShowRemoveSeatsModal(true);
+    } catch (err: any) {
+      console.error('[Remove Seats] Error checking payments:', err);
+      setRemoveSeatsError('Kunne ikke tjekke booking detaljer');
+      setTimeout(() => setRemoveSeatsError(''), 5000);
+    }
+  };
+
+  const handleConfirmRemoveSeats = async () => {
+    if (!removeSeatsBooking) return;
+
+    try {
+      setRemovingSeats(true);
+      setRemoveSeatsError('');
+
+      const response = await fetch('/api/bookings/remove-seats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: removeSeatsBooking.id,
+          seatsToRemove,
+          userId: currentUserId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Kunne ikke fjerne pladser');
+      }
+
+      setRemoveSeatsSuccess(`${seatsToRemove} plads${seatsToRemove > 1 ? 'er' : ''} fjernet og refunderet`);
+      
+      // Reload bookings
+      cachedMembers.invalidateAfterBooking();
+      await loadBookings();
+
+      // Close modal after showing success
+      setTimeout(() => {
+        setShowRemoveSeatsModal(false);
+        setRemoveSeatsBooking(null);
+        setRemoveSeatsSuccess('');
+      }, 2000);
+    } catch (err: any) {
+      console.error('[Remove Seats] Error:', err);
+      setRemoveSeatsError(err.message || 'Kunne ikke fjerne pladser');
+    } finally {
+      setRemovingSeats(false);
+    }
+  };
   
 
   if (loading) {
@@ -279,6 +363,20 @@ export default function MineHoldPage() {
   return (
     <>
       <Header />
+      
+      {/* Error Toast for Remove Seats */}
+      {removeSeatsError && !showRemoveSeatsModal && (
+        <div className="fixed top-4 right-4 z-50 bg-red-50 border border-red-200 rounded-sm p-4 shadow-lg max-w-md">
+          <div className="flex items-start">
+            <XCircle className="h-5 w-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-red-800">Kunne ikke fjerne pladser</p>
+              <p className="text-sm text-red-700 mt-1">{removeSeatsError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="min-h-screen bg-[#faf8f5]">
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Page Header */}
@@ -393,10 +491,10 @@ export default function MineHoldPage() {
                           </div>
                         </div>
 
-                        {/* Cancel Button */}
+                        {/* Action Buttons */}
                         <div className="ml-6 flex gap-3">
-                          {/* Add Seats Button - Only for private events (with theme) */}
-                          {!booking.isGusmesterBooking && booking.selectedThemeId && (
+                          {/* Add Seats Button - For all bookings except gusmester */}
+                          {!booking.isGusmesterBooking && cancelStatus.canCancel && (
                             <button
                               onClick={() => {
                                 console.log('[Add Seats] Button clicked for booking:', booking);
@@ -406,6 +504,17 @@ export default function MineHoldPage() {
                             >
                               <Plus className="h-4 w-4" />
                               Tilføj pladser
+                            </button>
+                          )}
+
+                          {/* Remove Seats Button - Only if seats were added and can cancel */}
+                          {!booking.isGusmesterBooking && cancelStatus.canCancel && booking.spots && booking.spots > 1 && (
+                            <button
+                              onClick={() => handleRemoveSeatsClick(booking)}
+                              className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-sm font-medium transition-colors shadow-md flex items-center gap-2"
+                            >
+                              <Minus className="h-4 w-4" />
+                              Fjern pladser
                             </button>
                           )}
                           
@@ -719,6 +828,94 @@ export default function MineHoldPage() {
           />
         ) : null;
       })()}
+
+      {/* Remove Seats Modal */}
+      {showRemoveSeatsModal && removeSeatsBooking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-sm max-w-md w-full p-6 shadow-xl">
+            <h3 className="text-xl font-bold text-[#502B30] mb-4">Fjern Pladser</h3>
+
+            {!removeSeatsSuccess ? (
+              <>
+                <div className="space-y-3 mb-6">
+                  <p className="text-[#502B30]/80"><strong>Session:</strong> {removeSeatsBooking.type}</p>
+                  <p className="text-[#502B30]/80">
+                    <strong>Dato:</strong> {format(parseISO(removeSeatsBooking.date), 'd. MMMM yyyy HH:mm', { locale: da })}
+                  </p>
+                  <p className="text-[#502B30]/80"><strong>Nuværende pladser:</strong> {removeSeatsBooking.spots}</p>
+                </div>
+
+                <div className="mb-6">
+                  <label htmlFor="seatsToRemove" className="block text-sm font-medium text-[#502B30] mb-2">
+                    Antal pladser at fjerne
+                  </label>
+                  <input
+                    type="number"
+                    id="seatsToRemove"
+                    min="1"
+                    max={removeSeatsBooking.spots ? removeSeatsBooking.spots - 1 : 1}
+                    value={seatsToRemove}
+                    onChange={(e) => setSeatsToRemove(parseInt(e.target.value) || 1)}
+                    disabled={removingSeats}
+                    className="w-full px-4 py-2 border border-[#502B30]/20 rounded-sm focus:ring-2 focus:ring-[#502B30] focus:border-transparent disabled:opacity-50"
+                  />
+                  <p className="text-xs text-[#502B30]/60 mt-1">
+                    Kun pladser tilføjet efter den oprindelige booking kan fjernes
+                  </p>
+                </div>
+
+                <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-sm">
+                  <p className="text-sm text-blue-800">
+                    <CheckCircle className="h-4 w-4 inline mr-1" />
+                    Pengene refunderes til dit kort/MobilePay inden for 5-10 hverdage
+                  </p>
+                </div>
+
+                {removeSeatsError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-sm flex items-start">
+                    <XCircle className="h-5 w-5 text-red-600 mt-0.5 mr-2 flex-shrink-0" />
+                    <p className="text-sm text-red-800">{removeSeatsError}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowRemoveSeatsModal(false);
+                      setRemoveSeatsBooking(null);
+                      setRemoveSeatsError('');
+                    }}
+                    disabled={removingSeats}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    Annuller
+                  </button>
+                  <button
+                    onClick={handleConfirmRemoveSeats}
+                    disabled={removingSeats}
+                    className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-sm hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {removingSeats ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Fjerner...
+                      </>
+                    ) : (
+                      'Bekræft Fjernelse'
+                    )}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
+                <p className="text-lg font-semibold text-green-600 mb-2">Pladser fjernet!</p>
+                <p className="text-sm text-[#4a2329]/80">{removeSeatsSuccess}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

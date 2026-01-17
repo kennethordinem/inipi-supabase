@@ -78,20 +78,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify this is a private event (has theme)
-    if (!booking.selected_theme_id) {
-      return NextResponse.json(
-        { error: 'Can only add seats to private events' },
-        { status: 400 }
-      );
-    }
-
     const session = booking.sessions;
-    const theme = Array.isArray(booking.themes) ? booking.themes[0] : booking.themes;
-
-    if (!session || !theme) {
+    
+    if (!session) {
       return NextResponse.json(
-        { error: 'Session or theme not found' },
+        { error: 'Session not found' },
         { status: 404 }
       );
     }
@@ -106,7 +97,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate price for additional seats
-    const pricePerSeat = theme.price_per_seat || session.price || 0;
+    // For private events: use theme price per seat
+    // For Fyraftensgus: use session price
+    let pricePerSeat = session.price || 0;
+    let sessionTypeName = session.name;
+    
+    if (booking.selected_theme_id) {
+      // Private event - get theme pricing
+      const theme = Array.isArray(booking.themes) ? booking.themes[0] : booking.themes;
+      if (theme) {
+        pricePerSeat = theme.price_per_seat || pricePerSeat;
+        sessionTypeName = theme.name;
+      }
+    }
+    
     const totalAmount = pricePerSeat * additionalSeats;
 
     // Create Stripe payment intent with explicit payment methods
@@ -121,9 +125,10 @@ export async function POST(request: NextRequest) {
         userId: userId,
         additionalSeats: additionalSeats.toString(),
         paymentType: 'additional_seats',
-        themeName: theme.name,
+        themeName: sessionTypeName,
+        isPrivateEvent: booking.selected_theme_id ? 'true' : 'false',
       },
-      description: `Tilføj ${additionalSeats} pladser til ${theme.name} - ${session.name}`,
+      description: `Tilføj ${additionalSeats} pladser til ${sessionTypeName} - ${session.name}`,
     });
 
     // Return payment intent client secret for frontend
